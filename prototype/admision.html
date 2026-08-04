@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HISS — Nueva hospitalizacion</title>
+<link rel="stylesheet" href="shared/styles.css">
+</head>
+<body>
+
+<div id="app"></div>
+
+<script src="shared/data.js"></script>
+<script src="shared/components.js"></script>
+<script>
+const patient = getSelectedPatient() || PATIENTS[0];
+
+document.getElementById('app').outerHTML = renderAppShell('patients', {
+  title: `Nueva hospitalizacion · ${patient.name}`,
+  crumb: 'Pacientes › Hospitalizaciones ›'
+}, `
+  <div class="form-grid">
+    <div class="form-col">
+      <div class="form-cap">Datos de ingreso</div>
+      <div class="field">
+        <label>Servicio <span class="req">*</span></label>
+        <select id="adm-servicio">
+          <option value="">Seleccionar...</option>
+          <option>Emergencia - Topico de Medicina</option>
+          <option>Medicina General</option>
+          <option>Psiquiatria (UHSMA)</option>
+          <option>Pediatria</option>
+          <option>Gineco-Obstetricia</option>
+          <option>Cirugia</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Cama <span class="req">*</span></label>
+        <input type="text" placeholder="Ej: 12" id="adm-cama">
+      </div>
+      <div class="field">
+        <label>Medico responsable <span class="req">*</span></label>
+        <select id="adm-medico">
+          <option value="">Seleccionar medico...</option>
+          <option>Dr. Patel</option>
+          <option>Dr. Reyes</option>
+          <option>Dr. Lin</option>
+          <option>Dr. Hirsh</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Fecha de ingreso <span class="req">*</span></label>
+        <input type="date" id="adm-fecha">
+      </div>
+      <div class="field">
+        <label>Hora de ingreso <span class="req">*</span></label>
+        <input type="time" id="adm-hora">
+      </div>
+    </div>
+
+    <div class="form-col">
+      <div class="form-cap">Motivo de ingreso</div>
+      <div class="field">
+        <label>Motivo <span class="req">*</span></label>
+        <textarea placeholder="Ej: Sintomas respiratorios, heteroagresividad, control de hipertension..." rows="4" id="adm-motivo"></textarea>
+        <div class="hint">El detalle completo (antecedentes, examen, diagnostico) se documenta en la Historia Clinica de la hospitalizacion.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-foot">
+    <a class="btn btn-ghost" href="${buildUrl('record.html', { patient: patient.id })}">Cancelar</a>
+    <button class="btn btn-primary" onclick="registerHospitalization()">Admitir paciente</button>
+  </div>
+`);
+
+const now = new Date();
+document.getElementById('adm-fecha').value = now.toISOString().slice(0, 10);
+document.getElementById('adm-hora').value = now.toTimeString().slice(0, 5);
+
+function registerHospitalization() {
+  const servicio = document.getElementById('adm-servicio').value;
+  const cama = document.getElementById('adm-cama').value;
+  const medicoResponsable = document.getElementById('adm-medico').value;
+  if (!servicio || !cama || !medicoResponsable) {
+    alert('Complete servicio, cama y medico responsable.');
+    return;
+  }
+
+  const fecha = new Date(document.getElementById('adm-fecha').value);
+  const hosp = {
+    id: 'h_new_' + Date.now(),
+    servicio, cama, medicoResponsable,
+    fechaIngreso: fecha.toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' }),
+    horaIngreso: document.getElementById('adm-hora').value,
+    fechaAlta: null, horaAlta: null,
+    motivoIngreso: document.getElementById('adm-motivo').value || '—',
+    estado: 'Activa',
+    historiaClinica: emptyHistoriaClinica(),
+    evoluciones: [],
+  };
+
+  window.location.href = buildUrl('hospitalizacion.html', { patient: patient.id, hospData: JSON.stringify(hosp) });
+}
+</script>
+
+</body>
+</html>

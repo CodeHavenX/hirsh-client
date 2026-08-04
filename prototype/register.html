@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HISS — Registrar paciente</title>
+<link rel="stylesheet" href="shared/styles.css">
+</head>
+<body>
+
+<div id="app"></div>
+
+<script src="shared/data.js"></script>
+<script src="shared/components.js"></script>
+<script>
+document.getElementById('app').outerHTML = renderAppShell('patients', {
+  title: 'Registrar nuevo paciente',
+  crumb: 'Pacientes ›'
+}, `
+  <div id="duplicate-warn" class="warn-banner hidden" style="max-width:860px">
+    <span style="font-size:16px">⚠</span>
+    <div><b>Posible duplicado.</b> Un paciente con datos similares ya existe. <a href="record.html" id="duplicate-link" style="color:var(--warn)">Ver registro existente</a> o continuar registrando.</div>
+  </div>
+
+  <div class="form-grid">
+    <div class="form-col">
+      <div class="form-cap">Datos personales</div>
+      ${renderPatientFieldsForm({}, ['name', 'dni', 'dob', 'phone', 'sex'])}
+      <div class="field">
+        <label>Estado civil</label>
+        <select>
+          <option value="">Seleccionar...</option>
+          <option>Soltero(a)</option>
+          <option>Casado(a)</option>
+          <option>Conviviente</option>
+          <option>Viudo(a)</option>
+          <option>Divorciado(a)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-col">
+      <div class="form-cap">Datos medicos (opcional)</div>
+      ${renderPatientFieldsForm({}, ['blood', 'allergies', 'doctor'])}
+      <div class="field">
+        <label>Domicilio</label>
+        <input type="text" placeholder="Direccion completa">
+      </div>
+      <div class="field">
+        <label>Ocupacion</label>
+        <input type="text" placeholder="Ej: Estudiante, Independiente">
+      </div>
+      <div class="field">
+        <label>Religion</label>
+        <input type="text" placeholder="Ej: Catolica">
+      </div>
+    </div>
+  </div>
+
+  <div class="form-foot">
+    <a class="btn btn-ghost" href="patients.html">Cancelar</a>
+    <button class="btn btn-primary" onclick="registerPatient()">Registrar paciente</button>
+  </div>
+`);
+
+document.getElementById('pf-name').addEventListener('blur', checkDuplicate);
+document.getElementById('pf-dni').addEventListener('blur', checkDuplicate);
+
+function checkDuplicate() {
+  const name = document.getElementById('pf-name').value.toLowerCase();
+  const dni = document.getElementById('pf-dni').value;
+  const match = PATIENTS.find(p =>
+    (name && p.name.toLowerCase().includes(name)) ||
+    (dni && p.dni === dni)
+  );
+  if (match) {
+    document.getElementById('duplicate-link').href = buildUrl('record.html', { patient: match.id });
+    showEl('duplicate-warn');
+  } else {
+    hideEl('duplicate-warn');
+  }
+}
+
+function registerPatient() {
+  const values = readPatientFieldsForm();
+  const patient = { id: nextPatientId(), ...values, lastVisit: '—' };
+  const created = Store.get('patientsCreated') || [];
+  created.push(patient);
+  Store.set('patientsCreated', created);
+  window.location.href = buildUrl('record.html', { patient: patient.id });
+}
+</script>
+
+</body>
+</html>

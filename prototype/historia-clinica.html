@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HISS — Historia Clinica</title>
+<link rel="stylesheet" href="shared/styles.css">
+</head>
+<body>
+
+<div class="app" style="flex-direction:column;height:100vh">
+  <div id="encounter-bar"></div>
+
+  <div class="encounter-body">
+    <div class="hc-nav" id="hc-nav"></div>
+    <div class="soap-col" style="flex:1" id="hc-panel"></div>
+  </div>
+</div>
+
+<script src="shared/data.js"></script>
+<script src="shared/components.js"></script>
+<script>
+const patient = getSelectedPatient() || PATIENTS[0];
+const hosp = getSelectedHospitalization(patient);
+
+if (!hosp) {
+  window.location.href = buildUrl('record.html', { patient: patient.id });
+}
+
+// SECTION_FIELDS, HC_SECTIONS, MOTIVO_INGRESO_OPTIONS and getPath() come from shared/data.js.
+
+function setPath(obj, path, value) {
+  const keys = path.split('.');
+  let o = obj;
+  keys.forEach((k, i) => {
+    if (i === keys.length - 1) { o[k] = value; }
+    else { o[k] = o[k] || {}; o = o[k]; }
+  });
+}
+
+function fieldId(key) { return 'hc-f-' + key.replace(/\./g, '-'); }
+
+function renderFieldsForm(fields, data) {
+  return fields.map(f => {
+    const val = getPath(data, f.key) || '';
+    const id = fieldId(f.key);
+    if (f.type === 'select') {
+      return `<div class="field"><label>${f.label}</label><select id="${id}">
+        <option value="">Seleccionar...</option>
+        ${f.options.map(o => `<option ${o === val ? 'selected' : ''}>${o}</option>`).join('')}
+      </select></div>`;
+    }
+    if (f.type === 'textarea') {
+      return `<div class="field"><label>${f.label}</label><textarea rows="${f.rows || 3}" id="${id}">${val}</textarea></div>`;
+    }
+    return `<div class="field"><label>${f.label}</label><input type="text" id="${id}" value="${val}"></div>`;
+  }).join('');
+}
+
+function readFieldsForm(fields) {
+  const data = {};
+  fields.forEach(f => { setPath(data, f.key, document.getElementById(fieldId(f.key)).value); });
+  return data;
+}
+
+function renderMotivoIngreso(data) {
+  const d = data || {};
+  return `
+    <div class="field">
+      <label>Motivos de ingreso (marcar los que correspondan)</label>
+      <div class="flex-gap" style="flex-wrap:wrap">
+        ${MOTIVO_INGRESO_OPTIONS.map(o => `
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;border:1.5px solid var(--faint);border-radius:8px;padding:6px 10px;cursor:pointer">
+            <input type="checkbox" id="hc-mi-${o.key}" ${d[o.key] ? 'checked' : ''}> ${o.label}
+          </label>`).join('')}
+      </div>
+    </div>
+    <div class="field">
+      <label>Detalle si "Otros"</label>
+      <input type="text" id="hc-mi-otrosDetalle" value="${d.otrosDetalle || ''}">
+    </div>`;
+}
+
+function readMotivoIngreso() {
+  const data = {};
+  MOTIVO_INGRESO_OPTIONS.forEach(o => { data[o.key] = document.getElementById('hc-mi-' + o.key).checked; });
+  data.otrosDetalle = document.getElementById('hc-mi-otrosDetalle').value;
+  return data;
+}
+
+let activeKey = 'filiacion';
+
+function renderPanel(key) {
+  const sectionMeta = HC_SECTIONS.find(s => s.key === key);
+  const sec = hosp.historiaClinica.sections[key];
+  const bodyHtml = key === 'motivoIngreso' ? renderMotivoIngreso(sec.data) : renderFieldsForm(SECTION_FIELDS[key], sec.data);
+
+  return `
+    <div class="form-cap">${sectionMeta.label}</div>
+    ${bodyHtml}
+    <div class="form-foot">
+      <button class="btn btn-primary" onclick="saveHcSection('${key}')">Guardar seccion</button>
+    </div>`;
+}
+
+function render() {
+  document.getElementById('hc-nav').innerHTML = renderSectionNav(hosp.historiaClinica.sections, activeKey);
+  document.getElementById('hc-panel').innerHTML = renderPanel(activeKey);
+  document.getElementById('hc-status-badge').innerHTML = renderHcStatusBadge(hosp.historiaClinica);
+}
+
+function selectHcSection(key) {
+  activeKey = key;
+  render();
+}
+
+function saveHcSection(key) {
+  const data = key === 'motivoIngreso' ? readMotivoIngreso() : readFieldsForm(SECTION_FIELDS[key]);
+  hosp.historiaClinica.sections[key] = { complete: true, data };
+  render();
+}
+
+if (hosp) {
+  const closeParams = hospitalizacionLinkParams(patient, hosp);
+
+  document.getElementById('encounter-bar').outerHTML = renderEncounterBar({
+    title: `Historia Clinica · ${patient.name} <span style="font-family:var(--mono);color:var(--ink2);font-size:12px">${patient.id}</span>`,
+    meta: `<span class="chip">${hosp.servicio}</span><span class="chip">Cama ${hosp.cama}</span><span id="hc-status-badge"></span>`,
+    actions: `<a class="btn btn-primary" href="${buildUrl('print.html', { ...closeParams, mode: 'hc' })}">Imprimir</a>`,
+    closeHref: buildUrl('hospitalizacion.html', closeParams),
+  });
+
+  render();
+}
+</script>
+
+</body>
+</html>

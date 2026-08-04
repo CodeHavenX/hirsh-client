@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HISS — Cuentas</title>
+<link rel="stylesheet" href="shared/styles.css">
+</head>
+<body>
+
+<div id="app"></div>
+
+<!-- Add doctor modal -->
+<div class="modal-scrim hidden" id="modal-add">
+  <div class="modal">
+    <h2>Agregar medico</h2>
+    <div class="field">
+      <label>Nombre completo <span class="req">*</span></label>
+      <input type="text" placeholder="Ej: Dr. Sara Lin">
+    </div>
+    <div class="field">
+      <label>Usuario <span class="req">*</span></label>
+      <input type="text" placeholder="slin">
+    </div>
+    <div class="field">
+      <label>Contraseña temporal <span class="req">*</span></label>
+      <input type="text" value="Tr7-9kPq" readonly>
+    </div>
+    <div class="hint">Rol fijo: Medico. Se le pedira cambiar la contraseña en el primer inicio de sesion.</div>
+    <div class="form-foot">
+      <button class="btn btn-ghost" onclick="hideEl('modal-add')">Cancelar</button>
+      <button class="btn btn-primary" onclick="hideEl('modal-add')">Crear cuenta</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit doctor modal -->
+<div class="modal-scrim hidden" id="modal-edit">
+  <div class="modal">
+    <h2>Editar medico · <span id="edit-title"></span></h2>
+    <div class="form-cap">Datos de la cuenta</div>
+    <div class="field">
+      <label>Nombre completo <span class="req">*</span></label>
+      <input type="text" id="edit-name">
+    </div>
+    <div class="field">
+      <label>Usuario <span class="req">*</span></label>
+      <input type="text" id="edit-username">
+    </div>
+    <div class="form-foot">
+      <button class="btn btn-ghost" onclick="hideEl('modal-edit')">Cancelar</button>
+      <button class="btn btn-primary" onclick="hideEl('modal-edit')">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
+<!-- Reset password modal -->
+<div class="modal-scrim hidden" id="modal-reset">
+  <div class="modal">
+    <h2>Reset contraseña · <span id="reset-title"></span></h2>
+    <div class="field">
+      <label>Nueva contraseña temporal</label>
+      <input type="text" id="reset-pass" value="Qw4-2mLz" readonly>
+    </div>
+    <div class="hint">El medico debera cambiar esta contraseña en su proximo inicio de sesion.</div>
+    <div class="form-foot">
+      <button class="btn btn-ghost" onclick="hideEl('modal-reset')">Cancelar</button>
+      <button class="btn btn-primary" onclick="hideEl('modal-reset')">Confirmar reset</button>
+    </div>
+  </div>
+</div>
+
+<!-- Deactivate confirm modal -->
+<div class="modal-scrim hidden" id="modal-deactivate">
+  <div class="modal">
+    <h2>Desactivar cuenta</h2>
+    <p style="font-size:13px;color:var(--ink2);line-height:1.5">¿Desactivar la cuenta de <b id="deactivate-name"></b>? El medico no podra iniciar sesion. Sus evoluciones e historias clinicas previas se mantendran intactas y visibles. Un administrador puede reactivar la cuenta en cualquier momento.</p>
+    <div class="form-foot">
+      <button class="btn btn-ghost" onclick="hideEl('modal-deactivate')">Cancelar</button>
+      <button class="btn btn-danger" onclick="hideEl('modal-deactivate')">Desactivar</button>
+    </div>
+  </div>
+</div>
+
+<script src="shared/data.js"></script>
+<script src="shared/components.js"></script>
+<script>
+document.getElementById('app').outerHTML = renderAppShell('accounts', {
+  title: 'Cuentas de medicos',
+  actions: `<button class="btn btn-primary" onclick="showEl('modal-add')">+ Agregar medico</button>`
+}, `
+  <div style="display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:10px;color:var(--accent);margin-bottom:4px">
+    <span class="tag">ADMIN</span>
+    Visible solo para administradores
+  </div>
+  <div class="table" id="accounts-table"></div>
+`);
+
+const ACCOUNT_COLUMNS = [
+  { label: 'Nombre', width: 2, style: 'font-weight:600', render: a => a.name },
+  { label: 'Usuario', width: '0 0 100px', style: 'font-family:var(--mono);font-size:11px', render: a => a.username },
+  { label: 'Rol', width: '0 0 80px', render: a => a.role },
+  { label: 'Estado', width: '0 0 100px', render: a => `<span class="badge ${a.status === 'active' ? 'badge-done' : 'badge-off'}">${a.status === 'active' ? 'Activo' : 'Inactivo'}</span>` },
+  { label: 'Ultimo acceso', width: '0 0 120px', render: a => a.lastLogin },
+  { label: 'Acciones', width: '0 0 200px', style: 'font-size:12px', render: (a, i) => a.role === 'Admin' ? '<span style="color:var(--ink2)">—</span>' :
+    a.status === 'active' ? `<a href="#" onclick="openEditModal(${i})">Editar</a> · <a href="#" onclick="openResetModal(${i})">Reset clave</a> · <a href="#" style="color:var(--warn)" onclick="openDeactivateModal(${i})">Desactivar</a>` :
+    `<a href="#" onclick="reactivateAccount(${i})">Reactivar</a>` },
+];
+
+document.getElementById('accounts-table').innerHTML = renderDataTable(ACCOUNT_COLUMNS, ACCOUNTS, {
+  rowClass: (a, i) => `${a.status === 'off' ? 'tr-off' : ''} ${i === 2 ? 'tr-hl' : ''}`,
+});
+
+function openEditModal(idx) {
+  const a = ACCOUNTS[idx];
+  document.getElementById('edit-title').textContent = a.name;
+  document.getElementById('edit-name').value = a.name;
+  document.getElementById('edit-username').value = a.username;
+  showEl('modal-edit');
+}
+
+function openResetModal(idx) {
+  const a = ACCOUNTS[idx];
+  document.getElementById('reset-title').textContent = a.name;
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  let pass = '';
+  for (let i = 0; i < 3; i++) pass += chars[Math.floor(Math.random() * chars.length)];
+  pass += '-';
+  for (let i = 0; i < 4; i++) pass += chars[Math.floor(Math.random() * chars.length)];
+  document.getElementById('reset-pass').value = pass;
+  showEl('modal-reset');
+}
+
+function openDeactivateModal(idx) {
+  const a = ACCOUNTS[idx];
+  document.getElementById('deactivate-name').textContent = a.name;
+  showEl('modal-deactivate');
+}
+
+function reactivateAccount(idx) {
+  alert('Cuenta reactivada: ' + ACCOUNTS[idx].name);
+}
+</script>
+
+</body>
+</html>

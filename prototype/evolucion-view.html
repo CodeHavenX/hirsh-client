@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HISS — Evolucion</title>
+<link rel="stylesheet" href="shared/styles.css">
+</head>
+<body>
+
+<div class="app" style="flex-direction:column;height:100vh">
+  <div id="encounter-bar"></div>
+
+  <div class="evo-tabbar" id="evo-tabbar">
+    <div class="evo-tab active" data-tab="evolucion" onclick="selectEvoTab('evolucion')">Evolucion</div>
+    <div class="evo-tab" data-tab="examenes" onclick="selectEvoTab('examenes')">Examenes <span class="count hidden" id="exam-count">0</span></div>
+  </div>
+
+  <div class="encounter-body">
+    <div class="evo-panel row" id="panel-evolucion">
+      <div class="soap-col">
+        <div class="form-cap">Notas SOAP</div>
+        <div id="soap-fields"></div>
+      </div>
+      <div class="outcome-col">
+        <div class="form-cap">Resultado</div>
+        <div id="dx-field"></div>
+        <div class="ro-field">
+          <div class="ro-label">Prescripcion</div>
+          <div class="ro-rx" id="ro-rx"></div>
+        </div>
+        <div id="conclusion-field"></div>
+        <div class="form-cap" style="margin-top:12px">Signos Vitales</div>
+        <div id="vitals-field"></div>
+      </div>
+    </div>
+
+    <div class="evo-panel evo-tests-col hidden" id="panel-examenes">
+      <div class="form-cap">Examenes y resultados</div>
+      <div id="exam-table"></div>
+      <div class="ro-field">
+        <div class="ro-label">Observaciones / informe</div>
+        <div class="ro-text" id="exam-obs"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="shared/data.js"></script>
+<script src="shared/components.js"></script>
+<script>
+const patient = getSelectedPatient() || PATIENTS[0];
+const hosp = getSelectedHospitalization(patient);
+const evo = hosp ? getSelectedEvolucion(hosp) : null;
+
+if (!hosp || !evo) {
+  window.location.href = buildUrl('record.html', { patient: patient.id });
+} else {
+  document.getElementById('encounter-bar').outerHTML = renderEncounterBar({
+    title: `Evolucion · ${patient.name} <span style="font-family:var(--mono);color:var(--ink2);font-size:12px">${patient.id}</span>`,
+    meta: `<span class="chip">${evo.fecha} · ${evo.hora}</span><span class="chip">${evo.medico}</span><span class="badge badge-done">Registrada · solo lectura</span>`,
+    actions: `<a class="btn btn-primary" href="${buildUrl('print.html', evolucionLinkParams(patient, hosp, evo))}">Imprimir</a>`,
+    closeHref: buildUrl('hospitalizacion.html', hospitalizacionLinkParams(patient, hosp)),
+  });
+
+  document.getElementById('soap-fields').innerHTML =
+    renderField('Subjetivo', evo.subjective) +
+    renderField('Objetivo', evo.objective) +
+    renderField('Analisis', evo.assessment) +
+    renderField('Plan', evo.plan);
+
+  const dxList = (evo.diagnosticos || []).map(d => `${d.descripcion}${d.codigoCie10 && d.codigoCie10 !== '—' ? ` (${d.codigoCie10})` : ''}`).join('<br>') || '—';
+  document.getElementById('dx-field').innerHTML = renderField('Diagnosticos', dxList);
+  document.getElementById('ro-rx').innerHTML = (evo.rx || '—').replace(/\n/g, '<br>');
+
+  document.getElementById('conclusion-field').innerHTML = `
+    <div class="kv"><span>Pronostico</span><b>${evo.pronostico || '—'}</b></div>
+    <div class="kv"><span>Evolucion</span><b>${evo.evolucion || '—'}</b></div>`;
+
+  const v = evo.vitals || {};
+  document.getElementById('vitals-field').innerHTML = `
+    <div class="vitals-grid">
+      <div class="kv"><span>PA</span><b>${v.pa || '—'}</b></div>
+      <div class="kv"><span>FC</span><b>${v.fc || '—'}</b></div>
+      <div class="kv"><span>FR</span><b>${v.fr || '—'}</b></div>
+      <div class="kv"><span>T°</span><b>${v.temp || '—'}</b></div>
+      <div class="kv"><span>SatO2</span><b>${v.satO2 || '—'}</b></div>
+      <div class="kv"><span>FiO2</span><b>${v.fio2 || '—'}</b></div>
+    </div>`;
+
+  const examenes = evo.examenes || [];
+  const EXAM_COLUMNS = [
+    { label: 'Tipo', width: '0 0 110px', render: e => e.tipo || '—' },
+    { label: 'Examen', width: 2, style: 'font-weight:600', render: e => e.nombre || '—' },
+    { label: 'Resultado', width: 1, render: e => e.resultado || '—' },
+    { label: 'Unidad', width: '0 0 80px', render: e => e.unidad || '—' },
+    { label: 'Valor referencial', width: '0 0 140px', render: e => e.referencia || '—' },
+    { label: 'Fecha', width: '0 0 100px', render: e => e.fecha || '—' },
+  ];
+  document.getElementById('exam-table').innerHTML = examenes.length
+    ? `<div class="table">${renderDataTable(EXAM_COLUMNS, examenes)}</div>`
+    : '<div class="empty-state">Sin examenes registrados.</div>';
+  document.getElementById('exam-obs').innerHTML = (evo.examenesObs || '—').replace(/\n/g, '<br>');
+
+  document.getElementById('exam-count').textContent = examenes.length;
+  document.getElementById('exam-count').classList.toggle('hidden', examenes.length === 0);
+
+  window.selectEvoTab = function (tab) {
+    document.getElementById('panel-evolucion').classList.toggle('hidden', tab !== 'evolucion');
+    document.getElementById('panel-examenes').classList.toggle('hidden', tab !== 'examenes');
+    document.querySelectorAll('.evo-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  };
+}
+</script>
+
+</body>
+</html>

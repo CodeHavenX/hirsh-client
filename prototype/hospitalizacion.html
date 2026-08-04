@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HISS — Hospitalizacion</title>
+<link rel="stylesheet" href="shared/styles.css">
+</head>
+<body>
+
+<div id="app"></div>
+
+<script src="shared/data.js"></script>
+<script src="shared/components.js"></script>
+<script>
+const patient = getSelectedPatient() || PATIENTS[0];
+const hosp = getSelectedHospitalization(patient);
+
+if (!hosp) {
+  window.location.href = buildUrl('record.html', { patient: patient.id });
+} else {
+  const evolucionParams = hospitalizacionLinkParams(patient, hosp);
+
+  document.getElementById('app').outerHTML = renderAppShell('patients', {
+    title: `${hosp.servicio} · ${patient.name}`,
+    crumb: `Pacientes › ${patient.name} ›`,
+    actions: `
+      <div class="flex-gap">
+        <a class="btn btn-primary" href="${buildUrl('evolucion.html', evolucionParams)}">+ Nueva evolucion</a>
+        ${hosp.estado === 'Activa' ? '<button class="btn btn-ghost" onclick="dischargeHospitalization()">Dar de alta</button>' : ''}
+      </div>`
+  }, `
+    <div class="record">
+      <div class="profile-card" id="hosp-card"></div>
+      <div class="history" id="hosp-body"></div>
+    </div>
+  `);
+
+  document.getElementById('hosp-card').innerHTML = `
+    <div class="profile-top">
+      <div class="profile-avatar">${getInitials(patient.name)}</div>
+      <div>
+        <div style="font-weight:600;font-size:15px">${patient.name}</div>
+        <div class="id-tag">${patient.id}</div>
+      </div>
+    </div>
+    ${renderKV('Servicio', hosp.servicio)}
+    ${renderKV('Cama', hosp.cama)}
+    ${renderKV('Medico responsable', hosp.medicoResponsable)}
+    ${renderKV('Fecha ingreso', `${hosp.fechaIngreso} · ${hosp.horaIngreso}`)}
+    ${renderKV('Fecha alta', hosp.fechaAlta ? `${hosp.fechaAlta} · ${hosp.horaAlta}` : 'En curso')}
+    ${renderKV('Estado', renderHospEstadoBadge(hosp.estado))}
+    <div class="audit">Motivo de ingreso: ${hosp.motivoIngreso}</div>
+  `;
+
+  const evoluciones = hosp.evoluciones || [];
+
+  let evolucionesHtml;
+  if (evoluciones.length === 0) {
+    evolucionesHtml = '<div class="empty-state">Sin evoluciones registradas. Inicie una nueva evolucion.</div>';
+  } else {
+    evolucionesHtml = evoluciones.map((e, i) => `
+      <a class="visit-card ${i === 0 ? 'active' : ''}" href="${buildUrl('evolucion-view.html', evolucionLinkParams(patient, hosp, e))}">
+        <div class="visit-main">
+          <div class="visit-title">${(e.diagnosticos || []).map(d => d.descripcion).join(', ') || 'Evolucion'}</div>
+          <div class="visit-meta">${e.fecha} · ${e.hora} · ${e.medico}</div>
+          <div class="visit-sum">${(e.subjective || '').substring(0, 90)}</div>
+        </div>
+        <div><span class="badge badge-done">${e.evolucion || 'Registrada'}</span></div>
+      </a>`).join('');
+  }
+
+  document.getElementById('hosp-body').innerHTML = `
+    <div class="profile-card" style="flex:0 0 auto;flex-direction:row;align-items:center;justify-content:space-between;gap:12px">
+      <div>
+        <div class="form-cap" style="border-bottom:none;padding-bottom:0">Historia Clinica</div>
+        ${renderHcStatusBadge(hosp.historiaClinica)}
+      </div>
+      <a class="btn btn-primary" href="${buildUrl('historia-clinica.html', evolucionParams)}">Abrir Historia Clinica</a>
+    </div>
+    <div class="page-head">
+      <h1 style="font-size:16px">Evoluciones</h1>
+      <span class="count">${evoluciones.length} evoluciones</span>
+    </div>
+    ${evolucionesHtml}
+  `;
+}
+
+function dischargeHospitalization() {
+  if (confirm('¿Dar de alta a este paciente? La hospitalizacion pasara a estado Alta.')) {
+    window.location.href = buildUrl('record.html', { patient: patient.id });
+  }
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HISS — Imprimir</title>
+<link rel="stylesheet" href="shared/styles.css">
+<style>
+  @media print {
+    .print-toolbar { display: none !important; }
+    .print-scroll { padding: 0; background: #fff; }
+    .print-sheet { box-shadow: none; width: 100%; padding: 24px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="print-frame">
+  <div class="print-toolbar">
+    <a class="btn btn-ghost btn-sm" style="color:#fff;border-color:#666" href="record.html" id="back-link">‹ Volver</a>
+    <span class="spacer"></span>
+    <span id="print-title">VISTA PREVIA</span>
+    <span class="spacer"></span>
+    <button class="btn btn-primary btn-sm" onclick="window.print()">Imprimir</button>
+  </div>
+  <div class="print-scroll">
+    <div class="print-sheet" id="print-content"></div>
+  </div>
+</div>
+
+<script src="shared/data.js"></script>
+<script src="shared/components.js"></script>
+<script>
+const patient = getSelectedPatient() || PATIENTS[0];
+const mode = getParam('mode') === 'hc' ? 'hc' : 'evolucion';
+
+function formatSectionFields(fields, data) {
+  return fields.map(f => `<b>${f.label}:</b> ${getPath(data, f.key) || '—'}`).join('<br>');
+}
+
+function formatMotivoIngreso(data) {
+  const d = data || {};
+  const checked = MOTIVO_INGRESO_OPTIONS.filter(o => d[o.key]).map(o => o.label);
+  let html = checked.length ? checked.join(', ') : 'Ninguno marcado';
+  if (d.otrosDetalle) html += `<br><b>Detalle:</b> ${d.otrosDetalle}`;
+  return html;
+}
+
+function renderEvolucionPrint(hosp, evo) {
+  document.getElementById('print-title').textContent = 'VISTA PREVIA · NOTA DE EVOLUCION';
+  document.getElementById('back-link').href = buildUrl('evolucion-view.html', evolucionLinkParams(patient, hosp, evo));
+
+  const dxHtml = (evo.diagnosticos || []).map(d => `${d.descripcion}${d.codigoCie10 && d.codigoCie10 !== '—' ? ` (${d.codigoCie10})` : ''}`).join('<br>') || '—';
+
+  const examHtml = (evo.examenes || []).map(e =>
+    `${e.tipo}: <b>${e.nombre}</b> — ${e.resultado || '—'}${e.unidad ? ' ' + e.unidad : ''}${e.referencia ? ` (ref: ${e.referencia})` : ''}${e.fecha ? ` · ${e.fecha}` : ''}`
+  ).join('<br>') || 'Sin examenes registrados.';
+
+  document.getElementById('print-content').innerHTML = `
+    <div class="print-clinic">
+      <div class="name">Hospital Maria Auxiliadora</div>
+      <div class="sub">Nota de evolucion · ${hosp.servicio}</div>
+    </div>
+    <div class="print-rule"></div>
+    <div class="print-meta">
+      <div><div class="k">Paciente</div><div class="v">${patient.name}</div></div>
+      <div><div class="k">DNI</div><div class="v">${patient.dni}</div></div>
+      <div><div class="k">Fecha de evolucion</div><div class="v">${evo.fecha} · ${evo.hora}</div></div>
+      <div><div class="k">Medico</div><div class="v">${evo.medico}</div></div>
+      <div><div class="k">N° Historia</div><div class="v">${patient.id}</div></div>
+      <div><div class="k">Cama</div><div class="v">${hosp.cama}</div></div>
+      <div><div class="k">Pronostico</div><div class="v">${evo.pronostico || '—'}</div></div>
+      <div><div class="k">Evolucion</div><div class="v">${evo.evolucion || '—'}</div></div>
+    </div>
+    <div class="print-rule-light"></div>
+    ${renderPrintSection('Diagnosticos', dxHtml)}
+    ${renderPrintSection('Subjetivo', evo.subjective)}
+    ${renderPrintSection('Objetivo', evo.objective)}
+    ${renderPrintSection('Analisis', evo.assessment)}
+    ${renderPrintSection('Plan', evo.plan)}
+    <div class="print-sec"><h4>Prescripcion</h4><div class="ro-rx">${(evo.rx || '—').replace(/\n/g, '<br>')}</div></div>
+    ${renderPrintSection('Examenes y resultados', examHtml)}
+    ${evo.examenesObs ? renderPrintSection('Observaciones / informe', evo.examenesObs.replace(/\n/g, '<br>')) : ''}
+    <div class="print-foot">
+      <div class="note">Documento generado por HISS<br>Hospital Maria Auxiliadora<br>Lima, Peru</div>
+      <div class="print-sign">${evo.medico}</div>
+    </div>`;
+}
+
+function renderHistoriaClinicaPrint(hosp) {
+  document.getElementById('print-title').textContent = 'VISTA PREVIA · HISTORIA CLINICA';
+  document.getElementById('back-link').href = buildUrl('historia-clinica.html', hospitalizacionLinkParams(patient, hosp));
+
+  const sectionsHtml = HC_SECTIONS.map(s => {
+    const sec = hosp.historiaClinica.sections[s.key];
+    let body;
+    if (!s.implemented) {
+      body = '<span style="color:var(--ink2)">(Seccion aun no disponible en el sistema)</span>';
+    } else if (!sec.complete) {
+      body = '<span style="color:var(--ink2)">(Pendiente de completar)</span>';
+    } else if (s.key === 'motivoIngreso') {
+      body = formatMotivoIngreso(sec.data);
+    } else {
+      body = formatSectionFields(SECTION_FIELDS[s.key], sec.data);
+    }
+    return renderPrintSection(s.label, body);
+  }).join('');
+
+  document.getElementById('print-content').innerHTML = `
+    <div class="print-clinic">
+      <div class="name">Hospital Maria Auxiliadora</div>
+      <div class="sub">Historia Clinica · ${hosp.servicio}</div>
+    </div>
+    <div class="print-rule"></div>
+    <div class="print-meta">
+      <div><div class="k">Paciente</div><div class="v">${patient.name}</div></div>
+      <div><div class="k">DNI</div><div class="v">${patient.dni}</div></div>
+      <div><div class="k">Fecha de ingreso</div><div class="v">${hosp.fechaIngreso} · ${hosp.horaIngreso}</div></div>
+      <div><div class="k">Medico responsable</div><div class="v">${hosp.medicoResponsable}</div></div>
+      <div><div class="k">N° Historia</div><div class="v">${patient.id}</div></div>
+      <div><div class="k">Cama</div><div class="v">${hosp.cama}</div></div>
+    </div>
+    <div class="print-rule-light"></div>
+    ${sectionsHtml}
+    <div class="print-foot">
+      <div class="note">Documento generado por HISS<br>Hospital Maria Auxiliadora<br>Lima, Peru</div>
+      <div class="print-sign">${hosp.medicoResponsable}</div>
+    </div>`;
+}
+
+const hosp = getSelectedHospitalization(patient);
+
+if (!hosp) {
+  window.location.href = buildUrl('record.html', { patient: patient.id });
+} else if (mode === 'hc') {
+  renderHistoriaClinicaPrint(hosp);
+} else {
+  const evo = getSelectedEvolucion(hosp);
+  if (!evo) {
+    window.location.href = buildUrl('hospitalizacion.html', hospitalizacionLinkParams(patient, hosp));
+  } else {
+    renderEvolucionPrint(hosp, evo);
+  }
+}
+</script>
+
+</body>
+</html>

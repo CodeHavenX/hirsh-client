@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HISS — Historial de cambios</title>
+<link rel="stylesheet" href="shared/styles.css">
+</head>
+<body>
+
+<div id="app"></div>
+
+<script src="shared/data.js"></script>
+<script src="shared/components.js"></script>
+<script>
+const patient = getSelectedPatient() || PATIENTS[0];
+
+document.getElementById('app').outerHTML = renderAppShell('patients', {
+  title: `Historial de cambios · ${patient.name}`,
+  crumb: `Pacientes › ${patient.name} ›`,
+  actions: `<a class="btn btn-ghost" href="${buildUrl('record.html', { patient: patient.id })}">‹ Volver al perfil</a>`,
+}, `
+  <div class="page-head">
+    <h1 style="font-size:16px">Cambios registrados</h1>
+  </div>
+  <div id="history-table"></div>
+`);
+
+const HISTORY_COLUMNS = [
+  { label: 'Fecha / Hora', width: '0 0 190px', style: 'font-family:var(--mono);font-size:11px', render: r => `${r.fecha} · ${r.hora}` },
+  { label: 'Usuario', width: '0 0 110px', render: r => r.changedBy },
+  { label: 'Campo', width: 1, style: 'font-weight:600', render: r => r.label },
+  { label: 'Valor anterior', width: 1, render: r => r.oldValue || '—' },
+  { label: 'Valor nuevo', width: 1, render: r => r.newValue || '—' },
+];
+
+const rows = getPatientChangeLog(patient.id).flatMap(entry =>
+  entry.fields.map(f => ({ fecha: entry.fecha, hora: entry.hora, changedBy: entry.changedBy, ...f }))
+);
+
+document.getElementById('history-table').innerHTML = rows.length
+  ? `<div class="table">${renderDataTable(HISTORY_COLUMNS, rows)}</div>`
+  : '<div class="empty-state">Sin cambios registrados.</div>';
+</script>
+
+</body>
+</html>

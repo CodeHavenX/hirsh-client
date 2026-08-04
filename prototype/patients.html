@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HISS — Pacientes</title>
+<link rel="stylesheet" href="shared/styles.css">
+</head>
+<body>
+
+<div id="app"></div>
+
+<script src="shared/data.js"></script>
+<script src="shared/components.js"></script>
+<script>
+document.getElementById('app').outerHTML = renderAppShell('patients', {
+  search: true,
+  actions: '<a class="btn btn-primary" href="register.html">+ Registrar paciente</a>'
+}, `
+  <div class="page-head">
+    <h1>Pacientes</h1>
+    <span class="count" id="patient-count"></span>
+  </div>
+  <div class="table" id="patient-table"></div>
+`);
+
+const PATIENT_COLUMNS = [
+  { label: 'HCL', width: '0 0 70px', style: 'font-family:var(--mono);font-size:11px', render: p => p.id },
+  { label: 'Nombre', width: 2, style: 'font-weight:600', render: p => p.name },
+  { label: 'F. Nacimiento', width: '0 0 100px', render: p => p.dob },
+  { label: 'Edad', width: '0 0 50px', render: p => getAge(p.dob) },
+  { label: 'Telefono', width: '0 0 110px', render: p => p.phone },
+  { label: 'Medico', width: '0 0 90px', render: p => p.doctor },
+  { label: 'Ult. ingreso', width: '0 0 100px', render: p => p.lastVisit },
+  { label: '', width: '0 0 20px', style: 'color:var(--ink2)', render: () => '›' },
+];
+
+function renderTable(filtered) {
+  const list = filtered || PATIENTS;
+  document.getElementById('patient-count').textContent = list.length + ' activos';
+  document.getElementById('patient-table').innerHTML = renderDataTable(PATIENT_COLUMNS, list, {
+    rowClass: (p, i) => `clickable ${i === 0 ? 'tr-hl' : ''}`,
+    rowAttrs: (p) => `onclick="selectPatient('${p.id}')"`,
+  });
+}
+
+function selectPatient(id) {
+  window.location.href = buildUrl('record.html', { patient: id });
+}
+
+renderTable();
+
+document.getElementById('search-input').addEventListener('input', (e) => {
+  const val = e.target.value.toLowerCase();
+  if (!val) { renderTable(); return; }
+  const filtered = PATIENTS.filter(p =>
+    p.name.toLowerCase().includes(val) ||
+    p.dni.includes(val) ||
+    p.id.includes(val)
+  );
+  renderTable(filtered);
+});
+</script>
+
+</body>
+</html>

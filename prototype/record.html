@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HISS — Paciente</title>
+<link rel="stylesheet" href="shared/styles.css">
+</head>
+<body>
+
+<div id="app"></div>
+
+<script src="shared/data.js"></script>
+<script src="shared/components.js"></script>
+<script>
+const patient = getSelectedPatient() || PATIENTS[0];
+
+document.getElementById('app').outerHTML = renderAppShell('patients', {
+  title: patient.name,
+  crumb: 'Pacientes ›',
+  actions: `
+    <div class="flex-gap">
+      <a class="btn btn-ghost" href="${buildUrl('patient-edit.html', { patient: patient.id })}">Editar perfil</a>
+      <a class="btn btn-primary" href="${buildUrl('admision.html', { patient: patient.id })}">+ Nueva hospitalizacion</a>
+    </div>`
+}, `
+  <div class="record">
+    <div class="profile-card" id="profile-card"></div>
+    <div class="history" id="history"></div>
+  </div>
+`);
+
+const lastChange = getPatientChangeLog(patient.id)[0];
+const lastChangeLine = lastChange
+  ? `Ultima edicion: ${lastChange.changedBy} · ${lastChange.fecha}, ${lastChange.hora}`
+  : 'Sin cambios registrados.';
+
+document.getElementById('profile-card').innerHTML = `
+  <div class="profile-top">
+    <div class="profile-avatar">${getInitials(patient.name)}</div>
+    <div>
+      <div style="font-weight:600;font-size:15px">${patient.name}</div>
+      <div class="id-tag">${patient.id}</div>
+    </div>
+  </div>
+  ${renderKV('DNI', patient.dni)}
+  ${renderKV('Fecha nacimiento', patient.dob)}
+  ${renderKV('Edad', getAge(patient.dob) + ' anos')}
+  ${renderKV('Sexo', patient.sex === 'M' ? 'Masculino' : 'Femenino')}
+  ${renderKV('Telefono', patient.phone)}
+  ${renderKV('Grupo sanguineo', patient.blood)}
+  ${renderKV('Alergias', `<span class="badge ${patient.allergies !== 'Ninguna' ? 'badge-warn' : 'badge-off'}">${patient.allergies}</span>`)}
+  ${renderKV('Medico asignado', patient.doctor)}
+  <div class="audit">${lastChangeLine}<br><a href="${buildUrl('patient-history.html', { patient: patient.id })}">Ver historial de cambios →</a></div>
+`;
+
+const patientHospitalizations = HOSPITALIZATIONS[patient.id] || [];
+
+let historyHtml = `
+  <div class="page-head">
+    <h1 style="font-size:16px">Hospitalizaciones</h1>
+    <span class="count">${patientHospitalizations.length} hospitalizaciones</span>
+  </div>`;
+
+if (patientHospitalizations.length === 0) {
+  historyHtml += '<div class="empty-state">Sin hospitalizaciones registradas. Inicie una nueva hospitalizacion.</div>';
+} else {
+  historyHtml += patientHospitalizations.map((h, i) => `
+    <a class="visit-card ${i === 0 ? 'active' : ''}" href="${buildUrl('hospitalizacion.html', hospitalizacionLinkParams(patient, h))}">
+      <div class="visit-main">
+        <div class="visit-title">${h.servicio}</div>
+        <div class="visit-meta">${h.fechaIngreso} → ${h.fechaAlta || 'En curso'} · ${h.medicoResponsable}</div>
+        <div class="visit-sum">${h.motivoIngreso}</div>
+      </div>
+      <div>${renderHospEstadoBadge(h.estado)}</div>
+    </a>`).join('');
+}
+
+document.getElementById('history').innerHTML = historyHtml;
+</script>
+
+</body>
+</html>

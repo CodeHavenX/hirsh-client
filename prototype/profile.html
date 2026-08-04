@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HISS — Mi perfil</title>
+<link rel="stylesheet" href="shared/styles.css">
+</head>
+<body>
+
+<div id="app"></div>
+
+<script src="shared/data.js"></script>
+<script src="shared/components.js"></script>
+<script>
+document.getElementById('app').outerHTML = renderAppShell('profile', {
+  title: 'Mi perfil',
+  crumb: 'Cuenta ›'
+}, `
+  <div style="max-width:500px;display:flex;flex-direction:column;gap:18px">
+    <div class="profile-card">
+      <div class="profile-top">
+        <div class="profile-avatar">AP</div>
+        <div>
+          <div style="font-weight:600;font-size:16px">Dr. Anita Patel</div>
+          <div class="id-tag">apatel</div>
+        </div>
+        <span class="badge" style="margin-left:auto">Medico</span>
+      </div>
+      <div class="kv"><span>Nombre completo</span><b>Dr. Anita Patel</b></div>
+      <div class="kv"><span>Usuario</span><b style="font-family:var(--mono)">apatel</b></div>
+      <div class="kv"><span>Rol</span><b>Medico</b></div>
+      <div class="hint" style="font-size:11px;color:var(--ink2);margin-top:4px">Nombre, usuario y rol son gestionados por un administrador</div>
+    </div>
+
+    <div class="profile-card">
+      <div class="form-cap">Cambiar contraseña</div>
+      <div class="field">
+        <label>Contraseña actual <span class="req">*</span></label>
+        <input type="password" placeholder="••••••••">
+      </div>
+      <div class="field">
+        <label>Nueva contraseña <span class="req">*</span></label>
+        <input type="password" placeholder="minimo 8 caracteres">
+      </div>
+      <div class="field">
+        <label>Confirmar nueva contraseña <span class="req">*</span></label>
+        <input type="password" placeholder="repetir nueva contraseña">
+      </div>
+      <div class="form-foot">
+        <button class="btn btn-primary">Actualizar contraseña</button>
+      </div>
+    </div>
+  </div>
+`);
+</script>
+
+</body>
+</html>

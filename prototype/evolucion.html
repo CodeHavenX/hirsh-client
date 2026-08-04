@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HISS — Nueva evolucion</title>
+<link rel="stylesheet" href="shared/styles.css">
+</head>
+<body>
+
+<div class="app" style="flex-direction:column;height:100vh">
+  <div id="encounter-bar"></div>
+
+  <div class="evo-tabbar" id="evo-tabbar">
+    <div class="evo-tab active" data-tab="evolucion" onclick="selectEvoTab('evolucion')">Evolucion</div>
+    <div class="evo-tab" data-tab="examenes" onclick="selectEvoTab('examenes')">Examenes <span class="count hidden" id="exam-count">0</span></div>
+  </div>
+
+  <div class="encounter-body">
+    <div class="evo-panel row" id="panel-evolucion">
+      <div class="soap-col">
+        <div class="form-cap">Notas SOAP</div>
+        <div class="field">
+          <label>Subjetivo <span class="req">*</span></label>
+          <textarea rows="4" placeholder="Sintomas reportados por el paciente, reporte de enfermeria..." id="f-subjective"></textarea>
+        </div>
+        <div class="field">
+          <label>Objetivo <span class="req">*</span></label>
+          <textarea rows="4" placeholder="Hallazgos del examen fisico, signos vitales, observaciones..." id="f-objective"></textarea>
+        </div>
+        <div class="field">
+          <label>Analisis</label>
+          <textarea rows="3" placeholder="Evaluacion clinica, interpretacion, resultados de lab/imagenes..." id="f-assessment"></textarea>
+        </div>
+        <div class="field">
+          <label>Plan</label>
+          <textarea rows="3" placeholder="Plan de tratamiento, seguimiento, interconsultas..." id="f-plan"></textarea>
+        </div>
+        <div class="field">
+          <label>Prescripcion</label>
+          <textarea rows="4" placeholder="medicamento · dosis · frecuencia · duracion" id="f-rx"></textarea>
+          <div class="hint">Ej: Amoxicilina 500mg — TID — 7 dias</div>
+        </div>
+      </div>
+
+      <div class="outcome-col">
+        <div class="form-cap">Resultado</div>
+        <div class="form-cap" style="margin-top:0">Signos Vitales</div>
+        <div class="vitals-grid">
+          <div class="field"><label>PA (mmHg)</label><input type="text" placeholder="120/80" id="f-pa"></div>
+          <div class="field"><label>FC (lpm)</label><input type="number" placeholder="72" id="f-fc"></div>
+          <div class="field"><label>FR (rpm)</label><input type="number" placeholder="18" id="f-fr"></div>
+          <div class="field"><label>T° (°C)</label><input type="text" placeholder="36.5" id="f-temp"></div>
+          <div class="field"><label>SatO2 (%)</label><input type="number" placeholder="98" id="f-sato2"></div>
+          <div class="field"><label>FiO2 (%)</label><input type="number" placeholder="21" id="f-fio2"></div>
+        </div>
+
+        <div class="field">
+          <label>Diagnosticos <span class="req">*</span></label>
+          <div id="dx-rows"></div>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="addDxRow()">+ Agregar diagnostico</button>
+        </div>
+        <div class="field">
+          <label>Pronostico <span class="req">*</span></label>
+          <select id="f-pronostico">
+            <option value="">Seleccionar...</option>
+            <option>Reservado</option>
+            <option>Favorable</option>
+            <option>Malo</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Evolucion <span class="req">*</span></label>
+          <select id="f-evolucion">
+            <option value="">Seleccionar...</option>
+            <option>Estacionaria</option>
+            <option>Favorable</option>
+            <option>Desfavorable</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="evo-panel evo-tests-col hidden" id="panel-examenes">
+      <div class="form-cap">Examenes y resultados</div>
+      <div>
+        <div class="exam-row-head">
+          <span>Tipo</span><span>Examen</span><span>Resultado</span><span>Unidad</span><span>Valor referencial</span><span>Fecha</span><span></span>
+        </div>
+        <div id="exam-rows"></div>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="addExamRow()">+ Agregar examen</button>
+      </div>
+      <div class="field">
+        <label>Observaciones / informe</label>
+        <textarea rows="8" placeholder="Informe completo de imagenologia, interpretacion de resultados de laboratorio, etc." id="f-exam-obs"></textarea>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="shared/data.js"></script>
+<script src="shared/components.js"></script>
+<script>
+const patient = getSelectedPatient() || PATIENTS[0];
+const hosp = getSelectedHospitalization(patient);
+
+if (!hosp) {
+  window.location.href = buildUrl('record.html', { patient: patient.id });
+} else {
+  document.getElementById('encounter-bar').outerHTML = renderEncounterBar({
+    title: `Nueva evolucion · ${patient.name} <span style="font-family:var(--mono);color:var(--ink2);font-size:12px">${patient.id}</span>`,
+    meta: `<span class="chip" id="date-chip"></span><span class="chip">${hosp.servicio}</span><span class="chip">Dr. A. Patel</span><span class="badge badge-prog">En progreso</span>`,
+    actions: `<button class="btn btn-danger" onclick="discardEvolucion()">Descartar</button><button class="btn btn-primary" onclick="saveEvolucion()">Guardar evolucion</button>`,
+    closeHref: buildUrl('hospitalizacion.html', hospitalizacionLinkParams(patient, hosp)),
+  });
+
+  const now = new Date();
+  document.getElementById('date-chip').textContent =
+    now.toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' }) +
+    ' · ' + now.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
+
+  let dxRows = [{ codigoCie10: '', descripcion: '' }];
+
+  function renderDxRows() {
+    document.getElementById('dx-rows').innerHTML = dxRows.map((d, i) => `
+      <div class="flex-gap" style="margin-bottom:6px">
+        <input type="text" placeholder="CIE-10" style="flex:0 0 90px" value="${d.codigoCie10}" oninput="updateDxRow(${i},'codigoCie10',this.value)">
+        <input type="text" placeholder="Descripcion del diagnostico" style="flex:1" value="${d.descripcion}" oninput="updateDxRow(${i},'descripcion',this.value)">
+        <button type="button" class="btn btn-ghost btn-sm" onclick="removeDxRow(${i})">✕</button>
+      </div>`).join('');
+  }
+  function addDxRow() { dxRows.push({ codigoCie10: '', descripcion: '' }); renderDxRows(); }
+  function removeDxRow(i) { dxRows.splice(i, 1); if (dxRows.length === 0) dxRows.push({ codigoCie10: '', descripcion: '' }); renderDxRows(); }
+  function updateDxRow(i, key, val) { dxRows[i][key] = val; }
+  renderDxRows();
+  window.addDxRow = addDxRow;
+  window.removeDxRow = removeDxRow;
+  window.updateDxRow = updateDxRow;
+
+  // Tab switching only toggles visibility (display:none) — fields stay mounted
+  // in the DOM, so neither panel ever loses entered data when hidden.
+  window.selectEvoTab = function (tab) {
+    document.getElementById('panel-evolucion').classList.toggle('hidden', tab !== 'evolucion');
+    document.getElementById('panel-examenes').classList.toggle('hidden', tab !== 'examenes');
+    document.querySelectorAll('.evo-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  };
+
+  let examRows = [{ tipo: 'Laboratorio', nombre: '', resultado: '', unidad: '', referencia: '', fecha: '' }];
+
+  function updateExamCount() {
+    const n = examRows.filter(e => e.nombre).length;
+    const badge = document.getElementById('exam-count');
+    badge.textContent = n;
+    badge.classList.toggle('hidden', n === 0);
+  }
+  function renderExamRows() {
+    document.getElementById('exam-rows').innerHTML = examRows.map((e, i) => `
+      <div class="exam-row">
+        <span class="exam-field" data-label="Tipo"><select onchange="updateExamRow(${i},'tipo',this.value)">
+          ${['Laboratorio', 'Imagenologia', 'Otro'].map(t => `<option ${e.tipo === t ? 'selected' : ''}>${t}</option>`).join('')}
+        </select></span>
+        <span class="exam-field" data-label="Examen"><input type="text" placeholder="Ej: Hemoglobina" value="${e.nombre}" oninput="updateExamRow(${i},'nombre',this.value)"></span>
+        <span class="exam-field" data-label="Resultado"><input type="text" placeholder="Ej: 11.2" value="${e.resultado}" oninput="updateExamRow(${i},'resultado',this.value)"></span>
+        <span class="exam-field" data-label="Unidad"><input type="text" placeholder="g/dL" value="${e.unidad}" oninput="updateExamRow(${i},'unidad',this.value)"></span>
+        <span class="exam-field" data-label="Valor referencial"><input type="text" placeholder="12.0 - 15.5" value="${e.referencia}" oninput="updateExamRow(${i},'referencia',this.value)"></span>
+        <span class="exam-field" data-label="Fecha"><input type="text" placeholder="DD/MM/AAAA" value="${e.fecha}" oninput="updateExamRow(${i},'fecha',this.value)"></span>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="removeExamRow(${i})">✕</button>
+      </div>`).join('');
+    updateExamCount();
+  }
+  function addExamRow() { examRows.push({ tipo: 'Laboratorio', nombre: '', resultado: '', unidad: '', referencia: '', fecha: '' }); renderExamRows(); }
+  function removeExamRow(i) { examRows.splice(i, 1); if (examRows.length === 0) examRows.push({ tipo: 'Laboratorio', nombre: '', resultado: '', unidad: '', referencia: '', fecha: '' }); renderExamRows(); }
+  function updateExamRow(i, key, val) { examRows[i][key] = val; updateExamCount(); }
+  renderExamRows();
+  window.addExamRow = addExamRow;
+  window.removeExamRow = removeExamRow;
+  window.updateExamRow = updateExamRow;
+
+  window.discardEvolucion = function () {
+    if (confirm('¿Descartar esta evolucion? Se perderan todos los datos ingresados.')) {
+      window.location.href = buildUrl('hospitalizacion.html', hospitalizacionLinkParams(patient, hosp));
+    }
+  };
+
+  window.saveEvolucion = function () {
+    const evo = {
+      id: 'evo_new_' + Date.now(),
+      fecha: now.toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' }),
+      hora: now.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' }),
+      medico: 'Dr. A. Patel',
+      vitals: {
+        pa: document.getElementById('f-pa').value,
+        fc: document.getElementById('f-fc').value,
+        fr: document.getElementById('f-fr').value,
+        temp: document.getElementById('f-temp').value,
+        satO2: document.getElementById('f-sato2').value,
+        fio2: document.getElementById('f-fio2').value,
+      },
+      diagnosticos: dxRows.filter(d => d.descripcion),
+      subjective: document.getElementById('f-subjective').value,
+      objective: document.getElementById('f-objective').value,
+      assessment: document.getElementById('f-assessment').value,
+      plan: document.getElementById('f-plan').value,
+      rx: document.getElementById('f-rx').value || '—',
+      pronostico: document.getElementById('f-pronostico').value,
+      evolucion: document.getElementById('f-evolucion').value,
+      examenes: examRows.filter(e => e.nombre),
+      examenesObs: document.getElementById('f-exam-obs').value,
+    };
+    window.location.href = buildUrl('evolucion-view.html', evolucionLinkParams(patient, hosp, evo));
+  };
+}
+</script>
+
+</body>
+</html>

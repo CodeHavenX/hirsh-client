@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HISS — Editar paciente</title>
+<link rel="stylesheet" href="shared/styles.css">
+</head>
+<body>
+
+<div id="app"></div>
+
+<script src="shared/data.js"></script>
+<script src="shared/components.js"></script>
+<script>
+const patient = getSelectedPatient() || PATIENTS[0];
+
+document.getElementById('app').outerHTML = renderAppShell('patients', {
+  title: `Editar paciente · ${patient.name}`,
+  crumb: `Pacientes › ${patient.name} ›`,
+}, `
+  <div class="form-grid">
+    <div class="form-col">
+      <div class="form-cap">Datos personales</div>
+      ${renderPatientFieldsForm(patient, ['name', 'dni', 'dob', 'phone', 'sex'])}
+    </div>
+
+    <div class="form-col">
+      <div class="form-cap">Datos medicos</div>
+      ${renderPatientFieldsForm(patient, ['blood', 'allergies', 'doctor'])}
+    </div>
+  </div>
+
+  <div class="form-foot">
+    <a class="btn btn-ghost" href="${buildUrl('record.html', { patient: patient.id })}">Cancelar</a>
+    <button class="btn btn-primary" onclick="saveEdits()">Guardar cambios</button>
+  </div>
+`);
+
+function saveEdits() {
+  const values = readPatientFieldsForm();
+  const fieldsChanged = PATIENT_FIELDS
+    .filter(f => String(patient[f.key] ?? '') !== String(values[f.key] ?? ''))
+    .map(f => ({ field: f.key, label: f.label, oldValue: patient[f.key], newValue: values[f.key] }));
+
+  if (fieldsChanged.length) {
+    savePatientEdits(patient.id, values);
+    logPatientChange(patient.id, fieldsChanged);
+  }
+  window.location.href = buildUrl('record.html', { patient: patient.id });
+}
+</script>
+
+</body>
+</html>
