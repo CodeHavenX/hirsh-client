@@ -2,7 +2,7 @@ package com.cramsan.hirsh.ui.screens.login
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.cramsan.hirsh.repository.AuthRepository
+import com.cramsan.hirsh.repository.SessionRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,15 +15,15 @@ data class LoginUiState(
     val error: String? = null,
 )
 
-class LoginViewModel(private val authRepository: AuthRepository) : ViewModel() {
+class LoginViewModel(private val sessionRepository: SessionRepository) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(LoginUiState(loggedIn = authRepository.restoreSession() != null))
+    private val _uiState = MutableStateFlow(LoginUiState(loggedIn = sessionRepository.session.value != null))
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
 
     fun login(username: String, password: String) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
-            authRepository.login(username, password)
+            sessionRepository.login(username, password)
                 .onSuccess { _uiState.update { it.copy(isLoading = false, loggedIn = true) } }
                 .onFailure { e -> _uiState.update { it.copy(isLoading = false, error = e.message) } }
         }
