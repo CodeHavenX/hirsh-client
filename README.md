@@ -78,6 +78,23 @@ IosSimulatorArm64,IosX64}` all build clean at these pinned versions.
 iOS: open `iosApp/iosApp.xcodeproj` in Xcode and run. First build will be
 slow (compiles the KMP framework for the simulator/device architecture).
 
+## Lint (detekt)
+
+`detekt-rules/` is a small Gradle module with project-specific detekt rules,
+wired into `composeApp` (`./gradlew :composeApp:detekt`). Standard detekt
+rulesets (style, complexity, naming, ...) are off for now -- see the comment
+in `config/detekt/detekt.yml` -- so the only rules that run are ours:
+
+- **ScreenMissingViewModel** / **ScreenMissingPreviews** -- every
+  `FooScreen.kt` must have a matching `FooViewModel.kt` and `FooPreviews.kt`
+  next to it in the same directory.
+
+`composeApp/build.gradle.kts` also points `detekt.baseline` at
+`config/detekt/baseline.xml` for grandfathering in violations that predate a
+rule -- there's currently nothing in it (all four screens comply), but if
+you introduce a rule against existing code, regenerate it with
+`./gradlew :composeApp:detektBaseline` rather than hand-editing it.
+
 ## Auth / data
 
 `repository/AuthRepository` and `repository/PatientRepository` currently

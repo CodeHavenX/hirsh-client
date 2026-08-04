@@ -32,3 +32,4 @@ plugins {
 }
 
 include(":composeApp")
+include(":detekt-rules")

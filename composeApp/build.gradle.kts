@@ -9,6 +9,7 @@ plugins {
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.kotlinSerialization)
+    alias(libs.plugins.detekt)
 }
 
 kotlin {
@@ -129,4 +130,17 @@ compose.desktop {
             packageVersion = "1.0.0"
         }
     }
+}
+
+detekt {
+    // KMP source sets (commonMain, androidMain, ...) live outside the
+    // src/main/src/test layout detekt's Gradle plugin looks for by default.
+    source.setFrom(files("src"))
+    config.setFrom(files("$rootDir/config/detekt/detekt.yml"))
+    buildUponDefaultConfig = true
+    baseline = file("$rootDir/config/detekt/baseline.xml")
+}
+
+dependencies {
+    detektPlugins(project(":detekt-rules"))
 }
