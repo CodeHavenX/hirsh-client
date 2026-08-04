@@ -17,6 +17,7 @@ import com.cramsan.hirsh.ui.theme.HissAccent
 import com.cramsan.hirsh.ui.theme.HissAccentWash
 import com.cramsan.hirsh.ui.theme.HissInk
 import com.cramsan.hirsh.ui.theme.HissInk2
+import com.cramsan.hirsh.ui.theme.HissRadiusSmall
 import com.cramsan.hirsh.ui.theme.HissWarn
 import com.cramsan.hirsh.ui.theme.HissWarnWash
 
@@ -56,7 +57,7 @@ fun StatusBadge(
     tone: BadgeTone,
 ) {
     val style = styleFor(tone)
-    val cornerRadius = 6.dp
+    val cornerRadius = HissRadiusSmall
     Text(
         text = text,
         style = MaterialTheme.typography.labelSmall,

@@ -11,6 +11,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cramsan.hirsh.ui.theme.HissFaint
 import com.cramsan.hirsh.ui.theme.HissInk2
+import com.cramsan.hirsh.ui.theme.HissRadiusSmall
 
 /**
  * Small mono pill used inside [EncounterTopBar]'s meta row and other
@@ -27,7 +28,7 @@ fun Chip(text: String) {
         fontSize = 10.sp,
         color = HissInk2,
         modifier = Modifier
-            .border(1.dp, HissFaint, RoundedCornerShape(6.dp))
+            .border(1.dp, HissFaint, RoundedCornerShape(HissRadiusSmall))
             .padding(horizontal = 8.dp, vertical = 2.dp),
     )
 }

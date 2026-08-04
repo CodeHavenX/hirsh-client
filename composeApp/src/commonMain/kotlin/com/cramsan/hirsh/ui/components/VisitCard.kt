@@ -18,6 +18,7 @@ import com.cramsan.hirsh.ui.theme.HissAccent
 import com.cramsan.hirsh.ui.theme.HissAccentWash
 import com.cramsan.hirsh.ui.theme.HissFaint
 import com.cramsan.hirsh.ui.theme.HissInk2
+import com.cramsan.hirsh.ui.theme.HissRadiusDefault
 
 /**
  * Clickable summary row used for both hospitalizations-in-a-patient
@@ -39,7 +40,7 @@ fun VisitCard(
     val containerColor = if (active) HissAccentWash else MaterialTheme.colorScheme.surface
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(10.dp),
+        shape = RoundedCornerShape(HissRadiusDefault),
         color = containerColor,
         border = BorderStroke(1.dp, borderColor),
         modifier = Modifier.fillMaxWidth(),

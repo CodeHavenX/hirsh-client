@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.sp
 import com.cramsan.hirsh.ui.theme.HissAccentWash
 import com.cramsan.hirsh.ui.theme.HissFaint
 import com.cramsan.hirsh.ui.theme.HissInk2
+import com.cramsan.hirsh.ui.theme.HissRadiusDefault
 
 /**
  * One column of a [DataTable] -- mirrors an entry in the `columns` array
@@ -50,7 +51,7 @@ fun <T> DataTable(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, HissFaint, RoundedCornerShape(10.dp)),
+            .border(1.dp, HissFaint, RoundedCornerShape(HissRadiusDefault)),
     ) {
         Row(
             modifier = Modifier
