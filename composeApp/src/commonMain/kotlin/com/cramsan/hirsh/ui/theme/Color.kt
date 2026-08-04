@@ -6,6 +6,7 @@ import androidx.compose.ui.graphics.Color
 // Compose app opens on the same palette as the HTML mocks.
 val HissPaper = Color(0xFFFCFBF7)
 val HissInk = Color(0xFF2B2926)
+val HissInk2 = Color(0xFF75726B)
 val HissFaint = Color(0xFFD8D4CB)
 val HissAccent = Color(0xFF2F7D8A)
 val HissAccentWash = Color(0xFFE3EFF0)
