@@ -1,4 +1,4 @@
-package com.cramsan.hirsh.ui.screens.auth
+package com.cramsan.hirsh.ui.screens.login
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

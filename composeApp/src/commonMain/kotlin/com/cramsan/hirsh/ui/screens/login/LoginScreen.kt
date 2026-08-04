@@ -1,4 +1,4 @@
-package com.cramsan.hirsh.ui.screens.auth
+package com.cramsan.hirsh.ui.screens.login
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column

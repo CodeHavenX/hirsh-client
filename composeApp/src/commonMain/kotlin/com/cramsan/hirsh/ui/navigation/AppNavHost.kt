@@ -10,9 +10,9 @@ import androidx.navigation.navArgument
 import androidx.savedstate.read
 import com.cramsan.hirsh.ui.components.AppScaffold
 import com.cramsan.hirsh.ui.components.NavItem
-import com.cramsan.hirsh.ui.screens.auth.LoginScreen
-import com.cramsan.hirsh.ui.screens.patients.PatientListScreen
-import com.cramsan.hirsh.ui.screens.patients.PatientRecordScreen
+import com.cramsan.hirsh.ui.screens.login.LoginScreen
+import com.cramsan.hirsh.ui.screens.patientlist.PatientListScreen
+import com.cramsan.hirsh.ui.screens.patientrecord.PatientRecordScreen
 import com.cramsan.hirsh.ui.screens.profile.ProfileScreen
 
 private val sidebarItems = listOf(

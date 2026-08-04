@@ -1,4 +1,4 @@
-package com.cramsan.hirsh.ui.screens.patients
+package com.cramsan.hirsh.ui.screens.patientlist
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize

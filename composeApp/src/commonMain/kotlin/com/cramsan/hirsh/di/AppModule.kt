@@ -5,9 +5,9 @@ import com.cramsan.hirsh.repository.AuthRepository
 import com.cramsan.hirsh.repository.FakeAuthRepository
 import com.cramsan.hirsh.repository.InMemoryPatientRepository
 import com.cramsan.hirsh.repository.PatientRepository
-import com.cramsan.hirsh.ui.screens.auth.LoginViewModel
-import com.cramsan.hirsh.ui.screens.patients.PatientListViewModel
-import com.cramsan.hirsh.ui.screens.patients.PatientRecordViewModel
+import com.cramsan.hirsh.ui.screens.login.LoginViewModel
+import com.cramsan.hirsh.ui.screens.patientlist.PatientListViewModel
+import com.cramsan.hirsh.ui.screens.patientrecord.PatientRecordViewModel
 import com.cramsan.hirsh.ui.screens.profile.ProfileViewModel
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.HttpClientEngineFactory

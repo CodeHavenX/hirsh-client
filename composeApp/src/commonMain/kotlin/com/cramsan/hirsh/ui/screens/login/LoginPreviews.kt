@@ -1,4 +1,4 @@
-package com.cramsan.hirsh.ui.screens.auth
+package com.cramsan.hirsh.ui.screens.login
 
 import androidx.compose.runtime.Composable
 import com.cramsan.hirsh.model.Role

@@ -1,4 +1,4 @@
-package com.cramsan.hirsh.ui.screens.patients
+package com.cramsan.hirsh.ui.screens.patientrecord
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

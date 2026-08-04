@@ -1,4 +1,4 @@
-package com.cramsan.hirsh.ui.screens.patients
+package com.cramsan.hirsh.ui.screens.patientlist
 
 import androidx.compose.runtime.Composable
 import com.cramsan.hirsh.repository.InMemoryPatientRepository
