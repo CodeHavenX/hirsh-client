@@ -1,11 +1,11 @@
 package com.cramsan.hirsh.ui.screens.profile
 
 import androidx.lifecycle.ViewModel
-import com.cramsan.hirsh.repository.AuthRepository
+import com.cramsan.hirsh.repository.SessionRepository
 
-class ProfileViewModel(private val authRepository: AuthRepository) : ViewModel() {
+class ProfileViewModel(private val sessionRepository: SessionRepository) : ViewModel() {
 
     fun signOut() {
-        authRepository.logout()
+        sessionRepository.logout()
     }
 }
