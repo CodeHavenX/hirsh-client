@@ -1,12 +1,12 @@
 package com.cramsan.hirsh.ui.screens.patientrecord
 
+import app.cash.turbine.test
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.repository.PatientRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -14,8 +14,6 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertNull
 
 private val samplePatient = Patient(
     id = "#00142",
@@ -54,23 +52,23 @@ class PatientRecordViewModelTest {
     fun `load populates the patient when it exists`() = runTest(dispatcher) {
         val viewModel = PatientRecordViewModel(FakePatientRepository(listOf(samplePatient)))
 
-        viewModel.load(samplePatient.id)
-        advanceUntilIdle()
-
-        val state = viewModel.uiState.value
-        assertFalse(state.isLoading)
-        assertEquals(samplePatient, state.patient)
+        viewModel.uiState.test {
+            assertEquals(PatientRecordUiState(), awaitItem())
+            viewModel.load(samplePatient.id)
+            assertEquals(PatientRecordUiState(isLoading = false, patient = samplePatient), awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test
     fun `load leaves patient null when no match is found`() = runTest(dispatcher) {
         val viewModel = PatientRecordViewModel(FakePatientRepository(emptyList()))
 
-        viewModel.load("#does-not-exist")
-        advanceUntilIdle()
-
-        val state = viewModel.uiState.value
-        assertFalse(state.isLoading)
-        assertNull(state.patient)
+        viewModel.uiState.test {
+            assertEquals(PatientRecordUiState(), awaitItem())
+            viewModel.load("#does-not-exist")
+            assertEquals(PatientRecordUiState(isLoading = false, patient = null), awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 }

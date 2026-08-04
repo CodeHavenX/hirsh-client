@@ -1,12 +1,12 @@
 package com.cramsan.hirsh.ui.screens.login
 
+import app.cash.turbine.test
 import com.cramsan.hirsh.model.Role
 import com.cramsan.hirsh.model.Session
 import com.cramsan.hirsh.repository.AuthRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -14,8 +14,6 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 private class FakeAuthRepository(
@@ -55,13 +53,13 @@ class LoginViewModelTest {
         val session = Session(username = "drpatel", displayName = "drpatel", role = Role.DOCTOR)
         val viewModel = LoginViewModel(FakeAuthRepository(Result.success(session)))
 
-        viewModel.login("drpatel", "hunter2")
-        advanceUntilIdle()
-
-        val state = viewModel.uiState.value
-        assertTrue(state.loggedIn)
-        assertFalse(state.isLoading)
-        assertNull(state.error)
+        viewModel.uiState.test {
+            assertEquals(LoginUiState(), awaitItem())
+            viewModel.login("drpatel", "hunter2")
+            assertEquals(LoginUiState(isLoading = true), awaitItem())
+            assertEquals(LoginUiState(loggedIn = true), awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test
@@ -70,12 +68,12 @@ class LoginViewModelTest {
             FakeAuthRepository(Result.failure(IllegalArgumentException("Usuario o contrasena incorrectos"))),
         )
 
-        viewModel.login("drpatel", "wrong")
-        advanceUntilIdle()
-
-        val state = viewModel.uiState.value
-        assertFalse(state.loggedIn)
-        assertFalse(state.isLoading)
-        assertEquals("Usuario o contrasena incorrectos", state.error)
+        viewModel.uiState.test {
+            assertEquals(LoginUiState(), awaitItem())
+            viewModel.login("drpatel", "wrong")
+            assertEquals(LoginUiState(isLoading = true), awaitItem())
+            assertEquals(LoginUiState(error = "Usuario o contrasena incorrectos"), awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 }

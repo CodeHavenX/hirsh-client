@@ -6,8 +6,8 @@
 
 [versions]
 agp = "8.13.2"
-kotlin = "2.2.20"
-compose-multiplatform = "1.9.3"
+kotlin = "2.3.20"
+compose-multiplatform = "1.11.1"
 kotlinx-coroutines = "1.9.0"
 kotlinx-serialization = "1.7.3"
 ktor = "3.0.1"
@@ -21,6 +21,10 @@ detekt = "1.23.8"
 android-compileSdk = "35"
 android-targetSdk = "35"
 android-minSdk = "24"
+turbine = "1.2.1"
+roborazzi = "1.70.0"
+composable-preview-scanner = "0.9.1"
+junit = "4.13.2"
 
 [libraries]
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
@@ -52,6 +56,12 @@ navigation-compose = { module = "org.jetbrains.androidx.navigation:navigation-co
 detekt-api = { module = "io.gitlab.arturbosch.detekt:detekt-api", version.ref = "detekt" }
 detekt-test = { module = "io.gitlab.arturbosch.detekt:detekt-test", version.ref = "detekt" }
 
+turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }
+
+roborazzi-compose-desktop-preview-scanner-support = { module = "io.github.takahirom.roborazzi:roborazzi-compose-desktop-preview-scanner-support", version.ref = "roborazzi" }
+composable-preview-scanner-android = { module = "io.github.sergio-sastre.ComposablePreviewScanner:android", version.ref = "composable-preview-scanner" }
+junit = { module = "junit:junit", version.ref = "junit" }
+
 [plugins]
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
@@ -60,3 +70,4 @@ composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "compose-mu
 composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
+roborazzi = { id = "io.github.takahirom.roborazzi", version.ref = "roborazzi" }

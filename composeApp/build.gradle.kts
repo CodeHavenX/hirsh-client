@@ -1,7 +1,10 @@
+import com.github.takahirom.roborazzi.ExperimentalRoborazziApi
+import org.gradle.api.attributes.java.TargetJvmVersion
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -10,6 +13,31 @@ plugins {
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.kotlinSerialization)
     alias(libs.plugins.detekt)
+    alias(libs.plugins.roborazzi)
+}
+
+// ComposablePreviewScanner (used by Roborazzi's desktop preview screenshot tests) publishes
+// JVM 17 metadata, so the desktop target's compile output and test classpath must request 17.
+tasks.withType<KotlinCompile>().configureEach {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
+    }
+}
+
+// Used by the expect/actual Preview alias in ui/preview/Preview.kt (still Beta in Kotlin 2.3.20),
+// across every platform's compile task (JVM, JS/Wasm, Native, metadata).
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().configureEach {
+    compilerOptions {
+        freeCompilerArgs.add("-Xexpect-actual-classes")
+    }
+}
+
+afterEvaluate {
+    listOf("desktopTestCompileClasspath", "desktopTestRuntimeClasspath").forEach { name ->
+        configurations.named(name) {
+            attributes.attribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, 17)
+        }
+    }
 }
 
 kotlin {
@@ -20,7 +48,12 @@ kotlin {
         }
     }
 
-    jvm("desktop")
+    jvm("desktop") {
+        @OptIn(ExperimentalKotlinGradlePluginApi::class)
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_17)
+        }
+    }
 
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
@@ -34,7 +67,6 @@ kotlin {
     }
 
     listOf(
-        iosX64(),
         iosArm64(),
         iosSimulatorArm64(),
     ).forEach { iosTarget ->
@@ -82,6 +114,7 @@ kotlin {
         commonTest.dependencies {
             implementation(kotlin("test"))
             implementation(libs.kotlinx.coroutines.test)
+            implementation(libs.turbine)
         }
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)
@@ -90,6 +123,15 @@ kotlin {
             implementation(compose.desktop.currentOs)
             implementation(libs.ktor.client.cio)
             implementation(libs.kotlinx.coroutines.swing)
+        }
+        val desktopTest by getting {
+            dependencies {
+                // Powers Roborazzi's generateComposePreviewDesktopTests: scans commonMain for
+                // @Preview composables and screenshots them by rendering on Compose Desktop.
+                implementation(libs.roborazzi.compose.desktop.preview.scanner.support)
+                implementation(libs.composable.preview.scanner.android)
+                implementation(libs.junit)
+            }
         }
         wasmJsMain.dependencies {
             implementation(libs.ktor.client.js)
@@ -130,6 +172,23 @@ compose.desktop {
             packageName = "com.cramsan.hirsh"
             packageVersion = "1.0.0"
         }
+    }
+}
+
+roborazzi {
+    // Goldens live under a committed directory (not build/) so they're versioned and diffable
+    // in review, the same way the rest of the screenshot-testing ecosystem expects.
+    outputDir.set(layout.projectDirectory.dir("screenshots"))
+
+    // Generates one screenshot test per @Preview composable under ui.screens, rendered on
+    // Compose Desktop (no Robolectric/Android needed). Run `./gradlew recordRoborazziDesktop`
+    // to (re)record goldens under screenshots/, `verifyRoborazziDesktop` to check them.
+    @OptIn(ExperimentalRoborazziApi::class)
+    generateComposePreviewDesktopTests {
+        enable = true
+        packages = listOf("com.cramsan.hirsh.ui.screens")
+        // Our *Previews.kt composables are private by convention (see ScreenMissingPreviews).
+        includePrivatePreviews = true
     }
 }
 
