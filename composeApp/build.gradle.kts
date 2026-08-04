@@ -186,7 +186,7 @@ roborazzi {
     @OptIn(ExperimentalRoborazziApi::class)
     generateComposePreviewDesktopTests {
         enable = true
-        packages = listOf("com.cramsan.hirsh.ui.screens")
+        packages = listOf("com.cramsan.hirsh.ui.screens", "com.cramsan.hirsh.ui.components")
         // Our *Previews.kt composables are private by convention (see ScreenMissingPreviews).
         includePrivatePreviews = true
     }
