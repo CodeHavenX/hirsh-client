@@ -1,0 +1,51 @@
+package com.cramsan.hirsh.di
+
+import com.cramsan.hirsh.preferences.AppPreferences
+import com.cramsan.hirsh.repository.AuthRepository
+import com.cramsan.hirsh.repository.FakeAuthRepository
+import com.cramsan.hirsh.repository.InMemoryPatientRepository
+import com.cramsan.hirsh.repository.PatientRepository
+import com.cramsan.hirsh.ui.screens.auth.LoginViewModel
+import com.cramsan.hirsh.ui.screens.patients.PatientListViewModel
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.HttpClientEngineFactory
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.logging.LogLevel
+import io.ktor.client.plugins.logging.Logging
+import io.ktor.serialization.kotlinx.json.json
+import kotlinx.serialization.json.Json
+import org.koin.core.context.startKoin
+import org.koin.core.module.dsl.singleOf
+import org.koin.core.module.dsl.viewModelOf
+import org.koin.dsl.KoinAppDeclaration
+import org.koin.dsl.bind
+import org.koin.dsl.module
+
+private val sharedModule = module {
+    single {
+        Json {
+            ignoreUnknownKeys = true
+            isLenient = true
+        }
+    }
+    single {
+        val engineFactory = get<HttpClientEngineFactory<*>>()
+        HttpClient(engineFactory) {
+            install(ContentNegotiation) { json(get()) }
+            install(Logging) { level = LogLevel.INFO }
+        }
+    }
+    singleOf(::AppPreferences)
+    singleOf(::FakeAuthRepository) bind AuthRepository::class
+    singleOf(::InMemoryPatientRepository) bind PatientRepository::class
+
+    viewModelOf(::LoginViewModel)
+    viewModelOf(::PatientListViewModel)
+}
+
+fun initKoin(config: KoinAppDeclaration? = null) {
+    startKoin {
+        config?.invoke(this)
+        modules(platformModule, sharedModule)
+    }
+}
