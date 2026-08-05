@@ -54,6 +54,28 @@ private class PreviewPatientRepository(patients: List<Patient>) : PatientReposit
         fecha: String,
         hora: String,
     ) = Unit
+
+    override suspend fun addPatient(
+        name: String,
+        nationalId: String,
+        dateOfBirth: String,
+        phone: String,
+        sex: Sex,
+        bloodType: String,
+        allergies: String,
+        assignedDoctor: String,
+    ): Patient = Patient(
+        id = "#00000",
+        name = name,
+        dateOfBirth = dateOfBirth,
+        phone = phone,
+        assignedDoctor = assignedDoctor,
+        lastVisit = "—",
+        bloodType = bloodType,
+        allergies = allergies,
+        nationalId = nationalId,
+        sex = sex,
+    )
 }
 
 @Preview
