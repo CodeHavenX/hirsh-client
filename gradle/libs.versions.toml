@@ -25,6 +25,7 @@ turbine = "1.2.1"
 roborazzi = "1.70.0"
 composable-preview-scanner = "0.9.1"
 junit = "4.13.2"
+cmp-bridge = "0.1.0.3"
 
 [libraries]
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
@@ -61,6 +62,8 @@ turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }
 roborazzi-compose-desktop-preview-scanner-support = { module = "io.github.takahirom.roborazzi:roborazzi-compose-desktop-preview-scanner-support", version.ref = "roborazzi" }
 composable-preview-scanner-android = { module = "io.github.sergio-sastre.ComposablePreviewScanner:android", version.ref = "composable-preview-scanner" }
 junit = { module = "junit:junit", version.ref = "junit" }
+
+cmp-bridge = { module = "com.cramsan.cmpbridge:cmp-bridge", version.ref = "cmp-bridge" }
 
 [plugins]
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }

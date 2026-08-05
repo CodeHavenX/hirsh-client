@@ -19,6 +19,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -47,13 +48,13 @@ fun LoginScreen(
                 value = username,
                 onValueChange = { username = it },
                 label = { Text("Usuario") },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().testTag("login_username_field"),
             )
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
                 label = { Text("Contrasena") },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().testTag("login_password_field"),
             )
             if (uiState.error != null) {
                 Text(uiState.error.orEmpty(), color = MaterialTheme.colorScheme.error)
@@ -61,7 +62,7 @@ fun LoginScreen(
             Button(
                 onClick = { viewModel.login(username, password) },
                 enabled = !uiState.isLoading,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().testTag("login_submit_button"),
             ) {
                 Text("Iniciar sesion")
             }

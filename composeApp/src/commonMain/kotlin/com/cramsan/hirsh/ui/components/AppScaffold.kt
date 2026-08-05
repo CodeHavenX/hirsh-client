@@ -15,6 +15,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 
 data class NavItem(
@@ -54,6 +55,7 @@ fun AppScaffold(
                         selected = item.destination == selectedDestination,
                         onClick = { onNavigate(item.destination) },
                         colors = NavigationDrawerItemDefaults.colors(),
+                        modifier = Modifier.testTag("nav_${item.destination}"),
                     )
                 }
             }

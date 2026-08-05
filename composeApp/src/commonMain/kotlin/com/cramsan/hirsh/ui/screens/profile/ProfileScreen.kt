@@ -8,6 +8,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -23,7 +24,7 @@ fun ProfileScreen(
                 viewModel.signOut()
                 onSignedOut()
             },
-            modifier = Modifier.padding(top = 16.dp),
+            modifier = Modifier.padding(top = 16.dp).testTag("profile_sign_out_button"),
         ) {
             Text("Cerrar sesion")
         }

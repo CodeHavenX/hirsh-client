@@ -123,6 +123,9 @@ kotlin {
             implementation(compose.desktop.currentOs)
             implementation(libs.ktor.client.cio)
             implementation(libs.kotlinx.coroutines.swing)
+            // Debug-only in-app driver server, armed only via CMP_BRIDGE_ENABLED=true --
+            // see .claude/skills/run-desktop/SKILL.md.
+            implementation(libs.cmp.bridge)
         }
         val desktopTest by getting {
             dependencies {
