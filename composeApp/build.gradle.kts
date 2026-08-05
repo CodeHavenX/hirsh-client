@@ -195,6 +195,14 @@ roborazzi {
     }
 }
 
+// Only takes effect when both tasks are actually in the same invocation's graph (e.g. via the
+// root project's `verifyCi`) -- a standalone `recordRoborazziDesktop` (optionally `--tests`
+// filtered, as match-mock-fidelity does per-screen) is unaffected, since this doesn't add
+// clearRoborazziDesktop as a dependency, only orders it first if it's already going to run.
+tasks.named("recordRoborazziDesktop") {
+    mustRunAfter("clearRoborazziDesktop")
+}
+
 detekt {
     // KMP source sets (commonMain, androidMain, ...) live outside the
     // src/main/src/test layout detekt's Gradle plugin looks for by default.
