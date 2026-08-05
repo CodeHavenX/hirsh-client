@@ -95,6 +95,42 @@ rule -- there's currently nothing in it (all four screens comply), but if
 you introduce a rule against existing code, regenerate it with
 `./gradlew :composeApp:detektBaseline` rather than hand-editing it.
 
+## Screenshot testing (Roborazzi)
+
+Every `@Preview` composable under `ui.screens` and `ui.components` (including
+`private` ones -- see `composeApp/build.gradle.kts`'s
+`generateComposePreviewDesktopTests`) gets its own screenshot test, rendered
+on Compose Desktop (no Robolectric/Android needed) and compared against a
+golden PNG committed under `composeApp/screenshots/` (Git LFS).
+
+```
+./gradlew :composeApp:recordRoborazziDesktop   # (re)record goldens from current source
+./gradlew :composeApp:verifyRoborazziDesktop   # compare against committed goldens, no writes
+```
+
+Both can be scoped to one preview with `--tests "*ScreenName*"`.
+
+**`recordRoborazziDesktop` never deletes anything** -- it only adds/updates a
+PNG for each preview that exists right now, so deleting or renaming a
+`@Preview` function leaves its old golden behind as an orphaned file nobody
+points at. To catch that, clear before recording:
+
+```
+./gradlew :composeApp:clearRoborazziDesktop
+./gradlew :composeApp:recordRoborazziDesktop
+```
+
+`git status composeApp/screenshots/` afterwards shows exactly what's missing
+now vs. before -- anything that shows as deleted and doesn't come back is an
+orphan worth removing for real (`git rm`).
+
+After either flow, review every changed PNG before committing, not just the
+diff stat -- re-rendering is not always pixel-stable on the same source (seen
+in practice: a golden for a screen nobody touched changed on a re-record with
+no visible content difference). If a changed golden's content is identical to
+what's already committed, that's rendering noise, not a real change --
+`git checkout --` it rather than committing a no-op diff.
+
 ## Auth / data
 
 `repository/AuthRepository` and `repository/PatientRepository` currently
