@@ -35,6 +35,19 @@ private val samplePatient = Patient(
     sex = Sex.FEMALE,
 )
 
+private val otherPatient = Patient(
+    id = "#00138",
+    name = "Eduardo Remon Huertas",
+    dateOfBirth = "17/07/1962",
+    phone = "912-345-678",
+    assignedDoctor = "Dr. Reyes",
+    lastVisit = "17 Jun 2026",
+    bloodType = "A+",
+    allergies = "Ninguna",
+    nationalId = "09147875",
+    sex = Sex.MALE,
+)
+
 private class FakePatientRepository(patients: List<Patient>) : PatientRepository {
     private val _patients = MutableStateFlow(patients)
     override val patients: StateFlow<List<Patient>> = _patients.asStateFlow()
@@ -86,6 +99,86 @@ class PatientListViewModelTest {
         viewModel.uiState.test {
             skipItems(1)
             assertEquals(emptyList(), awaitItem().patients)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `filters by a name substring case-insensitively`() = runTest(dispatcher) {
+        val viewModel = PatientListViewModel(FakePatientRepository(listOf(samplePatient, otherPatient)))
+
+        viewModel.uiState.test {
+            skipItems(1)
+            awaitItem()
+            viewModel.onQueryChange("gonzalez")
+            assertEquals(listOf(samplePatient), awaitItem().patients)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `filters by a national id substring`() = runTest(dispatcher) {
+        val viewModel = PatientListViewModel(FakePatientRepository(listOf(samplePatient, otherPatient)))
+
+        viewModel.uiState.test {
+            skipItems(1)
+            awaitItem()
+            viewModel.onQueryChange("09147875")
+            assertEquals(listOf(otherPatient), awaitItem().patients)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `filters by an HCL id substring`() = runTest(dispatcher) {
+        val viewModel = PatientListViewModel(FakePatientRepository(listOf(samplePatient, otherPatient)))
+
+        viewModel.uiState.test {
+            skipItems(1)
+            awaitItem()
+            viewModel.onQueryChange("00142")
+            assertEquals(listOf(samplePatient), awaitItem().patients)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `blank query surfaces every patient`() = runTest(dispatcher) {
+        val viewModel = PatientListViewModel(FakePatientRepository(listOf(samplePatient, otherPatient)))
+
+        viewModel.uiState.test {
+            skipItems(1)
+            awaitItem()
+            viewModel.onQueryChange("maria")
+            awaitItem()
+            viewModel.onQueryChange("")
+            assertEquals(listOf(samplePatient, otherPatient), awaitItem().patients)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `a query matching nothing surfaces an empty list`() = runTest(dispatcher) {
+        val viewModel = PatientListViewModel(FakePatientRepository(listOf(samplePatient, otherPatient)))
+
+        viewModel.uiState.test {
+            skipItems(1)
+            awaitItem()
+            viewModel.onQueryChange("does-not-match-anyone")
+            assertEquals(emptyList(), awaitItem().patients)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `uiState reflects the current query`() = runTest(dispatcher) {
+        val viewModel = PatientListViewModel(FakePatientRepository(listOf(samplePatient)))
+
+        viewModel.uiState.test {
+            skipItems(1)
+            awaitItem()
+            viewModel.onQueryChange("maria")
+            assertEquals("maria", awaitItem().query)
             cancelAndIgnoreRemainingEvents()
         }
     }
