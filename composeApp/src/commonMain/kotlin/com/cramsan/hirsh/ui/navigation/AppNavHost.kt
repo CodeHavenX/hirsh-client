@@ -1,5 +1,6 @@
 package com.cramsan.hirsh.ui.navigation
 
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -11,6 +12,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.savedstate.read
+import com.cramsan.hirsh.model.Role
 import com.cramsan.hirsh.model.Session
 import com.cramsan.hirsh.repository.SessionRepository
 import com.cramsan.hirsh.ui.components.AppScaffold
@@ -21,10 +23,13 @@ import com.cramsan.hirsh.ui.screens.patientrecord.PatientRecordScreen
 import com.cramsan.hirsh.ui.screens.profile.ProfileScreen
 import org.koin.compose.koinInject
 
-private fun sidebarItems(session: Session?): List<NavItem> = listOf(
-    NavItem(label = "Pacientes", destination = Routes.PATIENTS),
-    NavItem(label = "Perfil", destination = Routes.PROFILE),
-)
+private fun sidebarItems(session: Session?): List<NavItem> = buildList {
+    add(NavItem(label = "Pacientes", destination = Routes.PATIENTS))
+    add(NavItem(label = "Perfil", destination = Routes.PROFILE))
+    if (session?.role == Role.ADMIN) {
+        add(NavItem(label = "Cuentas", destination = Routes.ACCOUNTS))
+    }
+}
 
 @Composable
 fun AppNavHost(
@@ -83,7 +88,142 @@ fun AppNavHost(
                 }
             }
         }
+        composable(Routes.PATIENT_REGISTER) {
+            RequireSession(session, navController) {
+                AppScaffold(
+                    items = items,
+                    selectedDestination = Routes.PATIENTS,
+                    onNavigate = { destination -> navigateToSidebarItem(navController, destination) },
+                ) {
+                    RoutePlaceholder(Routes.PATIENT_REGISTER)
+                }
+            }
+        }
+        composable(
+            route = Routes.PATIENT_EDIT,
+            arguments = listOf(navArgument("patientId") { type = NavType.StringType }),
+        ) {
+            RequireSession(session, navController) {
+                AppScaffold(
+                    items = items,
+                    selectedDestination = Routes.PATIENTS,
+                    onNavigate = { destination -> navigateToSidebarItem(navController, destination) },
+                ) {
+                    RoutePlaceholder(Routes.PATIENT_EDIT)
+                }
+            }
+        }
+        composable(
+            route = Routes.PATIENT_HISTORY,
+            arguments = listOf(navArgument("patientId") { type = NavType.StringType }),
+        ) {
+            RequireSession(session, navController) {
+                AppScaffold(
+                    items = items,
+                    selectedDestination = Routes.PATIENTS,
+                    onNavigate = { destination -> navigateToSidebarItem(navController, destination) },
+                ) {
+                    RoutePlaceholder(Routes.PATIENT_HISTORY)
+                }
+            }
+        }
+        composable(
+            route = Routes.ADMISION,
+            arguments = listOf(navArgument("patientId") { type = NavType.StringType }),
+        ) {
+            RequireSession(session, navController) {
+                AppScaffold(
+                    items = items,
+                    selectedDestination = Routes.PATIENTS,
+                    onNavigate = { destination -> navigateToSidebarItem(navController, destination) },
+                ) {
+                    RoutePlaceholder(Routes.ADMISION)
+                }
+            }
+        }
+        composable(
+            route = Routes.HOSPITALIZATION,
+            arguments = listOf(
+                navArgument("patientId") { type = NavType.StringType },
+                navArgument("hospId") { type = NavType.StringType },
+            ),
+        ) {
+            RequireSession(session, navController) {
+                AppScaffold(
+                    items = items,
+                    selectedDestination = Routes.PATIENTS,
+                    onNavigate = { destination -> navigateToSidebarItem(navController, destination) },
+                ) {
+                    RoutePlaceholder(Routes.HOSPITALIZATION)
+                }
+            }
+        }
+        composable(
+            route = Routes.HISTORIA_CLINICA,
+            arguments = listOf(
+                navArgument("patientId") { type = NavType.StringType },
+                navArgument("hospId") { type = NavType.StringType },
+            ),
+        ) {
+            RequireSession(session, navController) {
+                RoutePlaceholder(Routes.HISTORIA_CLINICA)
+            }
+        }
+        composable(
+            route = Routes.EVOLUCION_NEW,
+            arguments = listOf(
+                navArgument("patientId") { type = NavType.StringType },
+                navArgument("hospId") { type = NavType.StringType },
+            ),
+        ) {
+            RequireSession(session, navController) {
+                RoutePlaceholder(Routes.EVOLUCION_NEW)
+            }
+        }
+        composable(
+            route = Routes.EVOLUCION_VIEW,
+            arguments = listOf(
+                navArgument("patientId") { type = NavType.StringType },
+                navArgument("hospId") { type = NavType.StringType },
+                navArgument("evoId") { type = NavType.StringType },
+            ),
+        ) {
+            RequireSession(session, navController) {
+                RoutePlaceholder(Routes.EVOLUCION_VIEW)
+            }
+        }
+        composable(Routes.ACCOUNTS) {
+            RequireSession(session, navController) {
+                if (session?.role != Role.ADMIN) {
+                    LaunchedEffect(Unit) {
+                        navController.navigate(Routes.PATIENTS) {
+                            popUpTo(0)
+                        }
+                    }
+                } else {
+                    AppScaffold(
+                        items = items,
+                        selectedDestination = Routes.ACCOUNTS,
+                        onNavigate = { destination -> navigateToSidebarItem(navController, destination) },
+                    ) {
+                        RoutePlaceholder(Routes.ACCOUNTS)
+                    }
+                }
+            }
+        }
     }
+}
+
+/**
+ * Stand-in for a destination whose real Screen/ViewModel/Previews trio hasn't
+ * been built yet -- deliberately not a `*Screen.kt` file so it never triggers
+ * the ScreenMissingViewModel/ScreenMissingPreviews detekt rules for code every
+ * owning ticket (HISS-201..401) throws away when it lands. Each such ticket
+ * replaces its one call site above rather than editing this composable.
+ */
+@Composable
+private fun RoutePlaceholder(route: String) {
+    Text("TODO: $route")
 }
 
 /**
