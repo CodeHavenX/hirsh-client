@@ -124,12 +124,17 @@ points at. To catch that, clear before recording:
 now vs. before -- anything that shows as deleted and doesn't come back is an
 orphan worth removing for real (`git rm`).
 
-After either flow, review every changed PNG before committing, not just the
-diff stat -- re-rendering is not always pixel-stable on the same source (seen
-in practice: a golden for a screen nobody touched changed on a re-record with
-no visible content difference). If a changed golden's content is identical to
-what's already committed, that's rendering noise, not a real change --
-`git checkout --` it rather than committing a no-op diff.
+After either flow, actually look at every changed PNG before committing, not
+just the diff stat -- and don't assume a diff is noise just because your own
+change didn't touch that screen. A golden can be stale for a completely
+different reason: `PatientListScreenPreview.png` sat on `main` showing only 3
+patients for a long time after `InMemoryPatientRepository` was seeded with all
+6, because nothing re-recorded it when the seed data changed elsewhere. Two
+separate re-records surfaced that exact diff and got reverted as "probably
+just rendering noise" without a pixel-level comparison -- both wrong. Diff the
+two images for real (`ImageChops.difference` or equivalent) before deciding;
+a changed bounding box that lines up with actual new/removed content is a real
+fix to commit, not noise to discard.
 
 ## Auth / data
 
