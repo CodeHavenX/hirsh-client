@@ -6,6 +6,11 @@ import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.repository.PatientRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -28,9 +33,10 @@ private val samplePatient = Patient(
     sex = Sex.FEMALE,
 )
 
-private class FakePatientRepository(private val patients: List<Patient>) : PatientRepository {
-    override suspend fun getPatients(): List<Patient> = patients
-    override suspend fun getPatient(id: String): Patient? = patients.find { it.id == id }
+private class FakePatientRepository(patients: List<Patient>) : PatientRepository {
+    private val _patients = MutableStateFlow(patients)
+    override val patients: StateFlow<List<Patient>> = _patients.asStateFlow()
+    override fun getPatient(id: String): Flow<Patient?> = patients.map { list -> list.find { it.id == id } }
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)

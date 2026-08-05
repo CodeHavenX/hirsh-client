@@ -4,11 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.repository.PatientRepository
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 
 data class PatientListUiState(
     val isLoading: Boolean = true,
@@ -17,13 +16,7 @@ data class PatientListUiState(
 
 class PatientListViewModel(private val patientRepository: PatientRepository) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(PatientListUiState())
-    val uiState: StateFlow<PatientListUiState> = _uiState.asStateFlow()
-
-    init {
-        viewModelScope.launch {
-            val patients = patientRepository.getPatients()
-            _uiState.update { it.copy(isLoading = false, patients = patients) }
-        }
-    }
+    val uiState: StateFlow<PatientListUiState> = patientRepository.patients
+        .map { patients -> PatientListUiState(isLoading = false, patients = patients) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PatientListUiState())
 }
