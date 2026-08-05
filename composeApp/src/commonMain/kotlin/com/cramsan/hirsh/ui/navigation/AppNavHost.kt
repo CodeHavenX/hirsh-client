@@ -54,7 +54,10 @@ fun AppNavHost(
                     selectedDestination = Routes.PATIENTS,
                     onNavigate = { destination -> navigateToSidebarItem(navController, destination) },
                 ) {
-                    PatientListScreen(onPatientSelected = { id -> navController.navigate(Routes.patientRecord(id)) })
+                    PatientListScreen(
+                        onPatientSelected = { id -> navController.navigate(Routes.patientRecord(id)) },
+                        onRegisterPatient = { navController.navigate(Routes.PATIENT_REGISTER) },
+                    )
                 }
             }
         }
