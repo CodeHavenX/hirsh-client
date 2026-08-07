@@ -48,21 +48,27 @@ diff the specific commit(s) instead: `git show --name-only --diff-filter=d
 
 ---
 
-## Step 2 — Green build & tests
+## Step 2 — Full verification gate
+
+Run the root project's CI-tier aggregate task rather than the individual pieces
+by hand — it's the single source of truth for "does this pass," covers every
+platform's `commonMain` compile (not just desktop), and regenerates +
+diff-checks Roborazzi screenshots as part of the same gate (see root
+`build.gradle.kts`'s `verifyCi`/`verifyLocal` task definitions):
 
 ```bash
-./gradlew :composeApp:compileKotlinDesktop --quiet
-./gradlew :composeApp:detekt --quiet
-./gradlew :composeApp:desktopTest --quiet
+./gradlew verifyCi --quiet
 ```
 
-If the diff touches any `*Screen.kt`/`*Previews.kt`, also compile the other
-targets actually affected (at minimum, confirm `commonMain` compiles for every
-platform via `./gradlew :composeApp:compileKotlinMetadata --quiet` — a
-common-source-set-only change should never be verified against desktop alone).
+This subsumes `compileKotlinDesktop`, `compileKotlinMetadata`,
+`:composeApp:desktopTest`, `:composeApp:detekt`, `:detekt-rules:test`, and a
+clear+record+diff pass over `composeApp/screenshots/` (`checkScreenshotsClean`)
+— run it in full even for a diff with no `*Screen.kt`/`*Previews.kt` changes,
+so a screenshot drifted by something else entirely doesn't slip through.
 
-A **red build, detekt failure, or test stops the gate here.** Report the failure
-and do not proceed to Step 3 claiming partial success.
+A **red build, detekt failure, test failure, or screenshot drift stops the gate
+here.** Report the failure (paste the actual Gradle output for whichever task
+failed) and do not proceed to Step 3 claiming partial success.
 
 ---
 
@@ -99,11 +105,13 @@ skill does **not** fix them — mark the relevant bullet unmet, note that
 `match-mock-fidelity` is the fix path, and let the user decide whether to run it
 before re-verifying.
 
-Also check `git status --porcelain screenshots/` — any unstaged/untracked
-screenshot diff outside the screen(s) this ticket touches means a broader
-Roborazzi run swept something up; flag it, don't silently `git checkout --` it
-without telling the user (unlike `match-mock-fidelity`'s fix loop, this skill
-only reports).
+`verifyCi` (Step 2) already clears, regenerates, and diff-checks
+`composeApp/screenshots/` as part of the gate, so a stray drift outside the
+screen(s) this ticket touches would already have failed the build there —
+if it passed, screenshots are clean. This step is about *visual correctness*
+against the mock, which a clean diff-check can't tell you: a screen can render
+without drifting from its own prior golden while still not matching
+`prototype/*.html`.
 
 ---
 
@@ -123,9 +131,8 @@ shouldn't be taken at face value.
 # Verification Report — HISS-NNN <title>
 
 ## Build & Tests
-- `compileKotlinDesktop`: PASS | FAIL (paste failure output)
-- `detekt`: PASS | FAIL
-- `desktopTest`: PASS | FAIL
+- `./gradlew verifyCi`: PASS | FAIL (paste failure output for whichever
+  sub-task failed — compile, detekt, desktopTest, or checkScreenshotsClean)
 
 ## Scope / Added-on-review bullets
 - [x] <bullet> — verified by `<TestClass>.<testMethod>` or `<file>:<line>`
