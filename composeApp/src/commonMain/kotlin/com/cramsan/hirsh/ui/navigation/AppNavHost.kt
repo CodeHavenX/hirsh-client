@@ -73,7 +73,15 @@ fun AppNavHost(
                     selectedDestination = Routes.PATIENTS,
                     onNavigate = { destination -> navigateToSidebarItem(navController, destination) },
                 ) {
-                    PatientRecordScreen(patientId = patientId)
+                    PatientRecordScreen(
+                        patientId = patientId,
+                        onEditProfile = { navController.navigate(Routes.patientEdit(patientId)) },
+                        onNewHospitalization = { navController.navigate(Routes.admision(patientId)) },
+                        onHospitalizationSelected = { hospId ->
+                            navController.navigate(Routes.hospitalization(patientId, hospId))
+                        },
+                        onViewHistory = { navController.navigate(Routes.patientHistory(patientId)) },
+                    )
                 }
             }
         }
