@@ -13,6 +13,7 @@ import com.cramsan.hirsh.repository.PatientRepository
 import com.cramsan.hirsh.repository.SessionRepository
 import com.cramsan.hirsh.ui.screens.login.LoginViewModel
 import com.cramsan.hirsh.ui.screens.patientedit.EditPatientViewModel
+import com.cramsan.hirsh.ui.screens.patienthistory.PatientHistoryViewModel
 import com.cramsan.hirsh.ui.screens.patientlist.PatientListViewModel
 import com.cramsan.hirsh.ui.screens.patientrecord.PatientRecordViewModel
 import com.cramsan.hirsh.ui.screens.patientregister.RegisterPatientViewModel
@@ -60,6 +61,7 @@ private val sharedModule = module {
     viewModelOf(::PatientRecordViewModel)
     viewModelOf(::RegisterPatientViewModel)
     viewModelOf(::EditPatientViewModel)
+    viewModelOf(::PatientHistoryViewModel)
     viewModelOf(::ProfileViewModel)
 }
 

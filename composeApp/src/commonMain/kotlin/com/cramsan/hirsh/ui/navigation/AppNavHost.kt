@@ -19,6 +19,7 @@ import com.cramsan.hirsh.ui.components.AppScaffold
 import com.cramsan.hirsh.ui.components.NavItem
 import com.cramsan.hirsh.ui.screens.login.LoginScreen
 import com.cramsan.hirsh.ui.screens.patientedit.EditPatientScreen
+import com.cramsan.hirsh.ui.screens.patienthistory.PatientHistoryScreen
 import com.cramsan.hirsh.ui.screens.patientlist.PatientListScreen
 import com.cramsan.hirsh.ui.screens.patientrecord.PatientRecordScreen
 import com.cramsan.hirsh.ui.screens.patientregister.RegisterPatientScreen
@@ -146,14 +147,18 @@ fun AppNavHost(
         composable(
             route = Routes.PATIENT_HISTORY,
             arguments = listOf(navArgument("patientId") { type = NavType.StringType }),
-        ) {
+        ) { backStackEntry ->
+            val patientId = backStackEntry.arguments?.read { getString("patientId") }.orEmpty()
             RequireSession(session, navController) {
                 AppScaffold(
                     items = items,
                     selectedDestination = Routes.PATIENTS,
                     onNavigate = { destination -> navigateToSidebarItem(navController, destination) },
                 ) {
-                    RoutePlaceholder(Routes.PATIENT_HISTORY)
+                    PatientHistoryScreen(
+                        patientId = patientId,
+                        onBack = { navController.popBackStack() },
+                    )
                 }
             }
         }
