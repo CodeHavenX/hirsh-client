@@ -194,7 +194,6 @@ private fun Hospitalizacion.withSection(key: HcSectionKey, data: Any): Hospitali
 )
 
 /** Ported 1:1 from prototype/shared/data.js's HOSPITALIZATIONS. */
-@Suppress("LongMethod")
 private fun seedHospitalizations(): List<Hospitalizacion> = listOf(
     Hospitalizacion(
         id = "h_ricaldi_1",
