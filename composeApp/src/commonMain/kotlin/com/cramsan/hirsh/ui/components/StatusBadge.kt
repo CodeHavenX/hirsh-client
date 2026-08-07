@@ -23,13 +23,16 @@ import com.cramsan.hirsh.ui.theme.HissWarnWash
 
 /**
  * Tone for [StatusBadge], mirroring the `.badge-done` / `.badge-warn` /
- * `.badge-prog` / `.badge-off` variants in prototype/shared/styles.css.
+ * `.badge-prog` / `.badge-off` variants in prototype/shared/styles.css, plus
+ * [Neutral] for the base `.badge` class used bare (no tone modifier) -- e.g.
+ * profile.html's role badge.
  */
 enum class BadgeTone {
     Done,
     Warn,
     Progress,
     Off,
+    Neutral,
 }
 
 private data class BadgeStyle(
@@ -44,6 +47,7 @@ private fun styleFor(tone: BadgeTone): BadgeStyle = when (tone) {
     BadgeTone.Warn -> BadgeStyle(HissWarn, HissWarn, HissWarnWash, dashed = false)
     BadgeTone.Progress -> BadgeStyle(HissWarn, HissWarn, HissWarnWash, dashed = true)
     BadgeTone.Off -> BadgeStyle(HissInk2, HissInk, Color.Transparent, dashed = true)
+    BadgeTone.Neutral -> BadgeStyle(HissInk, HissInk, Color.Transparent, dashed = false)
 }
 
 /**
