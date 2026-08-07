@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.Sex
+import com.cramsan.hirsh.model.toDisplayLabel
 import com.cramsan.hirsh.ui.theme.HissAccent
 import com.cramsan.hirsh.ui.theme.HissFaint
 import com.cramsan.hirsh.ui.theme.HissInk
@@ -289,9 +290,4 @@ private fun SelectField(
             }
         }
     }
-}
-
-private fun Sex.toDisplayLabel(): String = when (this) {
-    Sex.MALE -> "Masculino"
-    Sex.FEMALE -> "Femenino"
 }

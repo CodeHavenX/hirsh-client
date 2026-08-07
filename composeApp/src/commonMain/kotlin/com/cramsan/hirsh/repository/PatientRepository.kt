@@ -4,6 +4,7 @@ import com.cramsan.hirsh.model.FieldChange
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.PatientChangeLogEntry
 import com.cramsan.hirsh.model.Sex
+import com.cramsan.hirsh.model.toDisplayLabel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -269,15 +270,10 @@ class InMemoryPatientRepository : PatientRepository {
     }
 
     private fun nextPatientId(): String {
-        val maxId = _patients.value.maxOf { it.id.removePrefix("#").toInt() }
+        val maxId = _patients.value.maxOfOrNull { it.id.removePrefix("#").toInt() } ?: 0
         return "#" + (maxId + 1).toString().padStart(5, '0')
     }
 }
 
 private fun diff(oldValue: String, newValue: String, field: String, label: String): FieldChange? =
     if (oldValue == newValue) null else FieldChange(field, label, oldValue, newValue)
-
-private fun Sex.toDisplayLabel(): String = when (this) {
-    Sex.MALE -> "Masculino"
-    Sex.FEMALE -> "Femenino"
-}

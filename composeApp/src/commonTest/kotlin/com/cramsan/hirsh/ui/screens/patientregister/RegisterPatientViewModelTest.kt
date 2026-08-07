@@ -160,6 +160,19 @@ class RegisterPatientViewModelTest {
     }
 
     @Test
+    fun `register ignores a second call while a save is already in flight`() = runTest(dispatcher) {
+        val repository = FakePatientRepository()
+        val viewModel = RegisterPatientViewModel(repository)
+        fillRequiredFields(viewModel)
+
+        viewModel.register()
+        viewModel.register()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(1, repository.addPatientCalls)
+    }
+
+    @Test
     fun `checkDuplicate flags a name substring match`() = runTest(dispatcher) {
         val viewModel = RegisterPatientViewModel(FakePatientRepository())
         viewModel.onNameChange("gonzalez")

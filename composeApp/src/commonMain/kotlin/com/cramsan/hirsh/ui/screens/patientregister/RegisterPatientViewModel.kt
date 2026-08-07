@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.repository.PatientRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -57,6 +58,9 @@ class RegisterPatientViewModel(private val patientRepository: PatientRepository)
     fun register() {
         val state = _uiState.value
         val sex = state.sex
+        if (state.isSaving) {
+            return
+        }
         if (state.name.isBlank() || state.nationalId.isBlank() || state.dateOfBirth.isBlank() ||
             state.phone.isBlank() || sex == null
         ) {
@@ -64,19 +68,25 @@ class RegisterPatientViewModel(private val patientRepository: PatientRepository)
             return
         }
 
+        _uiState.update { it.copy(isSaving = true, error = null) }
         viewModelScope.launch {
-            _uiState.update { it.copy(isSaving = true, error = null) }
-            val created = patientRepository.addPatient(
-                name = state.name,
-                nationalId = state.nationalId,
-                dateOfBirth = state.dateOfBirth,
-                phone = state.phone,
-                sex = sex,
-                bloodType = state.bloodType,
-                allergies = state.allergies,
-                assignedDoctor = state.assignedDoctor,
-            )
-            _uiState.update { it.copy(isSaving = false, registeredPatientId = created.id) }
+            try {
+                val created = patientRepository.addPatient(
+                    name = state.name,
+                    nationalId = state.nationalId,
+                    dateOfBirth = state.dateOfBirth,
+                    phone = state.phone,
+                    sex = sex,
+                    bloodType = state.bloodType,
+                    allergies = state.allergies,
+                    assignedDoctor = state.assignedDoctor,
+                )
+                _uiState.update { it.copy(isSaving = false, registeredPatientId = created.id) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isSaving = false, error = "No se pudo registrar el paciente") }
+            }
         }
     }
 }
