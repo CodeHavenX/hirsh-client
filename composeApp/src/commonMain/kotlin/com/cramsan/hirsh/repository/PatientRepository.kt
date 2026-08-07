@@ -4,6 +4,7 @@ import com.cramsan.hirsh.model.FieldChange
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.PatientChangeLogEntry
 import com.cramsan.hirsh.model.Sex
+import com.cramsan.hirsh.model.toDisplayLabel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,6 +28,25 @@ interface PatientRepository {
      * abstraction doesn't exist yet, and isn't this ticket's dependency).
      */
     suspend fun updatePatient(id: String, newValues: Patient, changedBy: String, fecha: String, hora: String)
+
+    /**
+     * Creates a new patient, generating its id the same way the prototype's
+     * nextPatientId() does (max existing numeric suffix + 1, zero-padded to
+     * 5) and defaulting lastVisit to "—" -- a freshly registered patient has
+     * no admisiones yet. No change-log entry: the prototype's own
+     * registerPatient() doesn't call logPatientChange either, registration
+     * isn't an edit.
+     */
+    suspend fun addPatient(
+        name: String,
+        nationalId: String,
+        dateOfBirth: String,
+        phone: String,
+        sex: Sex,
+        bloodType: String,
+        allergies: String,
+        assignedDoctor: String,
+    ): Patient
 }
 
 /**
@@ -222,12 +242,38 @@ class InMemoryPatientRepository : PatientRepository {
             log + (id to (listOf(entry) + log[id].orEmpty()))
         }
     }
+
+    override suspend fun addPatient(
+        name: String,
+        nationalId: String,
+        dateOfBirth: String,
+        phone: String,
+        sex: Sex,
+        bloodType: String,
+        allergies: String,
+        assignedDoctor: String,
+    ): Patient {
+        val newPatient = Patient(
+            id = nextPatientId(),
+            name = name,
+            dateOfBirth = dateOfBirth,
+            phone = phone,
+            assignedDoctor = assignedDoctor,
+            lastVisit = "—",
+            bloodType = bloodType,
+            allergies = allergies,
+            nationalId = nationalId,
+            sex = sex,
+        )
+        _patients.update { list -> list + newPatient }
+        return newPatient
+    }
+
+    private fun nextPatientId(): String {
+        val maxId = _patients.value.maxOfOrNull { it.id.removePrefix("#").toInt() } ?: 0
+        return "#" + (maxId + 1).toString().padStart(5, '0')
+    }
 }
 
 private fun diff(oldValue: String, newValue: String, field: String, label: String): FieldChange? =
     if (oldValue == newValue) null else FieldChange(field, label, oldValue, newValue)
-
-private fun Sex.toDisplayLabel(): String = when (this) {
-    Sex.MALE -> "Masculino"
-    Sex.FEMALE -> "Femenino"
-}

@@ -164,4 +164,72 @@ class PatientRepositoryTest {
 
         assertTrue(repository.patients.value.none { it.id == "#does-not-exist" })
     }
+
+    @Test
+    fun `addPatient generates the next id from the current max`() = runTest {
+        val repository = InMemoryPatientRepository()
+
+        val created = repository.addPatient(
+            name = "Nuevo Paciente",
+            nationalId = "11223344",
+            dateOfBirth = "01/01/2000",
+            phone = "999-999-999",
+            sex = Sex.MALE,
+            bloodType = "O+",
+            allergies = "Ninguna",
+            assignedDoctor = "Dr. Patel",
+        )
+
+        assertEquals("#00143", created.id)
+    }
+
+    @Test
+    fun `addPatient defaults lastVisit and appends to the patient list`() = runTest {
+        val repository = InMemoryPatientRepository()
+        val beforeCount = repository.patients.value.size
+
+        val created = repository.addPatient(
+            name = "Nuevo Paciente",
+            nationalId = "11223344",
+            dateOfBirth = "01/01/2000",
+            phone = "999-999-999",
+            sex = Sex.MALE,
+            bloodType = "O+",
+            allergies = "Ninguna",
+            assignedDoctor = "Dr. Patel",
+        )
+
+        assertEquals("—", created.lastVisit)
+        assertEquals(beforeCount + 1, repository.patients.value.size)
+        assertTrue(repository.patients.value.contains(created))
+    }
+
+    @Test
+    fun `sequential addPatient calls each increment from the new max`() = runTest {
+        val repository = InMemoryPatientRepository()
+
+        val first = repository.addPatient(
+            name = "Primero",
+            nationalId = "11111111",
+            dateOfBirth = "01/01/2000",
+            phone = "111-111-111",
+            sex = Sex.MALE,
+            bloodType = "O+",
+            allergies = "Ninguna",
+            assignedDoctor = "Dr. Patel",
+        )
+        val second = repository.addPatient(
+            name = "Segundo",
+            nationalId = "22222222",
+            dateOfBirth = "01/01/2000",
+            phone = "222-222-222",
+            sex = Sex.FEMALE,
+            bloodType = "O+",
+            allergies = "Ninguna",
+            assignedDoctor = "Dr. Patel",
+        )
+
+        assertEquals("#00143", first.id)
+        assertEquals("#00144", second.id)
+    }
 }

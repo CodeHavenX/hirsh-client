@@ -19,3 +19,8 @@ data class Patient(
 )
 
 enum class Sex { MALE, FEMALE }
+
+fun Sex.toDisplayLabel(): String = when (this) {
+    Sex.MALE -> "Masculino"
+    Sex.FEMALE -> "Femenino"
+}

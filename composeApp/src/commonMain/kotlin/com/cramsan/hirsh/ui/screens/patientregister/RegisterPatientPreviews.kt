@@ -1,4 +1,4 @@
-package com.cramsan.hirsh.ui.screens.patientlist
+package com.cramsan.hirsh.ui.screens.patientregister
 
 import androidx.compose.runtime.Composable
 import com.cramsan.hirsh.model.Patient
@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
 
 private val previewPatients = listOf(
     Patient(
@@ -25,18 +26,6 @@ private val previewPatients = listOf(
         allergies = "Penicilina",
         nationalId = "45678901",
         sex = Sex.FEMALE,
-    ),
-    Patient(
-        id = "#00138",
-        name = "Eduardo Remon Huertas",
-        dateOfBirth = "17/07/1962",
-        phone = "912-345-678",
-        assignedDoctor = "Dr. Reyes",
-        lastVisit = "17 Jun 2026",
-        bloodType = "A+",
-        allergies = "Ninguna",
-        nationalId = "09147875",
-        sex = Sex.MALE,
     ),
 )
 
@@ -64,40 +53,49 @@ private class PreviewPatientRepository(patients: List<Patient>) : PatientReposit
         bloodType: String,
         allergies: String,
         assignedDoctor: String,
-    ): Patient = Patient(
-        id = "#00000",
-        name = name,
-        dateOfBirth = dateOfBirth,
-        phone = phone,
-        assignedDoctor = assignedDoctor,
-        lastVisit = "—",
-        bloodType = bloodType,
-        allergies = allergies,
-        nationalId = nationalId,
-        sex = sex,
-    )
+    ): Patient {
+        val created = Patient(
+            id = "#00200",
+            name = name,
+            dateOfBirth = dateOfBirth,
+            phone = phone,
+            assignedDoctor = assignedDoctor,
+            lastVisit = "—",
+            bloodType = bloodType,
+            allergies = allergies,
+            nationalId = nationalId,
+            sex = sex,
+        )
+        _patients.update { it + created }
+        return created
+    }
 }
 
 @Preview
 @Composable
-private fun PatientListScreenPreview() {
+private fun RegisterPatientScreenPreview() {
     HirshTheme {
-        PatientListScreen(
-            onPatientSelected = {},
-            onRegisterPatient = {},
-            viewModel = PatientListViewModel(PreviewPatientRepository(previewPatients)),
+        RegisterPatientScreen(
+            onRegistered = {},
+            onCancel = {},
+            onViewExistingPatient = {},
+            viewModel = RegisterPatientViewModel(PreviewPatientRepository(previewPatients)),
         )
     }
 }
 
 @Preview
 @Composable
-private fun PatientListScreenEmptyPreview() {
+private fun RegisterPatientScreenDuplicateWarningPreview() {
     HirshTheme {
-        PatientListScreen(
-            onPatientSelected = {},
-            onRegisterPatient = {},
-            viewModel = PatientListViewModel(PreviewPatientRepository(emptyList())),
+        val viewModel = RegisterPatientViewModel(PreviewPatientRepository(previewPatients))
+        viewModel.onNameChange("Maria Gonzalez")
+        viewModel.checkDuplicate()
+        RegisterPatientScreen(
+            onRegistered = {},
+            onCancel = {},
+            onViewExistingPatient = {},
+            viewModel = viewModel,
         )
     }
 }

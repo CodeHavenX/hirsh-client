@@ -20,6 +20,7 @@ import com.cramsan.hirsh.ui.components.NavItem
 import com.cramsan.hirsh.ui.screens.login.LoginScreen
 import com.cramsan.hirsh.ui.screens.patientlist.PatientListScreen
 import com.cramsan.hirsh.ui.screens.patientrecord.PatientRecordScreen
+import com.cramsan.hirsh.ui.screens.patientregister.RegisterPatientScreen
 import com.cramsan.hirsh.ui.screens.profile.ProfileScreen
 import org.koin.compose.koinInject
 
@@ -98,7 +99,19 @@ fun AppNavHost(
                     selectedDestination = Routes.PATIENTS,
                     onNavigate = { destination -> navigateToSidebarItem(navController, destination) },
                 ) {
-                    RoutePlaceholder(Routes.PATIENT_REGISTER)
+                    RegisterPatientScreen(
+                        onRegistered = { id ->
+                            navController.navigate(Routes.patientRecord(id)) {
+                                popUpTo(Routes.PATIENT_REGISTER) { inclusive = true }
+                            }
+                        },
+                        onCancel = { navController.popBackStack() },
+                        onViewExistingPatient = { id ->
+                            navController.navigate(Routes.patientRecord(id)) {
+                                popUpTo(Routes.PATIENT_REGISTER) { inclusive = true }
+                            }
+                        },
+                    )
                 }
             }
         }
