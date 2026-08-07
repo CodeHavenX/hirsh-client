@@ -14,6 +14,8 @@ import com.cramsan.hirsh.ui.screens.patientlist.PatientListViewModel
 import com.cramsan.hirsh.ui.screens.patientrecord.PatientRecordViewModel
 import com.cramsan.hirsh.ui.screens.patientregister.RegisterPatientViewModel
 import com.cramsan.hirsh.ui.screens.profile.ProfileViewModel
+import com.cramsan.hirsh.util.Clock
+import com.cramsan.hirsh.util.DefaultClock
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.HttpClientEngineFactory
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -47,6 +49,7 @@ private val sharedModule = module {
     singleOf(::DefaultSessionRepository) bind SessionRepository::class
     singleOf(::InMemoryPatientRepository) bind PatientRepository::class
     singleOf(::InMemoryAccountRepository) bind AccountRepository::class
+    singleOf(::DefaultClock) bind Clock::class
 
     viewModelOf(::LoginViewModel)
     viewModelOf(::PatientListViewModel)
