@@ -8,7 +8,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
-private class FakeAuthRepository(
+private class StubAuthRepository(
     private val restoredSession: Session? = null,
     private val loginResult: Result<Session> = Result.failure(IllegalStateException("not stubbed")),
 ) : AuthRepository {
@@ -27,14 +27,14 @@ class SessionRepositoryTest {
     @Test
     fun `initial session reflects what auth repository restores at startup`() {
         val session = Session(username = "drpatel", displayName = "Dr. A. Patel", role = Role.DOCTOR)
-        val repository = DefaultSessionRepository(FakeAuthRepository(restoredSession = session))
+        val repository = DefaultSessionRepository(StubAuthRepository(restoredSession = session))
 
         assertEquals(session, repository.session.value)
     }
 
     @Test
     fun `initial session is null when nothing was restored`() {
-        val repository = DefaultSessionRepository(FakeAuthRepository(restoredSession = null))
+        val repository = DefaultSessionRepository(StubAuthRepository(restoredSession = null))
 
         assertNull(repository.session.value)
     }
@@ -42,7 +42,7 @@ class SessionRepositoryTest {
     @Test
     fun `login success updates the shared session`() = runTest {
         val session = Session(username = "drpatel", displayName = "Dr. A. Patel", role = Role.DOCTOR)
-        val repository = DefaultSessionRepository(FakeAuthRepository(loginResult = Result.success(session)))
+        val repository = DefaultSessionRepository(StubAuthRepository(loginResult = Result.success(session)))
 
         repository.session.test {
             assertNull(awaitItem())
@@ -55,7 +55,7 @@ class SessionRepositoryTest {
     @Test
     fun `login failure leaves the shared session unchanged`() = runTest {
         val failure = Result.failure<Session>(IllegalArgumentException("Usuario o contrasena incorrectos"))
-        val repository = DefaultSessionRepository(FakeAuthRepository(loginResult = failure))
+        val repository = DefaultSessionRepository(StubAuthRepository(loginResult = failure))
 
         repository.session.test {
             assertNull(awaitItem())
@@ -68,7 +68,7 @@ class SessionRepositoryTest {
     @Test
     fun `logout delegates to auth repository and synchronously clears the shared session`() {
         val session = Session(username = "drpatel", displayName = "Dr. A. Patel", role = Role.DOCTOR)
-        val authRepository = FakeAuthRepository(restoredSession = session)
+        val authRepository = StubAuthRepository(restoredSession = session)
         val repository = DefaultSessionRepository(authRepository)
 
         repository.logout()

@@ -8,10 +8,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
 
 interface AccountRepository {
     val accounts: StateFlow<List<Account>>
     fun getAccount(username: String): Flow<Account?>
+
+    /** No-op for an unknown [username], matching [PatientRepository.updatePatient]'s own no-op-for-unknown-id precedent. */
+    suspend fun updateLastLogin(username: String, lastLogin: String)
 }
 
 /**
@@ -65,4 +69,10 @@ class InMemoryAccountRepository : AccountRepository {
 
     override fun getAccount(username: String): Flow<Account?> =
         accounts.map { list -> list.find { it.username == username } }
+
+    override suspend fun updateLastLogin(username: String, lastLogin: String) {
+        _accounts.update { list ->
+            list.map { if (it.username == username) it.copy(lastLogin = lastLogin) else it }
+        }
+    }
 }
