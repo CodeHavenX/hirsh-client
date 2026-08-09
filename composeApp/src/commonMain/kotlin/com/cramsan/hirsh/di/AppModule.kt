@@ -11,6 +11,7 @@ import com.cramsan.hirsh.repository.InMemoryHospitalizationRepository
 import com.cramsan.hirsh.repository.InMemoryPatientRepository
 import com.cramsan.hirsh.repository.PatientRepository
 import com.cramsan.hirsh.repository.SessionRepository
+import com.cramsan.hirsh.ui.screens.admision.AdmisionViewModel
 import com.cramsan.hirsh.ui.screens.login.LoginViewModel
 import com.cramsan.hirsh.ui.screens.patientedit.EditPatientViewModel
 import com.cramsan.hirsh.ui.screens.patienthistory.PatientHistoryViewModel
@@ -63,6 +64,7 @@ private val sharedModule = module {
     viewModelOf(::EditPatientViewModel)
     viewModelOf(::PatientHistoryViewModel)
     viewModelOf(::ProfileViewModel)
+    viewModelOf(::AdmisionViewModel)
 }
 
 fun initKoin(config: KoinAppDeclaration? = null) {
