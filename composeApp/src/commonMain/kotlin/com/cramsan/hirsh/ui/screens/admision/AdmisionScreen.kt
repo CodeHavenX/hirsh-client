@@ -1,4 +1,4 @@
-package com.cramsan.hirsh.ui.screens.patientedit
+package com.cramsan.hirsh.ui.screens.admision
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
@@ -24,8 +24,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.cramsan.hirsh.model.Sex
-import com.cramsan.hirsh.model.toDisplayLabel
 import com.cramsan.hirsh.ui.components.FieldFontSize
 import com.cramsan.hirsh.ui.components.FormSectionCaption
 import com.cramsan.hirsh.ui.components.RequiredFieldLabel
@@ -35,23 +33,30 @@ import com.cramsan.hirsh.ui.theme.HissInk
 import com.cramsan.hirsh.ui.theme.HissInk2
 import org.koin.compose.viewmodel.koinViewModel
 
-private val bloodTypeOptions = listOf("O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-")
-private val doctorOptions = listOf("Dr. Patel", "Dr. Reyes", "Dr. Lin")
+private val servicioOptions = listOf(
+    "Emergencia - Topico de Medicina",
+    "Medicina General",
+    "Psiquiatria (UHSMA)",
+    "Pediatria",
+    "Gineco-Obstetricia",
+    "Cirugia",
+)
+private val medicoOptions = listOf("Dr. Patel", "Dr. Reyes", "Dr. Lin", "Dr. Hirsh")
 
 @Composable
-fun EditPatientScreen(
+fun AdmisionScreen(
     patientId: String,
-    onSaved: () -> Unit,
+    onAdmitted: (hospitalizationId: String) -> Unit,
     onCancel: () -> Unit,
-    viewModel: EditPatientViewModel = koinViewModel(),
+    viewModel: AdmisionViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
     LaunchedEffect(patientId) {
         viewModel.load(patientId)
     }
-    LaunchedEffect(uiState.saved) {
-        if (uiState.saved) onSaved()
+    LaunchedEffect(uiState.createdHospitalizationId) {
+        uiState.createdHospitalizationId?.let(onAdmitted)
     }
 
     val patient = uiState.patient
@@ -59,98 +64,82 @@ fun EditPatientScreen(
         when {
             uiState.isLoading -> Text("Cargando...", style = MaterialTheme.typography.bodyMedium)
             patient == null -> Text("Paciente no encontrado: $patientId", style = MaterialTheme.typography.bodyMedium)
-            else -> EditPatientForm(uiState = uiState, patientName = patient.name, viewModel = viewModel, onCancel = onCancel)
+            else -> AdmisionForm(uiState = uiState, patientName = patient.name, viewModel = viewModel, onCancel = onCancel)
         }
     }
 }
 
 @Composable
-private fun EditPatientForm(
-    uiState: EditPatientUiState,
+private fun AdmisionForm(
+    uiState: AdmisionUiState,
     patientName: String,
-    viewModel: EditPatientViewModel,
+    viewModel: AdmisionViewModel,
     onCancel: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
         Column {
             Text(
-                "PACIENTES ›",
+                "PACIENTES › HOSPITALIZACIONES ›",
                 fontFamily = FontFamily.Monospace,
                 fontSize = 10.sp,
                 color = HissInk2,
             )
             Text(
-                "Editar paciente · $patientName",
+                "Nueva hospitalizacion · $patientName",
                 style = MaterialTheme.typography.headlineSmall.copy(fontSize = 20.sp, fontWeight = FontWeight.Bold),
             )
         }
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(28.dp)) {
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                FormSectionCaption("Datos personales")
-                OutlinedTextField(
-                    value = uiState.name,
-                    onValueChange = viewModel::onNameChange,
-                    label = { RequiredFieldLabel("Nombre completo") },
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
-                    shape = fieldShape,
-                    modifier = Modifier.fillMaxWidth().testTag("edit_name_field"),
+                FormSectionCaption("Datos de ingreso")
+                SelectField(
+                    label = { RequiredFieldLabel("Servicio") },
+                    options = servicioOptions,
+                    selected = uiState.servicio,
+                    onSelect = viewModel::onServicioChange,
+                    modifier = Modifier.testTag("admision_servicio_field"),
                 )
                 OutlinedTextField(
-                    value = uiState.nationalId,
-                    onValueChange = viewModel::onNationalIdChange,
-                    label = { RequiredFieldLabel("DNI") },
+                    value = uiState.cama,
+                    onValueChange = viewModel::onCamaChange,
+                    label = { RequiredFieldLabel("Cama") },
+                    placeholder = { Text("Ej: 12", fontSize = FieldFontSize) },
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
                     shape = fieldShape,
-                    modifier = Modifier.fillMaxWidth().testTag("edit_dni_field"),
-                )
-                OutlinedTextField(
-                    value = uiState.dateOfBirth,
-                    onValueChange = viewModel::onDateOfBirthChange,
-                    label = { RequiredFieldLabel("Fecha de nacimiento") },
-                    placeholder = { Text("DD/MM/AAAA", fontSize = FieldFontSize) },
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
-                    shape = fieldShape,
-                    modifier = Modifier.fillMaxWidth().testTag("edit_dob_field"),
-                )
-                OutlinedTextField(
-                    value = uiState.phone,
-                    onValueChange = viewModel::onPhoneChange,
-                    label = { RequiredFieldLabel("Telefono de contacto") },
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
-                    shape = fieldShape,
-                    modifier = Modifier.fillMaxWidth().testTag("edit_phone_field"),
+                    modifier = Modifier.fillMaxWidth().testTag("admision_cama_field"),
                 )
                 SelectField(
-                    label = { RequiredFieldLabel("Sexo") },
-                    options = listOf("Masculino", "Femenino"),
-                    selected = uiState.sex?.toDisplayLabel().orEmpty(),
-                    onSelect = { label -> viewModel.onSexChange(if (label == "Masculino") Sex.MALE else Sex.FEMALE) },
-                    modifier = Modifier.testTag("edit_sex_field"),
+                    label = { RequiredFieldLabel("Medico responsable") },
+                    options = medicoOptions,
+                    selected = uiState.medicoResponsable,
+                    onSelect = viewModel::onMedicoResponsableChange,
+                    modifier = Modifier.testTag("admision_medico_field"),
                 )
             }
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                FormSectionCaption("Datos medicos")
-                SelectField(
-                    label = { Text("Grupo sanguineo", fontSize = 12.sp, color = HissInk2) },
-                    options = bloodTypeOptions,
-                    selected = uiState.bloodType,
-                    onSelect = viewModel::onBloodTypeChange,
-                )
+                FormSectionCaption("Motivo de ingreso")
                 OutlinedTextField(
-                    value = uiState.allergies,
-                    onValueChange = viewModel::onAllergiesChange,
-                    label = { Text("Alergias conocidas", fontSize = 12.sp, color = HissInk2) },
+                    value = uiState.motivo,
+                    onValueChange = viewModel::onMotivoChange,
+                    label = { RequiredFieldLabel("Motivo") },
+                    placeholder = {
+                        Text(
+                            "Ej: Sintomas respiratorios, heteroagresividad, control de hipertension...",
+                            fontSize = FieldFontSize,
+                        )
+                    },
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
                     shape = fieldShape,
-                    minLines = 2,
-                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 4,
+                    modifier = Modifier.fillMaxWidth().testTag("admision_motivo_field"),
                 )
-                SelectField(
-                    label = { Text("Medico asignado", fontSize = 12.sp, color = HissInk2) },
-                    options = doctorOptions,
-                    selected = uiState.assignedDoctor,
-                    onSelect = viewModel::onAssignedDoctorChange,
+                Text(
+                    "El detalle completo (antecedentes, examen, diagnostico) se documenta en la Historia " +
+                        "Clinica de la hospitalizacion.",
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 10.sp,
+                    color = HissInk2,
                 )
             }
         }
@@ -166,18 +155,18 @@ private fun EditPatientForm(
                 shape = fieldShape,
                 border = BorderStroke(1.5.dp, HissInk),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
-                modifier = Modifier.testTag("edit_cancel_button"),
+                modifier = Modifier.testTag("admision_cancel_button"),
             ) {
                 Text("Cancelar", fontSize = FieldFontSize, fontWeight = FontWeight.Medium, color = HissInk)
             }
             Button(
-                onClick = viewModel::save,
+                onClick = viewModel::register,
                 enabled = !uiState.isSaving,
                 shape = fieldShape,
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
-                modifier = Modifier.padding(start = 10.dp).testTag("edit_save_button"),
+                modifier = Modifier.padding(start = 10.dp).testTag("admision_submit_button"),
             ) {
-                Text("Guardar cambios", fontSize = FieldFontSize, fontWeight = FontWeight.Medium)
+                Text("Admitir paciente", fontSize = FieldFontSize, fontWeight = FontWeight.Medium)
             }
         }
     }
