@@ -109,3 +109,25 @@ enum class HcSectionKey(val label: String, val implemented: Boolean) {
     DIAGNOSTICO("Diagnóstico", true),
     PLAN("Plan de Trabajo", true),
 }
+
+/**
+ * Mirrors `hcCompletionCount()` in prototype/shared/data.js. `total` is always
+ * [HcSectionKey.entries]' size (10, including the 4 sections with no digital form
+ * yet) so the badge shows the document's full fixed shape, not just the 6 modeled
+ * sections -- matching the prototype's own "X/10 secciones" copy.
+ */
+fun HistoriaClinica.completionCount(): Pair<Int, Int> {
+    val done = listOf(filiacion, motivoIngreso, enfermedadActual, examenFisico, diagnostico, plan)
+        .count { it.complete }
+    return done to HcSectionKey.entries.size
+}
+
+/** Mirrors `hcStatusLabel()` in prototype/shared/data.js. */
+fun HistoriaClinica.statusLabel(): String {
+    val (done, total) = completionCount()
+    return when {
+        done == 0 -> "Borrador"
+        done == total -> "Completa"
+        else -> "En progreso"
+    }
+}
