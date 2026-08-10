@@ -1,6 +1,6 @@
 ---
 name: create-pr
-description: "Draft and create a GitHub PR for the current branch: reads git history and diff, links the HISS Plane ticket(s) it closes, and opens the PR via gh CLI. Use whenever asked to create or open a pull request, as the last step after implement-ticket/verify-ticket/review."
+description: "Draft and create a GitHub PR for the current branch: reads git history and diff, links the HISS Plane ticket(s) it closes, and opens the PR via gh CLI. Use whenever asked to create or open a pull request, as the last step after implement-ticket/verify-ticket/review-changes."
 allowed-tools: Read, Bash, Glob, Grep, mcp__plane__retrieve_work_item
 ---
 

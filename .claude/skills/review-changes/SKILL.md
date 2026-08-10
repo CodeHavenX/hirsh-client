@@ -1,10 +1,10 @@
 ---
-name: review
+name: review-changes
 description: "Run a full code-quality review against a diff, module, or PR: convention adherence (Screen/ViewModel/Previews shape, DI registration, theme tokens), and the architectural rules this project has explicitly settled on (session-explicit-parameters, no-default-entity-fallback, Flow-based repositories, real required-field validation). Use when asked to review code quality, check for violations, or audit a change before create-pr."
 allowed-tools: Read, Glob, Grep, Bash
 ---
 
-# review — Code Quality Review
+# review-changes — Code Quality Review
 
 ## Purpose
 
@@ -163,7 +163,7 @@ If no violations are found, say so explicitly rather than omitting the section.
 
 ## Next step
 
-- **Any P0 finding** — tell the user to fix it and re-run `review`. Do not
+- **Any P0 finding** — tell the user to fix it and re-run `review-changes`. Do not
   suggest `create-pr` yet.
 - **Only P1/P2, or none at all** — tell the user they can proceed to
   `create-pr`.

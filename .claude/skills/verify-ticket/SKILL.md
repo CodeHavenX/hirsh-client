@@ -1,6 +1,6 @@
 ---
 name: verify-ticket
-description: "Verify an implemented HISS ticket is actually correct before code-quality review: confirm green build/tests, check every Scope/Added-on-review bullet from the Plane ticket against real evidence, run the mock-fidelity report, and move the ticket to QA / Code Review only if everything checks out. Use after implement-ticket and before review/create-pr, or whenever asked to verify a change is ready for review."
+description: "Verify an implemented HISS ticket is actually correct before code-quality review: confirm green build/tests, check every Scope/Added-on-review bullet from the Plane ticket against real evidence, run the mock-fidelity report, and move the ticket to QA / Code Review only if everything checks out. Use after implement-ticket and before review-changes/create-pr, or whenever asked to verify a change is ready for review."
 allowed-tools: Read, Write, Glob, Grep, Bash, mcp__plane__retrieve_work_item, mcp__plane__update_work_item
 ---
 
@@ -8,7 +8,7 @@ allowed-tools: Read, Write, Glob, Grep, Bash, mcp__plane__retrieve_work_item, mc
 
 ## Purpose
 
-`review` audits code **quality** (style, architecture, convention adherence). It
+`review-changes` audits code **quality** (style, architecture, convention adherence). It
 does not confirm the change actually **does what the ticket says**. This skill is
 that gate: green build/tests, every Scope / "Added on review" bullet from the
 ticket's Plane description backed by named evidence, and the mock-fidelity report
@@ -166,8 +166,8 @@ mcp__plane__update_work_item
   state: 452c5584-3af6-40e1-a430-9f303ebd3094   # QA / Code Review
 ```
 
-Tell the user to proceed to `review`, then `create-pr` (or straight to a direct
-commit's already-pushed state if this was a small ticket on `main`).
+Tell the user to proceed to `review-changes`, then `create-pr` (or straight to a
+direct commit's already-pushed state if this was a small ticket on `main`).
 
 If NOT READY, do not move the Plane state — give a short, ordered punch list of
 exactly what has to change before re-running `verify-ticket`.

@@ -2,7 +2,7 @@
 
 Static IDs for the `hirsh-client` build-out project (see the "HISS — UI & Navigation
 Build Plan" tickets), used by `plan-ticket`, `implement-ticket`, `verify-ticket`,
-`review`, and `create-pr` so they don't re-discover them via search every time.
+`review-changes`, and `create-pr` so they don't re-discover them via search every time.
 
 IDs are permanent once created. **Always re-fetch a ticket's current
 state/labels/description via `mcp__plane__retrieve_work_item` before trusting

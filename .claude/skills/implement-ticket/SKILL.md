@@ -11,7 +11,7 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash, mcp__plane__retrieve_work_it
 Turn a `plan-ticket` plan into working, compiling, tested code on a feature
 branch — small commits, following the exact conventions already established in
 `composeApp/`. This is the link between `plan-ticket` and `verify-ticket` /
-`review` / `create-pr`.
+`review-changes` / `create-pr`.
 
 ## Required Information
 
@@ -172,5 +172,5 @@ Summarize for the user:
 - Scope items: addressed / not addressed / not applicable to this ticket
 
 Point them at **`verify-ticket`** next (confirm build/tests are actually green
-and the mock-fidelity check is clean), then `review`, then `create-pr` if on a
-branch. Do not run those yourself from this skill.
+and the mock-fidelity check is clean), then `review-changes`, then `create-pr`
+if on a branch. Do not run those yourself from this skill.
