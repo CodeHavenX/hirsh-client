@@ -2,16 +2,21 @@ package com.cramsan.hirsh.ui.screens.hospitalization
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -39,6 +44,7 @@ import com.cramsan.hirsh.model.EstadoHospitalizacion
 import com.cramsan.hirsh.model.Evolucion
 import com.cramsan.hirsh.model.HistoriaClinica
 import com.cramsan.hirsh.model.Hospitalizacion
+import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.completionCount
 import com.cramsan.hirsh.model.statusLabel
 import com.cramsan.hirsh.model.toDisplayLabel
@@ -47,6 +53,7 @@ import com.cramsan.hirsh.ui.components.KeyValueRow
 import com.cramsan.hirsh.ui.components.StatusBadge
 import com.cramsan.hirsh.ui.components.VisitCard
 import com.cramsan.hirsh.ui.theme.HissAccent
+import com.cramsan.hirsh.ui.theme.HissAccentWash
 import com.cramsan.hirsh.ui.theme.HissFaint
 import com.cramsan.hirsh.ui.theme.HissInk
 import com.cramsan.hirsh.ui.theme.HissInk2
@@ -88,7 +95,7 @@ fun HospitalizationScreen(
                     onNewEvolucion = onNewEvolucion,
                     onRequestDischarge = { showDischargeDialog = true },
                 )
-                InfoCard(hospitalizacion, modifier = Modifier.padding(top = 20.dp))
+                InfoCard(patient, hospitalizacion, modifier = Modifier.padding(top = 20.dp))
                 HistoriaClinicaStrip(
                     historiaClinica = hospitalizacion.historiaClinica,
                     onOpenHistoriaClinica = onOpenHistoriaClinica,
@@ -159,7 +166,7 @@ private fun HospitalizationHeader(
 }
 
 @Composable
-private fun InfoCard(hospitalizacion: Hospitalizacion, modifier: Modifier = Modifier) {
+private fun InfoCard(patient: Patient, hospitalizacion: Hospitalizacion, modifier: Modifier = Modifier) {
     Surface(
         shape = RoundedCornerShape(HissRadiusDefault),
         color = MaterialTheme.colorScheme.surface,
@@ -167,6 +174,28 @@ private fun InfoCard(hospitalizacion: Hospitalizacion, modifier: Modifier = Modi
         modifier = modifier.fillMaxWidth(),
     ) {
         Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    shape = CircleShape,
+                    color = HissAccentWash,
+                    border = BorderStroke(1.5.dp, HissAccent),
+                    modifier = Modifier.size(48.dp),
+                ) {
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                        Text(
+                            text = initialsOf(patient.name),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = HissAccent,
+                        )
+                    }
+                }
+                Column(modifier = Modifier.padding(start = 12.dp)) {
+                    Text(patient.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    Text(patient.id, fontFamily = FontFamily.Monospace, fontSize = 11.sp, color = HissInk2)
+                }
+            }
+            HorizontalDivider(color = HissFaint)
             KeyValueRow("Servicio", hospitalizacion.servicio)
             KeyValueRow("Cama", hospitalizacion.cama)
             KeyValueRow("Medico responsable", hospitalizacion.medicoResponsable)
@@ -294,6 +323,8 @@ private fun EstadoBadge(estado: EstadoHospitalizacion) {
     }
     StatusBadge(text = label, tone = tone)
 }
+
+private fun initialsOf(name: String): String = name.split(' ').mapNotNull { it.firstOrNull() }.take(2).joinToString("")
 
 /** Mirrors the dashed-stroke technique in [StatusBadge] -- `.audit`'s `border-top: 1px dashed var(--faint)`. */
 private fun Modifier.dashedTopBorder(color: Color): Modifier = drawBehind {
