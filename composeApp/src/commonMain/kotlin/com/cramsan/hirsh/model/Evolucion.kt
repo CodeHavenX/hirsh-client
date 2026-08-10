@@ -51,6 +51,12 @@ data class Examen(
 enum class Pronostico { RESERVADO, FAVORABLE, MALO }
 enum class EvolucionResultado { ESTACIONARIA, FAVORABLE, DESFAVORABLE }
 
+fun Pronostico.toDisplayLabel(): String = when (this) {
+    Pronostico.RESERVADO -> "Reservado"
+    Pronostico.FAVORABLE -> "Favorable"
+    Pronostico.MALO -> "Malo"
+}
+
 fun EvolucionResultado.toDisplayLabel(): String = when (this) {
     EvolucionResultado.ESTACIONARIA -> "Estacionaria"
     EvolucionResultado.FAVORABLE -> "Favorable"
