@@ -61,6 +61,8 @@ data class NuevaEvolucionUiState(
     val resultadoEvolucion: String = "",
     val examenes: List<ExamRow> = listOf(ExamRow()),
     val examenesObs: String = "",
+    val openedFecha: String = "",
+    val openedHora: String = "",
     val error: String? = null,
     val isSaving: Boolean = false,
     val createdEvolucionId: String? = null,
@@ -80,7 +82,8 @@ class NuevaEvolucionViewModel(
     fun load(patientId: String, hospId: String) {
         if (loadedIds == patientId to hospId) return
         loadedIds = patientId to hospId
-        _uiState.value = NuevaEvolucionUiState(isLoading = true)
+        val (openedFecha, openedHora) = nowFechaHora()
+        _uiState.value = NuevaEvolucionUiState(isLoading = true, openedFecha = openedFecha, openedHora = openedHora)
         viewModelScope.launch {
             val patient = patientRepository.getPatient(patientId).first()
             val hospitalizacion = hospitalizationRepository.getHospitalization(patientId, hospId).first()

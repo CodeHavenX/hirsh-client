@@ -59,18 +59,11 @@ import com.cramsan.hirsh.ui.theme.HissInk
 import com.cramsan.hirsh.ui.theme.HissInk2
 import com.cramsan.hirsh.ui.theme.HissRadiusDefault
 import com.cramsan.hirsh.ui.theme.HissWarn
-import com.cramsan.hirsh.util.formatDate
-import com.cramsan.hirsh.util.formatTime
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
-import kotlin.time.Clock
-import kotlin.time.ExperimentalTime
 
 private val examTipoOptions = listOf("Laboratorio", "Imagenologia", "Otro")
 
-@OptIn(ExperimentalTime::class)
 @Composable
 fun NuevaEvolucionScreen(
     patientId: String,
@@ -117,7 +110,7 @@ fun NuevaEvolucionScreen(
                     title = "Nueva evolucion · ${patient.name} ${patient.id}",
                     onClose = onClose,
                     meta = {
-                        Chip(nowChipText())
+                        Chip("${uiState.openedFecha} · ${uiState.openedHora}")
                         Chip(hospitalizacion.servicio)
                         Chip(session?.displayName.orEmpty())
                         StatusBadge(text = "En progreso", tone = BadgeTone.Progress)
@@ -184,12 +177,6 @@ fun NuevaEvolucionScreen(
             },
         )
     }
-}
-
-@OptIn(ExperimentalTime::class)
-private fun nowChipText(): String {
-    val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
-    return "${formatDate(now.date)} · ${formatTime(now.time)}"
 }
 
 @Composable

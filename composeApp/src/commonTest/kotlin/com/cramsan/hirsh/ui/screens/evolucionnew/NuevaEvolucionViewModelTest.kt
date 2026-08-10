@@ -31,6 +31,9 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlinx.datetime.Instant
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toInstant
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -179,11 +182,28 @@ class NuevaEvolucionViewModelTest {
         vm.uiState.test {
             assertEquals(NuevaEvolucionUiState(), awaitItem())
             vm.load(samplePatient.id, hospitalization.id)
+            awaitItem() // isLoading=true, openedFecha/openedHora stamped -- patient/hospitalizacion not fetched yet
             val loaded = awaitItem()
             assertEquals(samplePatient, loaded.patient)
             assertEquals(hospitalization, loaded.hospitalizacion)
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    @Test
+    fun `load stamps openedFecha and openedHora from the injected Clock, not the live wall clock`() = runTest(dispatcher) {
+        val fixedNow = LocalDateTime(2027, 1, 15, 10, 30).toInstant(TimeZone.currentSystemDefault())
+        val vm = NuevaEvolucionViewModel(
+            FakePatientRepository(listOf(samplePatient)),
+            FakeHospitalizationRepository(),
+            FakeSessionRepository(sampleSession),
+            FakeClock(fixedNow),
+        )
+
+        vm.load(samplePatient.id, "h1")
+
+        assertEquals("15 Jan 2027", vm.uiState.value.openedFecha)
+        assertEquals("10:30", vm.uiState.value.openedHora)
     }
 
     @Test
@@ -194,6 +214,7 @@ class NuevaEvolucionViewModelTest {
         vm.uiState.test {
             awaitItem()
             vm.load(samplePatient.id, hospitalization.id)
+            awaitItem() // isLoading=true, openedFecha/openedHora stamped -- patient/hospitalizacion not fetched yet
             val loaded = awaitItem()
             assertEquals(samplePatient, loaded.patient)
             assertNull(loaded.hospitalizacion)
