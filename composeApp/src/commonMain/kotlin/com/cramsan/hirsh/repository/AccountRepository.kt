@@ -16,6 +16,18 @@ interface AccountRepository {
 
     /** No-op for an unknown [username], matching [PatientRepository.updatePatient]'s own no-op-for-unknown-id precedent. */
     suspend fun updateLastLogin(username: String, lastLogin: String)
+
+    /** [role] is always [Role.DOCTOR] and [AccountStatus] is always [AccountStatus.ACTIVE] -- matches accounts.html's own "Rol fijo: Medico" copy; there's no admin-creation flow. */
+    suspend fun addAccount(name: String, username: String): Account
+
+    /** No-op for an unknown [originalUsername]. */
+    suspend fun updateAccount(originalUsername: String, name: String, username: String)
+
+    /** No-op for an unknown [username]. */
+    suspend fun deactivate(username: String)
+
+    /** No-op for an unknown [username]. */
+    suspend fun reactivate(username: String)
 }
 
 /**
@@ -73,6 +85,36 @@ class InMemoryAccountRepository : AccountRepository {
     override suspend fun updateLastLogin(username: String, lastLogin: String) {
         _accounts.update { list ->
             list.map { if (it.username == username) it.copy(lastLogin = lastLogin) else it }
+        }
+    }
+
+    override suspend fun addAccount(name: String, username: String): Account {
+        val created = Account(
+            name = name,
+            username = username,
+            role = Role.DOCTOR,
+            status = AccountStatus.ACTIVE,
+            lastLogin = "—",
+        )
+        _accounts.update { it + created }
+        return created
+    }
+
+    override suspend fun updateAccount(originalUsername: String, name: String, username: String) {
+        _accounts.update { list ->
+            list.map { if (it.username == originalUsername) it.copy(name = name, username = username) else it }
+        }
+    }
+
+    override suspend fun deactivate(username: String) {
+        _accounts.update { list ->
+            list.map { if (it.username == username) it.copy(status = AccountStatus.INACTIVE) else it }
+        }
+    }
+
+    override suspend fun reactivate(username: String) {
+        _accounts.update { list ->
+            list.map { if (it.username == username) it.copy(status = AccountStatus.ACTIVE) else it }
         }
     }
 }
