@@ -20,6 +20,7 @@ import com.cramsan.hirsh.ui.components.NavItem
 import com.cramsan.hirsh.ui.screens.admision.AdmisionScreen
 import com.cramsan.hirsh.ui.screens.evolucionnew.NuevaEvolucionScreen
 import com.cramsan.hirsh.ui.screens.evolucionview.EvolucionViewScreen
+import com.cramsan.hirsh.ui.screens.historiaclinica.HistoriaClinicaScreen
 import com.cramsan.hirsh.ui.screens.hospitalization.HospitalizationScreen
 import com.cramsan.hirsh.ui.screens.login.LoginScreen
 import com.cramsan.hirsh.ui.screens.patientedit.EditPatientScreen
@@ -222,9 +223,15 @@ fun AppNavHost(
                 navArgument("patientId") { type = NavType.StringType },
                 navArgument("hospId") { type = NavType.StringType },
             ),
-        ) {
+        ) { backStackEntry ->
+            val patientId = backStackEntry.arguments?.read { getString("patientId") }.orEmpty()
+            val hospId = backStackEntry.arguments?.read { getString("hospId") }.orEmpty()
             RequireSession(session, navController) {
-                RoutePlaceholder(Routes.HISTORIA_CLINICA)
+                HistoriaClinicaScreen(
+                    patientId = patientId,
+                    hospId = hospId,
+                    onClose = { navController.popBackStack() },
+                )
             }
         }
         composable(
