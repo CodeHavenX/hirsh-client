@@ -18,6 +18,7 @@ import com.cramsan.hirsh.repository.SessionRepository
 import com.cramsan.hirsh.ui.components.AppScaffold
 import com.cramsan.hirsh.ui.components.NavItem
 import com.cramsan.hirsh.ui.screens.admision.AdmisionScreen
+import com.cramsan.hirsh.ui.screens.hospitalization.HospitalizationScreen
 import com.cramsan.hirsh.ui.screens.login.LoginScreen
 import com.cramsan.hirsh.ui.screens.patientedit.EditPatientScreen
 import com.cramsan.hirsh.ui.screens.patienthistory.PatientHistoryScreen
@@ -192,14 +193,24 @@ fun AppNavHost(
                 navArgument("patientId") { type = NavType.StringType },
                 navArgument("hospId") { type = NavType.StringType },
             ),
-        ) {
+        ) { backStackEntry ->
+            val patientId = backStackEntry.arguments?.read { getString("patientId") }.orEmpty()
+            val hospId = backStackEntry.arguments?.read { getString("hospId") }.orEmpty()
             RequireSession(session, navController) {
                 AppScaffold(
                     items = items,
                     selectedDestination = Routes.PATIENTS,
                     onNavigate = { destination -> navigateToSidebarItem(navController, destination) },
                 ) {
-                    RoutePlaceholder(Routes.HOSPITALIZATION)
+                    HospitalizationScreen(
+                        patientId = patientId,
+                        hospId = hospId,
+                        onNewEvolucion = { navController.navigate(Routes.evolucionNew(patientId, hospId)) },
+                        onOpenHistoriaClinica = { navController.navigate(Routes.historiaClinica(patientId, hospId)) },
+                        onEvolucionSelected = { evoId ->
+                            navController.navigate(Routes.evolucionView(patientId, hospId, evoId))
+                        },
+                    )
                 }
             }
         }
