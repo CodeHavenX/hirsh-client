@@ -15,6 +15,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -39,7 +40,9 @@ data class DataTableColumn<T>(
  * Column-driven row list -- mirrors `renderDataTable` in
  * prototype/shared/components.js. Renders the header and all rows in a
  * plain [Column]; callers that need virtualization/scrolling wrap it in
- * their own scrollable container.
+ * their own scrollable container. [rowAlpha] covers dimmed/disabled rows
+ * (e.g. `.tr-off`'s `opacity:.5` for an inactive account) without callers
+ * having to reach into each cell individually.
  */
 @Composable
 fun <T> DataTable(
@@ -47,6 +50,7 @@ fun <T> DataTable(
     rows: List<T>,
     onRowClick: ((T) -> Unit)? = null,
     isHighlighted: (T) -> Boolean = { false },
+    rowAlpha: (T) -> Float = { 1f },
 ) {
     Column(
         modifier = Modifier
@@ -72,6 +76,7 @@ fun <T> DataTable(
         rows.forEachIndexed { index, row ->
             var rowModifier = Modifier
                 .fillMaxWidth()
+                .alpha(rowAlpha(row))
                 .background(if (isHighlighted(row)) HissAccentWash else MaterialTheme.colorScheme.surface)
             if (onRowClick != null) {
                 rowModifier = rowModifier.clickable { onRowClick(row) }
