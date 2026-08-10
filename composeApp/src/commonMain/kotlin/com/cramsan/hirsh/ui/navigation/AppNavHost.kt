@@ -19,6 +19,7 @@ import com.cramsan.hirsh.ui.components.AppScaffold
 import com.cramsan.hirsh.ui.components.NavItem
 import com.cramsan.hirsh.ui.screens.admision.AdmisionScreen
 import com.cramsan.hirsh.ui.screens.evolucionnew.NuevaEvolucionScreen
+import com.cramsan.hirsh.ui.screens.evolucionview.EvolucionViewScreen
 import com.cramsan.hirsh.ui.screens.hospitalization.HospitalizationScreen
 import com.cramsan.hirsh.ui.screens.login.LoginScreen
 import com.cramsan.hirsh.ui.screens.patientedit.EditPatientScreen
@@ -256,9 +257,17 @@ fun AppNavHost(
                 navArgument("hospId") { type = NavType.StringType },
                 navArgument("evoId") { type = NavType.StringType },
             ),
-        ) {
+        ) { backStackEntry ->
+            val patientId = backStackEntry.arguments?.read { getString("patientId") }.orEmpty()
+            val hospId = backStackEntry.arguments?.read { getString("hospId") }.orEmpty()
+            val evoId = backStackEntry.arguments?.read { getString("evoId") }.orEmpty()
             RequireSession(session, navController) {
-                RoutePlaceholder(Routes.EVOLUCION_VIEW)
+                EvolucionViewScreen(
+                    patientId = patientId,
+                    hospId = hospId,
+                    evoId = evoId,
+                    onClose = { navController.popBackStack() },
+                )
             }
         }
         composable(Routes.ACCOUNTS) {
