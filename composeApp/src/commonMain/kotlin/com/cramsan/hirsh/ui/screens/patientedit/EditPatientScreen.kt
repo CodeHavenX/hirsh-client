@@ -8,16 +8,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -25,31 +18,25 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.model.toDisplayLabel
-import com.cramsan.hirsh.ui.theme.HissAccent
-import com.cramsan.hirsh.ui.theme.HissFaint
+import com.cramsan.hirsh.ui.components.FieldFontSize
+import com.cramsan.hirsh.ui.components.FormSectionCaption
+import com.cramsan.hirsh.ui.components.RequiredFieldLabel
+import com.cramsan.hirsh.ui.components.SelectField
+import com.cramsan.hirsh.ui.components.fieldShape
 import com.cramsan.hirsh.ui.theme.HissInk
 import com.cramsan.hirsh.ui.theme.HissInk2
-import com.cramsan.hirsh.ui.theme.HissRadiusDefault
 import org.koin.compose.viewmodel.koinViewModel
 
 private val bloodTypeOptions = listOf("O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-")
 private val doctorOptions = listOf("Dr. Patel", "Dr. Reyes", "Dr. Lin")
-private val FieldFontSize = 13.sp
-private val fieldShape = RoundedCornerShape(HissRadiusDefault)
 
 @Composable
 fun EditPatientScreen(
@@ -175,6 +162,7 @@ private fun EditPatientForm(
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
             OutlinedButton(
                 onClick = onCancel,
+                enabled = !uiState.isSaving,
                 shape = fieldShape,
                 border = BorderStroke(1.5.dp, HissInk),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
@@ -190,71 +178,6 @@ private fun EditPatientForm(
                 modifier = Modifier.padding(start = 10.dp).testTag("edit_save_button"),
             ) {
                 Text("Guardar cambios", fontSize = FieldFontSize, fontWeight = FontWeight.Medium)
-            }
-        }
-    }
-}
-
-@Composable
-private fun FormSectionCaption(text: String) {
-    Column {
-        Text(
-            text.uppercase(),
-            fontFamily = FontFamily.Monospace,
-            fontSize = 10.sp,
-            letterSpacing = 0.8.sp,
-            fontWeight = FontWeight.Medium,
-            color = HissAccent,
-        )
-        HorizontalDivider(modifier = Modifier.padding(top = 6.dp), color = HissFaint)
-    }
-}
-
-@Composable
-private fun RequiredFieldLabel(text: String) {
-    Text(
-        buildAnnotatedString {
-            append(text)
-            withStyle(SpanStyle(color = HissAccent)) { append(" *") }
-        },
-        fontSize = 12.sp,
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun SelectField(
-    label: @Composable () -> Unit,
-    options: List<String>,
-    selected: String,
-    onSelect: (String) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    var expanded by remember { mutableStateOf(false) }
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it },
-        modifier = modifier.fillMaxWidth(),
-    ) {
-        OutlinedTextField(
-            value = selected,
-            onValueChange = {},
-            readOnly = true,
-            label = label,
-            textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
-            shape = fieldShape,
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true).fillMaxWidth(),
-        )
-        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            options.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(option) },
-                    onClick = {
-                        onSelect(option)
-                        expanded = false
-                    },
-                )
             }
         }
     }

@@ -150,10 +150,38 @@ class AdmisionViewModelTest {
     }
 
     @Test
+    fun `load leaves patient null when the patient does not exist`() = runTest(dispatcher) {
+        val viewModel = AdmisionViewModel(FakePatientRepository(emptyList()), FakeHospitalizationRepository())
+
+        viewModel.uiState.test {
+            skipItems(1)
+            viewModel.load("#unknown")
+            val loaded = awaitItem()
+            assertEquals(null, loaded.patient)
+            assertEquals(false, loaded.isLoading)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `register does nothing when the patient was not found`() = runTest(dispatcher) {
+        val repository = FakeHospitalizationRepository()
+        val viewModel = AdmisionViewModel(FakePatientRepository(emptyList()), repository)
+        viewModel.load("#unknown")
+        dispatcher.scheduler.advanceUntilIdle()
+        fillRequiredFields(viewModel)
+
+        viewModel.register()
+
+        assertEquals(0, repository.addHospitalizationCalls)
+    }
+
+    @Test
     fun `register blocks save when servicio is blank`() = runTest(dispatcher) {
         val repository = FakeHospitalizationRepository()
         val viewModel = AdmisionViewModel(FakePatientRepository(), repository)
         viewModel.load(samplePatient.id)
+        dispatcher.scheduler.advanceUntilIdle()
         fillRequiredFields(viewModel)
         viewModel.onServicioChange("")
 
@@ -167,6 +195,7 @@ class AdmisionViewModelTest {
         val repository = FakeHospitalizationRepository()
         val viewModel = AdmisionViewModel(FakePatientRepository(), repository)
         viewModel.load(samplePatient.id)
+        dispatcher.scheduler.advanceUntilIdle()
         fillRequiredFields(viewModel)
         viewModel.onCamaChange("")
 
@@ -180,6 +209,7 @@ class AdmisionViewModelTest {
         val repository = FakeHospitalizationRepository()
         val viewModel = AdmisionViewModel(FakePatientRepository(), repository)
         viewModel.load(samplePatient.id)
+        dispatcher.scheduler.advanceUntilIdle()
         fillRequiredFields(viewModel)
         viewModel.onMedicoResponsableChange("")
 
@@ -215,6 +245,7 @@ class AdmisionViewModelTest {
         val repository = FakeHospitalizationRepository()
         val viewModel = AdmisionViewModel(FakePatientRepository(), repository)
         viewModel.load(samplePatient.id)
+        dispatcher.scheduler.advanceUntilIdle()
         fillRequiredFields(viewModel)
         viewModel.onMotivoChange("Sintomas respiratorios")
 
@@ -230,6 +261,7 @@ class AdmisionViewModelTest {
         val repository = FakeHospitalizationRepository()
         val viewModel = AdmisionViewModel(FakePatientRepository(), repository)
         viewModel.load(samplePatient.id)
+        dispatcher.scheduler.advanceUntilIdle()
         fillRequiredFields(viewModel)
 
         viewModel.register()

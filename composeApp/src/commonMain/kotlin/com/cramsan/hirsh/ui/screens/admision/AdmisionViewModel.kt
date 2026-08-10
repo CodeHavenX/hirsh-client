@@ -51,10 +51,10 @@ class AdmisionViewModel(
         }
     }
 
-    fun onServicioChange(value: String) = _uiState.update { it.copy(servicio = value) }
-    fun onCamaChange(value: String) = _uiState.update { it.copy(cama = value) }
-    fun onMedicoResponsableChange(value: String) = _uiState.update { it.copy(medicoResponsable = value) }
-    fun onMotivoChange(value: String) = _uiState.update { it.copy(motivo = value) }
+    fun onServicioChange(value: String) = _uiState.update { it.copy(servicio = value, error = null) }
+    fun onCamaChange(value: String) = _uiState.update { it.copy(cama = value, error = null) }
+    fun onMedicoResponsableChange(value: String) = _uiState.update { it.copy(medicoResponsable = value, error = null) }
+    fun onMotivoChange(value: String) = _uiState.update { it.copy(motivo = value, error = null) }
 
     /**
      * Mirrors the prototype's registerHospitalization(): servicio, cama, and
@@ -65,6 +65,7 @@ class AdmisionViewModel(
     fun register() {
         val state = _uiState.value
         val id = patientId
+        state.patient ?: return
         if (state.isSaving) {
             return
         }
