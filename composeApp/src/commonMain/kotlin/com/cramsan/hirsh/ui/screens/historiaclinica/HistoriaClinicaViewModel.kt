@@ -194,69 +194,7 @@ class HistoriaClinicaViewModel(
         }
     }
 
-    private fun fieldMapFor(key: HcSectionKey, historiaClinica: HistoriaClinica): Map<String, String>? = when (key) {
-        HcSectionKey.FILIACION -> historiaClinica.filiacion.data?.toFieldMap()
-        HcSectionKey.ENFERMEDAD_ACTUAL -> historiaClinica.enfermedadActual.data?.toFieldMap()
-        HcSectionKey.EXAMEN_FISICO -> historiaClinica.examenFisico.data?.toFieldMap()
-        HcSectionKey.DIAGNOSTICO -> historiaClinica.diagnostico.data?.toFieldMap()
-        HcSectionKey.PLAN -> historiaClinica.plan.data?.toFieldMap()
-        else -> null
-    }
 }
-
-private fun Filiacion.toFieldMap(): Map<String, String> = mapOf(
-    "edad" to edad,
-    "fechaNacimiento" to fechaNacimiento,
-    "estadoCivil" to estadoCivil,
-    "sexo" to sexo,
-    "dni" to dni,
-    "gradoInstruccion" to gradoInstruccion,
-    "ocupacion" to ocupacion,
-    "lugarNacimiento" to lugarNacimiento,
-    "lugarProcedencia" to lugarProcedencia,
-    "familiarResponsable" to familiarResponsable,
-    "direccion" to direccion,
-    "servicioIngreso" to servicioIngreso,
-)
-
-private fun EnfermedadActual.toFieldMap(): Map<String, String> = mapOf(
-    "tiempoEnfermedad" to tiempoEnfermedad,
-    "formaInicio" to formaInicio,
-    "curso" to curso,
-    "duracionEpisodio" to duracionEpisodio,
-    "relato" to relato,
-)
-
-private fun ExamenFisico.toFieldMap(): Map<String, String> = mapOf(
-    "pa" to pa,
-    "fc" to fc,
-    "fr" to fr,
-    "temp" to temp,
-    "peso" to peso,
-    "talla" to talla,
-    "imc" to imc,
-    "estadoGeneral" to estadoGeneral,
-    "examenRegional.cabezaCuello" to examenRegional.cabezaCuello,
-    "examenRegional.toraxPulmones" to examenRegional.toraxPulmones,
-    "examenRegional.corazon" to examenRegional.corazon,
-    "examenRegional.abdomen" to examenRegional.abdomen,
-    "examenRegional.neurologico" to examenRegional.neurologico,
-)
-
-private fun Diagnostico.toFieldMap(): Map<String, String> = mapOf(
-    "ejeI" to ejeI,
-    "ejeII" to ejeII,
-    "ejeIII" to ejeIII,
-    "ejeIV" to ejeIV,
-    "ejeV" to ejeV,
-)
-
-private fun Plan.toFieldMap(): Map<String, String> = mapOf(
-    "lugarHospitalizacion" to lugarHospitalizacion,
-    "examenesSolicitados" to examenesSolicitados,
-    "psicofarmacos" to psicofarmacos,
-    "evaluacionesSolicitadas" to evaluacionesSolicitadas,
-)
 
 private fun MotivoIngreso.withOption(key: String, checked: Boolean): MotivoIngreso = when (key) {
     "riesgoSuicida" -> copy(riesgoSuicida = checked)
