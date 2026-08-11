@@ -14,3 +14,9 @@ val HissWarn = Color(0xFFB4543F)
 val HissWarnWash = Color(0xFFF6ECE8)
 val HissSuccess = Color(0xFF3A7D5C)
 val HissSuccessWash = Color(0xFFE6F4EC)
+
+// print.html's .print-frame/.print-toolbar backdrop -- a bespoke gray/off-white
+// pair used only on the print-preview page, not part of the semantic paper/ink
+// palette above.
+val HissPrintBackdrop = Color(0xFFCBC8C0)
+val HissPrintToolbarText = Color(0xFFF3F1EC)

@@ -24,6 +24,7 @@ data class EvolucionViewUiState(
     val hospitalizacion: Hospitalizacion? = null,
     val evolucion: Evolucion? = null,
     val selectedTab: EvolucionViewTab = EvolucionViewTab.EVOLUCION,
+    val showPrintPreview: Boolean = false,
 )
 
 private data class RequestedIds(val patientId: String, val hospId: String, val evoId: String)
@@ -36,6 +37,7 @@ class EvolucionViewViewModel(
 
     private val requestedIds = MutableStateFlow<RequestedIds?>(null)
     private val selectedTab = MutableStateFlow(EvolucionViewTab.EVOLUCION)
+    private val showPrintPreview = MutableStateFlow(false)
 
     val uiState: StateFlow<EvolucionViewUiState> = requestedIds
         .flatMapLatest { ids ->
@@ -46,7 +48,8 @@ class EvolucionViewViewModel(
                     patientRepository.getPatient(ids.patientId),
                     hospitalizationRepository.getHospitalization(ids.patientId, ids.hospId),
                     selectedTab,
-                ) { patient, hospitalizacion, tab ->
+                    showPrintPreview,
+                ) { patient, hospitalizacion, tab, printPreview ->
                     EvolucionViewUiState(
                         isLoading = false,
                         patient = patient,
@@ -57,6 +60,7 @@ class EvolucionViewViewModel(
                         // never leaks its evoluciones through here, per HISS-106's C5 tightening).
                         evolucion = hospitalizacion?.evoluciones?.find { it.id == ids.evoId },
                         selectedTab = tab,
+                        showPrintPreview = printPreview,
                     )
                 }
             }
@@ -69,5 +73,13 @@ class EvolucionViewViewModel(
 
     fun selectTab(tab: EvolucionViewTab) {
         selectedTab.value = tab
+    }
+
+    fun openPrintPreview() {
+        showPrintPreview.value = true
+    }
+
+    fun closePrintPreview() {
+        showPrintPreview.value = false
     }
 }

@@ -35,6 +35,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.cramsan.hirsh.model.HcSectionKey
 import com.cramsan.hirsh.model.HistoriaClinica
 import com.cramsan.hirsh.model.MotivoIngreso
@@ -102,7 +104,7 @@ fun HistoriaClinicaScreen(
                     },
                     actions = {
                         Button(
-                            onClick = {},
+                            onClick = viewModel::openPrintPreview,
                             shape = fieldShape,
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
                         ) {
@@ -110,6 +112,18 @@ fun HistoriaClinicaScreen(
                         }
                     },
                 )
+                if (uiState.showPrintPreview) {
+                    Dialog(
+                        onDismissRequest = viewModel::closePrintPreview,
+                        properties = DialogProperties(usePlatformDefaultWidth = false),
+                    ) {
+                        HistoriaClinicaPrintable(
+                            patient = patient,
+                            hospitalizacion = hospitalizacion,
+                            onBack = viewModel::closePrintPreview,
+                        )
+                    }
+                }
                 Row(modifier = Modifier.fillMaxSize().padding(24.dp), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                     HcSectionNav(
                         historiaClinica = historiaClinica,
@@ -355,31 +369,6 @@ private fun MotivoOptionChip(
             Text(option.label, fontSize = 13.sp, color = HissInk)
         }
     }
-}
-
-private fun MotivoIngreso.isChecked(key: String): Boolean = when (key) {
-    "riesgoSuicida" -> riesgoSuicida
-    "riesgoHomicida" -> riesgoHomicida
-    "heteroagresividad" -> heteroagresividad
-    "agitacionPsicomotriz" -> agitacionPsicomotriz
-    "psicosis" -> psicosis
-    "adicciones" -> adicciones
-    "trastornoAfecto" -> trastornoAfecto
-    "tca" -> tca
-    "precisionDiagnostica" -> precisionDiagnostica
-    "precisionTerapeutica" -> precisionTerapeutica
-    "otros" -> otros
-    else -> false
-}
-
-private fun HistoriaClinica.isSectionComplete(key: HcSectionKey): Boolean = when (key) {
-    HcSectionKey.FILIACION -> filiacion.complete
-    HcSectionKey.MOTIVO_INGRESO -> motivoIngreso.complete
-    HcSectionKey.ENFERMEDAD_ACTUAL -> enfermedadActual.complete
-    HcSectionKey.EXAMEN_FISICO -> examenFisico.complete
-    HcSectionKey.DIAGNOSTICO -> diagnostico.complete
-    HcSectionKey.PLAN -> plan.complete
-    else -> false
 }
 
 private fun Modifier.dashedEndBorder(color: Color): Modifier = drawBehind {

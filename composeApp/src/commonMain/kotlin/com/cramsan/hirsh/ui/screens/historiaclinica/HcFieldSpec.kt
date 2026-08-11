@@ -1,6 +1,13 @@
 package com.cramsan.hirsh.ui.screens.historiaclinica
 
+import com.cramsan.hirsh.model.Diagnostico
+import com.cramsan.hirsh.model.EnfermedadActual
+import com.cramsan.hirsh.model.ExamenFisico
+import com.cramsan.hirsh.model.Filiacion
 import com.cramsan.hirsh.model.HcSectionKey
+import com.cramsan.hirsh.model.HistoriaClinica
+import com.cramsan.hirsh.model.MotivoIngreso
+import com.cramsan.hirsh.model.Plan
 
 enum class HcFieldType { TEXT, SELECT, TEXTAREA }
 
@@ -93,3 +100,99 @@ val MOTIVO_INGRESO_OPTIONS = listOf(
     MotivoIngresoOption("precisionTerapeutica", "Precision terapeutica"),
     MotivoIngresoOption("otros", "Otros"),
 )
+
+/**
+ * The persisted section data for [key], as a `HcFieldSpec.key`-keyed map --
+ * shared by [HistoriaClinicaViewModel] (form pre-fill) and
+ * `HistoriaClinicaPrintable` (HISS-501's read-only summary), so both read the
+ * same field<->form-value mapping rather than each deriving their own.
+ */
+fun fieldMapFor(key: HcSectionKey, historiaClinica: HistoriaClinica): Map<String, String>? = when (key) {
+    HcSectionKey.FILIACION -> historiaClinica.filiacion.data?.toFieldMap()
+    HcSectionKey.ENFERMEDAD_ACTUAL -> historiaClinica.enfermedadActual.data?.toFieldMap()
+    HcSectionKey.EXAMEN_FISICO -> historiaClinica.examenFisico.data?.toFieldMap()
+    HcSectionKey.DIAGNOSTICO -> historiaClinica.diagnostico.data?.toFieldMap()
+    HcSectionKey.PLAN -> historiaClinica.plan.data?.toFieldMap()
+    else -> null
+}
+
+private fun Filiacion.toFieldMap(): Map<String, String> = mapOf(
+    "edad" to edad,
+    "fechaNacimiento" to fechaNacimiento,
+    "estadoCivil" to estadoCivil,
+    "sexo" to sexo,
+    "dni" to dni,
+    "gradoInstruccion" to gradoInstruccion,
+    "ocupacion" to ocupacion,
+    "lugarNacimiento" to lugarNacimiento,
+    "lugarProcedencia" to lugarProcedencia,
+    "familiarResponsable" to familiarResponsable,
+    "direccion" to direccion,
+    "servicioIngreso" to servicioIngreso,
+)
+
+private fun EnfermedadActual.toFieldMap(): Map<String, String> = mapOf(
+    "tiempoEnfermedad" to tiempoEnfermedad,
+    "formaInicio" to formaInicio,
+    "curso" to curso,
+    "duracionEpisodio" to duracionEpisodio,
+    "relato" to relato,
+)
+
+private fun ExamenFisico.toFieldMap(): Map<String, String> = mapOf(
+    "pa" to pa,
+    "fc" to fc,
+    "fr" to fr,
+    "temp" to temp,
+    "peso" to peso,
+    "talla" to talla,
+    "imc" to imc,
+    "estadoGeneral" to estadoGeneral,
+    "examenRegional.cabezaCuello" to examenRegional.cabezaCuello,
+    "examenRegional.toraxPulmones" to examenRegional.toraxPulmones,
+    "examenRegional.corazon" to examenRegional.corazon,
+    "examenRegional.abdomen" to examenRegional.abdomen,
+    "examenRegional.neurologico" to examenRegional.neurologico,
+)
+
+private fun Diagnostico.toFieldMap(): Map<String, String> = mapOf(
+    "ejeI" to ejeI,
+    "ejeII" to ejeII,
+    "ejeIII" to ejeIII,
+    "ejeIV" to ejeIV,
+    "ejeV" to ejeV,
+)
+
+private fun Plan.toFieldMap(): Map<String, String> = mapOf(
+    "lugarHospitalizacion" to lugarHospitalizacion,
+    "examenesSolicitados" to examenesSolicitados,
+    "psicofarmacos" to psicofarmacos,
+    "evaluacionesSolicitadas" to evaluacionesSolicitadas,
+)
+
+/** Shared by [HistoriaClinicaScreen]'s section nav and `HistoriaClinicaPrintable`'s per-section fallback copy. */
+fun HistoriaClinica.isSectionComplete(key: HcSectionKey): Boolean = when (key) {
+    HcSectionKey.FILIACION -> filiacion.complete
+    HcSectionKey.MOTIVO_INGRESO -> motivoIngreso.complete
+    HcSectionKey.ENFERMEDAD_ACTUAL -> enfermedadActual.complete
+    HcSectionKey.EXAMEN_FISICO -> examenFisico.complete
+    HcSectionKey.DIAGNOSTICO -> diagnostico.complete
+    HcSectionKey.PLAN -> plan.complete
+    else -> false
+}
+
+/** Shared by [HistoriaClinicaScreen]'s checkbox grid and `HistoriaClinicaPrintable`'s Motivo de Ingreso summary. */
+fun MotivoIngreso.isChecked(key: String): Boolean = when (key) {
+    "riesgoSuicida" -> riesgoSuicida
+    "riesgoHomicida" -> riesgoHomicida
+    "heteroagresividad" -> heteroagresividad
+    "agitacionPsicomotriz" -> agitacionPsicomotriz
+    "psicosis" -> psicosis
+    "adicciones" -> adicciones
+    "trastornoAfecto" -> trastornoAfecto
+    "tca" -> tca
+    "precisionDiagnostica" -> precisionDiagnostica
+    "precisionTerapeutica" -> precisionTerapeutica
+    "otros" -> otros
+    else -> false
+}
