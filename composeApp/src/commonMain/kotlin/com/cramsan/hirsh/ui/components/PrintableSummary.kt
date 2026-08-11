@@ -107,7 +107,7 @@ private fun PrintableSheet(
 ) {
     Surface(
         color = MaterialTheme.colorScheme.surface,
-        modifier = Modifier.width(600.dp).padding(vertical = 24.dp),
+        modifier = Modifier.width(600.dp),
     ) {
         Column(modifier = Modifier.padding(48.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
             PrintableClinicHeader(subtitle)
