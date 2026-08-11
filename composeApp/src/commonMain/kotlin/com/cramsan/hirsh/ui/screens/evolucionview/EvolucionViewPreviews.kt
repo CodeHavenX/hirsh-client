@@ -198,3 +198,19 @@ private fun EvolucionViewScreenExamenesTabPreview() {
         )
     }
 }
+
+/** HISS-501's print-preview summary, standalone (not behind the Screen's Dialog) so Roborazzi can capture it. */
+@Preview
+@Composable
+private fun EvolucionPrintablePreview() {
+    val evolucion = previewEvolucion(previewExamenes)
+    val hospitalizacion = previewHospitalizacion(evolucion)
+    HirshTheme {
+        EvolucionPrintable(
+            patient = previewPatient,
+            hospitalizacion = hospitalizacion,
+            evolucion = evolucion,
+            onBack = {},
+        )
+    }
+}

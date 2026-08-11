@@ -95,6 +95,35 @@ private fun VisitCardPreview() {
 
 @Preview
 @Composable
+private fun PrintableSummaryPreview() {
+    HirshTheme {
+        PrintableSummary(
+            title = "VISTA PREVIA · HISTORIA CLINICA",
+            onBack = {},
+            subtitle = "Historia Clinica · Psiquiatria (UHSMA)",
+            metaItems = listOf(
+                "Paciente" to "Karla Sofia Ricaldi Sedano",
+                "DNI" to "70083906",
+                "Fecha de ingreso" to "20 May 2026 · 14:30",
+                "Medico responsable" to "Dr. Reyes",
+                "N° Historia" to "#00129",
+                "Cama" to "01",
+            ),
+            sections = listOf(
+                PrintableSection("Filiacion") {
+                    PrintableKvLines(listOf("Edad" to "13 anos", "DNI" to "70083906"))
+                },
+                PrintableSection("Enfermedad Actual") {
+                    PrintableSectionText("Episodio actual de heteroagresividad hacia los padres.")
+                },
+            ),
+            signatureName = "Dr. Reyes",
+        )
+    }
+}
+
+@Preview
+@Composable
 private fun EncounterTopBarPreview() {
     HirshTheme {
         EncounterTopBar(

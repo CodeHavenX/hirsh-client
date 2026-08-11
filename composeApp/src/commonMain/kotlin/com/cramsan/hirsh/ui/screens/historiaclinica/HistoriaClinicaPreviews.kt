@@ -243,3 +243,17 @@ private fun HistoriaClinicaScreenMotivoIngresoPreview() {
         )
     }
 }
+
+/** HISS-501's print-preview summary, standalone (not behind the Screen's Dialog) so Roborazzi can capture it. */
+@Preview
+@Composable
+private fun HistoriaClinicaPrintablePreview() {
+    val hospitalizacion = previewHospitalizacion(previewHistoriaClinica(partial = false))
+    HirshTheme {
+        HistoriaClinicaPrintable(
+            patient = previewPatient,
+            hospitalizacion = hospitalizacion,
+            onBack = {},
+        )
+    }
+}
