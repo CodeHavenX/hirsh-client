@@ -15,3 +15,8 @@ data class Account(
 )
 
 enum class AccountStatus { ACTIVE, INACTIVE }
+
+fun AccountStatus.toDisplayLabel(): String = when (this) {
+    AccountStatus.ACTIVE -> "Activo"
+    AccountStatus.INACTIVE -> "Inactivo"
+}

@@ -17,6 +17,7 @@ import com.cramsan.hirsh.model.Session
 import com.cramsan.hirsh.repository.SessionRepository
 import com.cramsan.hirsh.ui.components.AppScaffold
 import com.cramsan.hirsh.ui.components.NavItem
+import com.cramsan.hirsh.ui.screens.accounts.AccountsScreen
 import com.cramsan.hirsh.ui.screens.admision.AdmisionScreen
 import com.cramsan.hirsh.ui.screens.evolucionnew.NuevaEvolucionScreen
 import com.cramsan.hirsh.ui.screens.evolucionview.EvolucionViewScreen
@@ -291,7 +292,7 @@ fun AppNavHost(
                         selectedDestination = Routes.ACCOUNTS,
                         onNavigate = { destination -> navigateToSidebarItem(navController, destination) },
                     ) {
-                        RoutePlaceholder(Routes.ACCOUNTS)
+                        AccountsScreen()
                     }
                 }
             }
