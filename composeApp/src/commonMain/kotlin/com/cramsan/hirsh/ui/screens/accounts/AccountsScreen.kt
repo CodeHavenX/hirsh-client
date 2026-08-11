@@ -1,5 +1,6 @@
 package com.cramsan.hirsh.ui.screens.accounts
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -25,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cramsan.hirsh.model.Account
@@ -34,8 +36,12 @@ import com.cramsan.hirsh.model.toDisplayLabel
 import com.cramsan.hirsh.ui.components.BadgeTone
 import com.cramsan.hirsh.ui.components.DataTable
 import com.cramsan.hirsh.ui.components.DataTableColumn
+import com.cramsan.hirsh.ui.components.FieldFontSize
+import com.cramsan.hirsh.ui.components.RequiredFieldLabel
 import com.cramsan.hirsh.ui.components.StatusBadge
+import com.cramsan.hirsh.ui.components.fieldShape
 import com.cramsan.hirsh.ui.theme.HissAccent
+import com.cramsan.hirsh.ui.theme.HissInk
 import com.cramsan.hirsh.ui.theme.HissInk2
 import com.cramsan.hirsh.ui.theme.HissRadiusDefault
 import com.cramsan.hirsh.ui.theme.HissWarn
@@ -73,8 +79,12 @@ fun AccountsScreen(
             Text(
                 "ADMIN",
                 fontFamily = FontFamily.Monospace,
-                fontSize = 10.sp,
+                fontSize = 8.sp,
+                letterSpacing = 0.48.sp,
                 color = HissAccent,
+                modifier = Modifier
+                    .border(1.dp, HissAccent, RoundedCornerShape(4.dp))
+                    .padding(horizontal = 5.dp, vertical = 1.dp),
             )
             Text(
                 "Visible solo para administradores",
@@ -142,9 +152,11 @@ private fun AccountActions(
 ) {
     when {
         account.role == Role.ADMIN -> Text("—", fontSize = CellFontSize, color = HissInk2)
-        account.status == AccountStatus.ACTIVE -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        account.status == AccountStatus.ACTIVE -> Row(verticalAlignment = Alignment.CenterVertically) {
             ActionLink("Editar", HissAccent) { onEdit(account) }
+            ActionSeparator()
             ActionLink("Reset clave", HissAccent) { onReset(account) }
+            ActionSeparator()
             ActionLink("Desactivar", HissWarn) { onDeactivate(account) }
         }
         else -> ActionLink("Reactivar", HissAccent) { onReactivate(account) }
@@ -152,12 +164,17 @@ private fun AccountActions(
 }
 
 @Composable
+private fun ActionSeparator() {
+    Text(" · ", fontSize = CellFontSize, color = HissInk)
+}
+
+@Composable
 private fun ActionLink(text: String, color: Color, onClick: () -> Unit) {
     Text(
         text,
-        fontSize = 12.sp,
+        fontSize = CellFontSize,
         color = color,
-        fontWeight = FontWeight.Medium,
+        textDecoration = TextDecoration.Underline,
         modifier = Modifier.clickable(onClick = onClick),
     )
 }
@@ -172,21 +189,27 @@ private fun AddAccountDialog(dialog: AccountDialog.Add, viewModel: AccountsViewM
                 OutlinedTextField(
                     value = dialog.name,
                     onValueChange = viewModel::onAddNameChange,
-                    label = { Text("Nombre completo *") },
+                    label = { RequiredFieldLabel("Nombre completo") },
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
+                    shape = fieldShape,
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
                     value = dialog.username,
                     onValueChange = viewModel::onAddUsernameChange,
-                    label = { Text("Usuario *") },
+                    label = { RequiredFieldLabel("Usuario") },
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
+                    shape = fieldShape,
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
                     value = dialog.tempPassword,
                     onValueChange = {},
-                    label = { Text("Contraseña temporal *") },
+                    label = { RequiredFieldLabel("Contraseña temporal") },
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
+                    shape = fieldShape,
                     readOnly = true,
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
@@ -221,14 +244,18 @@ private fun EditAccountDialog(dialog: AccountDialog.Edit, viewModel: AccountsVie
                 OutlinedTextField(
                     value = dialog.name,
                     onValueChange = viewModel::onEditNameChange,
-                    label = { Text("Nombre completo *") },
+                    label = { RequiredFieldLabel("Nombre completo") },
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
+                    shape = fieldShape,
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
                     value = dialog.username,
                     onValueChange = viewModel::onEditUsernameChange,
-                    label = { Text("Usuario *") },
+                    label = { RequiredFieldLabel("Usuario") },
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
+                    shape = fieldShape,
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -257,6 +284,8 @@ private fun ResetPasswordDialog(dialog: AccountDialog.Reset, onConfirm: () -> Un
                     value = dialog.tempPassword,
                     onValueChange = {},
                     label = { Text("Nueva contraseña temporal") },
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
+                    shape = fieldShape,
                     readOnly = true,
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),

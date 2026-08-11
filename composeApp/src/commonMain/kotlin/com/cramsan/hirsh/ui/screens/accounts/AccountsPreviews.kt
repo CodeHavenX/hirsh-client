@@ -50,30 +50,17 @@ private class PreviewAccountRepository(accounts: List<Account>) : AccountReposit
     }
 }
 
+// Only the base (no dialog open) state is captured here -- accounts.html's own
+// modals are all `modal-scrim hidden` by default, so that's the state that's
+// actually comparable to the mock. An open AlertDialog also isn't capturable by
+// Roborazzi on desktop: Compose Multiplatform's Dialog opens a separate native
+// window, which produces two semantics roots and fails captureRoboImage's
+// single-root assertion. Dialog content/behavior is covered by
+// AccountsViewModelTest instead.
 @Preview
 @Composable
 private fun AccountsScreenPreview() {
     HirshTheme {
         AccountsScreen(viewModel = AccountsViewModel(PreviewAccountRepository(previewAccounts)))
-    }
-}
-
-@Preview
-@Composable
-private fun AccountsScreenAddDialogPreview() {
-    HirshTheme {
-        val viewModel = AccountsViewModel(PreviewAccountRepository(previewAccounts))
-        viewModel.openAddDialog()
-        AccountsScreen(viewModel = viewModel)
-    }
-}
-
-@Preview
-@Composable
-private fun AccountsScreenDeactivateDialogPreview() {
-    HirshTheme {
-        val viewModel = AccountsViewModel(PreviewAccountRepository(previewAccounts))
-        viewModel.openDeactivateDialog(previewAccounts.first())
-        AccountsScreen(viewModel = viewModel)
     }
 }
