@@ -44,6 +44,7 @@ import com.cramsan.hirsh.ui.theme.HissAccent
 import com.cramsan.hirsh.ui.theme.HissInk
 import com.cramsan.hirsh.ui.theme.HissInk2
 import com.cramsan.hirsh.ui.theme.HissRadiusDefault
+import com.cramsan.hirsh.ui.theme.HissRadiusTag
 import com.cramsan.hirsh.ui.theme.HissWarn
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -83,7 +84,7 @@ fun AccountsScreen(
                 letterSpacing = 0.48.sp,
                 color = HissAccent,
                 modifier = Modifier
-                    .border(1.dp, HissAccent, RoundedCornerShape(4.dp))
+                    .border(1.dp, HissAccent, RoundedCornerShape(HissRadiusTag))
                     .padding(horizontal = 5.dp, vertical = 1.dp),
             )
             Text(
@@ -112,7 +113,7 @@ fun AccountsScreen(
         is AccountDialog.None -> Unit
         is AccountDialog.Add -> AddAccountDialog(dialog, viewModel)
         is AccountDialog.Edit -> EditAccountDialog(dialog, viewModel)
-        is AccountDialog.Reset -> ResetPasswordDialog(dialog, viewModel::confirmReset)
+        is AccountDialog.Reset -> ResetPasswordDialog(dialog, viewModel)
         is AccountDialog.Deactivate -> DeactivateAccountDialog(dialog, viewModel)
     }
 }
@@ -274,9 +275,9 @@ private fun EditAccountDialog(dialog: AccountDialog.Edit, viewModel: AccountsVie
 }
 
 @Composable
-private fun ResetPasswordDialog(dialog: AccountDialog.Reset, onConfirm: () -> Unit) {
+private fun ResetPasswordDialog(dialog: AccountDialog.Reset, viewModel: AccountsViewModel) {
     AlertDialog(
-        onDismissRequest = onConfirm,
+        onDismissRequest = viewModel::closeDialog,
         title = { Text("Reset contraseña · ${dialog.account.name}", fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -299,10 +300,10 @@ private fun ResetPasswordDialog(dialog: AccountDialog.Reset, onConfirm: () -> Un
             }
         },
         confirmButton = {
-            Button(onClick = onConfirm) { Text("Confirmar reset") }
+            Button(onClick = viewModel::confirmReset) { Text("Confirmar reset") }
         },
         dismissButton = {
-            TextButton(onClick = onConfirm) { Text("Cancelar") }
+            TextButton(onClick = viewModel::closeDialog) { Text("Cancelar") }
         },
     )
 }
