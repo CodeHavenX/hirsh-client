@@ -459,6 +459,28 @@ class HistoriaClinicaViewModelTest {
     }
 
     @Test
+    fun `openPrintPreview shows the summary, closePrintPreview hides it`() = runTest(dispatcher) {
+        val hospitalization = sampleHospitalization("h1", samplePatient.id)
+        val viewModel = HistoriaClinicaViewModel(
+            FakePatientRepository(listOf(samplePatient)),
+            FakeHospitalizationRepository(listOf(hospitalization)),
+        )
+
+        viewModel.uiState.test {
+            awaitItem()
+            viewModel.load(samplePatient.id, hospitalization.id)
+            awaitItem()
+
+            viewModel.openPrintPreview()
+            assertEquals(true, awaitItem().showPrintPreview)
+
+            viewModel.closePrintPreview()
+            assertEquals(false, awaitItem().showPrintPreview)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
     fun `save ignores a second call while already saving`() = runTest(dispatcher) {
         val hospitalization = sampleHospitalization("h1", samplePatient.id)
         val repository = FakeHospitalizationRepository(listOf(hospitalization))

@@ -35,6 +35,7 @@ data class HistoriaClinicaUiState(
     val fieldValues: Map<String, String> = emptyMap(),
     val motivoIngresoDraft: MotivoIngreso = MotivoIngreso(),
     val isSaving: Boolean = false,
+    val showPrintPreview: Boolean = false,
 )
 
 private data class RequestedIds(val patientId: String, val hospId: String)
@@ -52,6 +53,7 @@ private data class FormState(
     val fieldOverrides: Map<String, String> = emptyMap(),
     val motivoOverrides: MotivoIngreso? = null,
     val isSaving: Boolean = false,
+    val showPrintPreview: Boolean = false,
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -89,6 +91,7 @@ class HistoriaClinicaViewModel(
                         fieldValues = effectiveFieldValues,
                         motivoIngresoDraft = effectiveMotivo,
                         isSaving = form.isSaving,
+                        showPrintPreview = form.showPrintPreview,
                     )
                 }
             }
@@ -118,6 +121,10 @@ class HistoriaClinicaViewModel(
 
     fun onMotivoOtrosDetalleChange(current: MotivoIngreso, value: String) =
         formState.update { it.copy(motivoOverrides = current.copy(otrosDetalle = value)) }
+
+    fun openPrintPreview() = formState.update { it.copy(showPrintPreview = true) }
+
+    fun closePrintPreview() = formState.update { it.copy(showPrintPreview = false) }
 
     fun save() {
         val ids = requestedIds.value ?: return
@@ -193,7 +200,6 @@ class HistoriaClinicaViewModel(
             }
         }
     }
-
 }
 
 private fun MotivoIngreso.withOption(key: String, checked: Boolean): MotivoIngreso = when (key) {

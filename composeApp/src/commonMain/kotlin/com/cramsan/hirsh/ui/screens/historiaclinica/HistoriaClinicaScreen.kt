@@ -35,6 +35,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.cramsan.hirsh.model.HcSectionKey
 import com.cramsan.hirsh.model.HistoriaClinica
 import com.cramsan.hirsh.model.MotivoIngreso
@@ -102,7 +104,7 @@ fun HistoriaClinicaScreen(
                     },
                     actions = {
                         Button(
-                            onClick = {},
+                            onClick = viewModel::openPrintPreview,
                             shape = fieldShape,
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
                         ) {
@@ -110,6 +112,18 @@ fun HistoriaClinicaScreen(
                         }
                     },
                 )
+                if (uiState.showPrintPreview) {
+                    Dialog(
+                        onDismissRequest = viewModel::closePrintPreview,
+                        properties = DialogProperties(usePlatformDefaultWidth = false),
+                    ) {
+                        HistoriaClinicaPrintable(
+                            patient = patient,
+                            hospitalizacion = hospitalizacion,
+                            onBack = viewModel::closePrintPreview,
+                        )
+                    }
+                }
                 Row(modifier = Modifier.fillMaxSize().padding(24.dp), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                     HcSectionNav(
                         historiaClinica = historiaClinica,

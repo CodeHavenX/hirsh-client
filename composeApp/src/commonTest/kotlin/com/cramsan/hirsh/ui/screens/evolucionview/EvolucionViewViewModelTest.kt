@@ -244,4 +244,27 @@ class EvolucionViewViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
     }
+
+    @Test
+    fun `openPrintPreview shows the summary, closePrintPreview hides it`() = runTest(dispatcher) {
+        val evolucion = sampleEvolucion("evo1")
+        val hospitalization = sampleHospitalization("h1", samplePatient.id, listOf(evolucion))
+        val viewModel = EvolucionViewViewModel(
+            FakePatientRepository(listOf(samplePatient)),
+            FakeHospitalizationRepository(listOf(hospitalization)),
+        )
+
+        viewModel.uiState.test {
+            awaitItem()
+            viewModel.load(samplePatient.id, hospitalization.id, evolucion.id)
+            assertEquals(false, awaitItem().showPrintPreview)
+
+            viewModel.openPrintPreview()
+            assertEquals(true, awaitItem().showPrintPreview)
+
+            viewModel.closePrintPreview()
+            assertEquals(false, awaitItem().showPrintPreview)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
 }

@@ -30,6 +30,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.cramsan.hirsh.model.Evolucion
 import com.cramsan.hirsh.model.toDisplayLabel
 import com.cramsan.hirsh.ui.components.BadgeTone
@@ -100,7 +102,7 @@ fun EvolucionViewScreen(
                     },
                     actions = {
                         Button(
-                            onClick = {},
+                            onClick = viewModel::openPrintPreview,
                             shape = fieldShape,
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
                         ) {
@@ -108,6 +110,19 @@ fun EvolucionViewScreen(
                         }
                     },
                 )
+                if (uiState.showPrintPreview) {
+                    Dialog(
+                        onDismissRequest = viewModel::closePrintPreview,
+                        properties = DialogProperties(usePlatformDefaultWidth = false),
+                    ) {
+                        EvolucionPrintable(
+                            patient = patient,
+                            hospitalizacion = hospitalizacion,
+                            evolucion = evolucion,
+                            onBack = viewModel::closePrintPreview,
+                        )
+                    }
+                }
                 EvoTabBar(selectedTab = uiState.selectedTab, examCount = evolucion.examenes.size, onSelectTab = viewModel::selectTab)
                 Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp)) {
                     when (uiState.selectedTab) {
