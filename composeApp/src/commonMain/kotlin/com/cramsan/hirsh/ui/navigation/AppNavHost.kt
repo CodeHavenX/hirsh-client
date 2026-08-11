@@ -74,7 +74,7 @@ fun AppNavHost(
             route = Routes.PATIENT_RECORD,
             arguments = listOf(navArgument("patientId") { type = NavType.StringType }),
         ) { backStackEntry ->
-            val patientId = backStackEntry.arguments?.read { getString("patientId") }.orEmpty()
+            val patientId = decodeRouteSegment(backStackEntry.arguments?.read { getString("patientId") }.orEmpty())
             RequireSession(session, navController) {
                 AppScaffold(
                     items = items,
@@ -135,7 +135,7 @@ fun AppNavHost(
             route = Routes.PATIENT_EDIT,
             arguments = listOf(navArgument("patientId") { type = NavType.StringType }),
         ) { backStackEntry ->
-            val patientId = backStackEntry.arguments?.read { getString("patientId") }.orEmpty()
+            val patientId = decodeRouteSegment(backStackEntry.arguments?.read { getString("patientId") }.orEmpty())
             RequireSession(session, navController) {
                 AppScaffold(
                     items = items,
@@ -154,7 +154,7 @@ fun AppNavHost(
             route = Routes.PATIENT_HISTORY,
             arguments = listOf(navArgument("patientId") { type = NavType.StringType }),
         ) { backStackEntry ->
-            val patientId = backStackEntry.arguments?.read { getString("patientId") }.orEmpty()
+            val patientId = decodeRouteSegment(backStackEntry.arguments?.read { getString("patientId") }.orEmpty())
             RequireSession(session, navController) {
                 AppScaffold(
                     items = items,
@@ -172,7 +172,7 @@ fun AppNavHost(
             route = Routes.ADMISION,
             arguments = listOf(navArgument("patientId") { type = NavType.StringType }),
         ) { backStackEntry ->
-            val patientId = backStackEntry.arguments?.read { getString("patientId") }.orEmpty()
+            val patientId = decodeRouteSegment(backStackEntry.arguments?.read { getString("patientId") }.orEmpty())
             RequireSession(session, navController) {
                 AppScaffold(
                     items = items,
@@ -198,8 +198,8 @@ fun AppNavHost(
                 navArgument("hospId") { type = NavType.StringType },
             ),
         ) { backStackEntry ->
-            val patientId = backStackEntry.arguments?.read { getString("patientId") }.orEmpty()
-            val hospId = backStackEntry.arguments?.read { getString("hospId") }.orEmpty()
+            val patientId = decodeRouteSegment(backStackEntry.arguments?.read { getString("patientId") }.orEmpty())
+            val hospId = decodeRouteSegment(backStackEntry.arguments?.read { getString("hospId") }.orEmpty())
             RequireSession(session, navController) {
                 AppScaffold(
                     items = items,
@@ -225,8 +225,8 @@ fun AppNavHost(
                 navArgument("hospId") { type = NavType.StringType },
             ),
         ) { backStackEntry ->
-            val patientId = backStackEntry.arguments?.read { getString("patientId") }.orEmpty()
-            val hospId = backStackEntry.arguments?.read { getString("hospId") }.orEmpty()
+            val patientId = decodeRouteSegment(backStackEntry.arguments?.read { getString("patientId") }.orEmpty())
+            val hospId = decodeRouteSegment(backStackEntry.arguments?.read { getString("hospId") }.orEmpty())
             RequireSession(session, navController) {
                 HistoriaClinicaScreen(
                     patientId = patientId,
@@ -242,8 +242,8 @@ fun AppNavHost(
                 navArgument("hospId") { type = NavType.StringType },
             ),
         ) { backStackEntry ->
-            val patientId = backStackEntry.arguments?.read { getString("patientId") }.orEmpty()
-            val hospId = backStackEntry.arguments?.read { getString("hospId") }.orEmpty()
+            val patientId = decodeRouteSegment(backStackEntry.arguments?.read { getString("patientId") }.orEmpty())
+            val hospId = decodeRouteSegment(backStackEntry.arguments?.read { getString("hospId") }.orEmpty())
             RequireSession(session, navController) {
                 NuevaEvolucionScreen(
                     patientId = patientId,
@@ -266,9 +266,9 @@ fun AppNavHost(
                 navArgument("evoId") { type = NavType.StringType },
             ),
         ) { backStackEntry ->
-            val patientId = backStackEntry.arguments?.read { getString("patientId") }.orEmpty()
-            val hospId = backStackEntry.arguments?.read { getString("hospId") }.orEmpty()
-            val evoId = backStackEntry.arguments?.read { getString("evoId") }.orEmpty()
+            val patientId = decodeRouteSegment(backStackEntry.arguments?.read { getString("patientId") }.orEmpty())
+            val hospId = decodeRouteSegment(backStackEntry.arguments?.read { getString("hospId") }.orEmpty())
+            val evoId = decodeRouteSegment(backStackEntry.arguments?.read { getString("evoId") }.orEmpty())
             RequireSession(session, navController) {
                 EvolucionViewScreen(
                     patientId = patientId,
