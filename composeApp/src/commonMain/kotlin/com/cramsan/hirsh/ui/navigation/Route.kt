@@ -26,13 +26,51 @@ object Routes {
     const val EVOLUCION_VIEW = "evolucion_view/{patientId}/{hospId}/{evoId}"
     const val ACCOUNTS = "accounts"
 
-    fun patientRecord(patientId: String) = "patient_record/$patientId"
-    fun patientEdit(patientId: String) = "patient_edit/$patientId"
-    fun patientHistory(patientId: String) = "patient_history/$patientId"
-    fun admision(patientId: String) = "admision/$patientId"
-    fun hospitalization(patientId: String, hospId: String) = "hospitalization/$patientId/$hospId"
-    fun historiaClinica(patientId: String, hospId: String) = "historia_clinica/$patientId/$hospId"
-    fun evolucionNew(patientId: String, hospId: String) = "evolucion_new/$patientId/$hospId"
+    fun patientRecord(patientId: String) = "patient_record/${encodeRouteSegment(patientId)}"
+    fun patientEdit(patientId: String) = "patient_edit/${encodeRouteSegment(patientId)}"
+    fun patientHistory(patientId: String) = "patient_history/${encodeRouteSegment(patientId)}"
+    fun admision(patientId: String) = "admision/${encodeRouteSegment(patientId)}"
+    fun hospitalization(patientId: String, hospId: String) =
+        "hospitalization/${encodeRouteSegment(patientId)}/${encodeRouteSegment(hospId)}"
+    fun historiaClinica(patientId: String, hospId: String) =
+        "historia_clinica/${encodeRouteSegment(patientId)}/${encodeRouteSegment(hospId)}"
+    fun evolucionNew(patientId: String, hospId: String) =
+        "evolucion_new/${encodeRouteSegment(patientId)}/${encodeRouteSegment(hospId)}"
     fun evolucionView(patientId: String, hospId: String, evoId: String) =
-        "evolucion_view/$patientId/$hospId/$evoId"
+        "evolucion_view/${encodeRouteSegment(patientId)}/${encodeRouteSegment(hospId)}/${encodeRouteSegment(evoId)}"
+}
+
+/**
+ * Navigation-Compose matches even plain string routes via URI templating under the hood, so a
+ * reserved URI character in a path segment breaks route matching -- concretely, every seeded
+ * [com.cramsan.hirsh.model.Patient.id] is formatted like `#00142` (matching the prototype's own
+ * display convention), and an un-encoded `#` truncates the rest of the segment as a URI fragment,
+ * leaving `{patientId}` empty and every patient-scoped screen unreachable. Percent-encode any
+ * character outside the URI-unreserved set when building a route segment; [decodeRouteSegment]
+ * reverses it when reading the argument back out in AppNavHost.
+ */
+private fun encodeRouteSegment(value: String): String = buildString {
+    for (char in value) {
+        if (char.isLetterOrDigit() || char == '-' || char == '_' || char == '.' || char == '~') {
+            append(char)
+        } else {
+            append('%')
+            append(char.code.toString(16).uppercase().padStart(2, '0'))
+        }
+    }
+}
+
+/** Reverses [encodeRouteSegment] -- ASCII-only, matching this app's actual id space (no seeded id contains non-ASCII). */
+fun decodeRouteSegment(value: String): String = buildString {
+    var i = 0
+    while (i < value.length) {
+        val char = value[i]
+        if (char == '%' && i + 2 < value.length) {
+            append(value.substring(i + 1, i + 3).toInt(16).toChar())
+            i += 3
+        } else {
+            append(char)
+            i++
+        }
+    }
 }
