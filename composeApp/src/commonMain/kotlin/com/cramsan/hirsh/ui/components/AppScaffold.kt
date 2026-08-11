@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cramsan.hirsh.ui.theme.HissFaint
 import com.cramsan.hirsh.ui.theme.HissInk2
+import com.cramsan.hirsh.ui.theme.HissRadiusNavIcon
 
 data class NavItem(
     val label: String,
@@ -114,7 +115,7 @@ private fun DisabledNavItem(label: String) {
         Box(
             modifier = Modifier
                 .size(18.dp)
-                .border(1.5.dp, HissInk2, RoundedCornerShape(5.dp)),
+                .border(1.5.dp, HissInk2, RoundedCornerShape(HissRadiusNavIcon)),
         )
         Text(label, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = HissInk2)
     }
