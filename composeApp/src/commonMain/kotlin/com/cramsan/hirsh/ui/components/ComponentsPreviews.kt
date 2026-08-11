@@ -1,8 +1,12 @@
 package com.cramsan.hirsh.ui.components
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -119,6 +123,25 @@ private fun PrintableSummaryPreview() {
             ),
             signatureName = "Dr. Reyes",
         )
+    }
+}
+
+@Preview
+@Composable
+private fun AppScaffoldPreview() {
+    HirshTheme {
+        AppScaffold(
+            items = listOf(
+                NavItem(label = "Pacientes", destination = "patients"),
+                NavItem(label = "Cuentas", destination = "accounts"),
+            ),
+            selectedDestination = "patients",
+            onNavigate = {},
+        ) {
+            Box(modifier = Modifier.fillMaxSize().padding(24.dp)) {
+                Text("Contenido", style = MaterialTheme.typography.bodyMedium)
+            }
+        }
     }
 }
 
