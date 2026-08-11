@@ -8,7 +8,6 @@ import com.cramsan.hirsh.model.ExamenFisico
 import com.cramsan.hirsh.model.ExamenRegional
 import com.cramsan.hirsh.model.Filiacion
 import com.cramsan.hirsh.model.HcSectionKey
-import com.cramsan.hirsh.model.HistoriaClinica
 import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.MotivoIngreso
 import com.cramsan.hirsh.model.Patient
