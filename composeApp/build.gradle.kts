@@ -33,9 +33,13 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().con
 }
 
 afterEvaluate {
+    // 21, not 17: ComposablePreviewScanner (Roborazzi) only publishes JVM 17 metadata and
+    // cmp-bridge-driver (ui/e2e/) only publishes JVM 21+ -- Gradle's TargetJvmVersion
+    // compatibility rule accepts a producer's target <= the consumer's request, so requesting
+    // 21 keeps both resolvable (17 <= 21) rather than requiring an exact match.
     listOf("desktopTestCompileClasspath", "desktopTestRuntimeClasspath").forEach { name ->
         configurations.named(name) {
-            attributes.attribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, 17)
+            attributes.attribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, 21)
         }
     }
 }
@@ -135,12 +139,25 @@ kotlin {
                 implementation(libs.roborazzi.compose.desktop.preview.scanner.support)
                 implementation(libs.composable.preview.scanner.android)
                 implementation(libs.junit)
+                // JVM-only driver for cmp-bridge e2e tests (ui/e2e/) -- drives the desktop app
+                // via a socket to its embedded DesktopBridgeServer, and the wasmJs app via a
+                // headless Chromium (Playwright) walking Compose Web's own accessibility DOM.
+                // No wasmJs compilation involved on either side; see ui/e2e/README for the
+                // architecture note.
+                implementation(libs.cmp.bridge.driver)
             }
         }
         wasmJsMain.dependencies {
             implementation(libs.ktor.client.js)
         }
     }
+}
+
+// cmp-bridge-driver's WasmDevServerProcess shells out to `./gradlew <module>:wasmJsBrowserDevelopmentRun`
+// from a plain JVM test (ui/e2e/WebE2ETest.kt) -- it needs the repo root to find `gradlew` from,
+// which isn't derivable from the test JVM's own working directory once Gradle forks it.
+tasks.named<Test>("desktopTest") {
+    systemProperty("e2e.repoRoot", rootProject.projectDir.absolutePath)
 }
 
 android {

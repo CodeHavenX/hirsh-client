@@ -66,6 +66,7 @@ composable-preview-scanner-android = { module = "io.github.sergio-sastre.Composa
 junit = { module = "junit:junit", version.ref = "junit" }
 
 cmp-bridge = { module = "com.cramsan.cmpbridge:cmp-bridge", version.ref = "cmp-bridge" }
+cmp-bridge-driver = { module = "com.cramsan.cmpbridge:cmp-bridge-driver", version.ref = "cmp-bridge" }
 
 [plugins]
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }

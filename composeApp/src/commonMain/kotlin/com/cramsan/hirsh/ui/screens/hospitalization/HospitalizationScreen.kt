@@ -117,15 +117,21 @@ fun HospitalizationScreen(
             title = { Text("Dar de alta") },
             text = { Text("¿Dar de alta a este paciente? La hospitalizacion pasara a estado Alta.") },
             confirmButton = {
-                TextButton(onClick = {
-                    showDischargeDialog = false
-                    viewModel.discharge()
-                }) {
+                TextButton(
+                    onClick = {
+                        showDischargeDialog = false
+                        viewModel.discharge()
+                    },
+                    modifier = Modifier.testTag("hosp_discharge_confirm_button"),
+                ) {
                     Text("Dar de alta")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDischargeDialog = false }) {
+                TextButton(
+                    onClick = { showDischargeDialog = false },
+                    modifier = Modifier.testTag("hosp_discharge_cancel_button"),
+                ) {
                     Text("Cancelar")
                 }
             },
@@ -151,6 +157,7 @@ private fun HospitalizationHeader(
                     shape = ButtonShape,
                     border = BorderStroke(1.5.dp, HissInk),
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                    modifier = Modifier.testTag("hosp_discharge_button"),
                 ) {
                     Text("Dar de alta", fontWeight = FontWeight.Medium, color = HissInk)
                 }

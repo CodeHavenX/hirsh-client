@@ -274,6 +274,7 @@ private fun SectionForm(
                 options = spec.options,
                 selected = value,
                 onSelect = { onFieldChange(spec.key, it) },
+                testTag = "hc_field_${spec.key}",
             )
             HcFieldType.TEXTAREA -> OutlinedTextField(
                 value = value,
@@ -282,7 +283,7 @@ private fun SectionForm(
                 textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
                 shape = fieldShape,
                 minLines = spec.rows,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().testTag("hc_field_${spec.key}"),
             )
             HcFieldType.TEXT -> OutlinedTextField(
                 value = value,
@@ -291,7 +292,7 @@ private fun SectionForm(
                 textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
                 shape = fieldShape,
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().testTag("hc_field_${spec.key}"),
             )
         }
     }
@@ -321,7 +322,7 @@ private fun MotivoIngresoForm(
             textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
             shape = fieldShape,
             singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().testTag("hc_motivo_otros_detalle_field"),
         )
     }
 }
@@ -362,7 +363,7 @@ private fun MotivoOptionChip(
         onClick = { onCheckedChange(!checked) },
         shape = RoundedCornerShape(8.dp),
         border = BorderStroke(1.5.dp, HissFaint),
-        modifier = modifier,
+        modifier = modifier.testTag("hc_motivo_option_${option.key}"),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),

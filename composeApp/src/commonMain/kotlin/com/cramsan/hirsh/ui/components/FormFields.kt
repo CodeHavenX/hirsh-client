@@ -19,6 +19,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
@@ -64,6 +65,12 @@ fun RequiredFieldLabel(text: String) {
     )
 }
 
+/**
+ * [testTag], when given, tags the field itself (for opening the dropdown) and each
+ * [DropdownMenuItem] as `"${testTag}_option_<index>"` -- cmp-bridge's click operation is
+ * tag-only with no text-based fallback, so a caller that needs an e2e test to actually pick an
+ * option (not just open the dropdown) must pass this rather than tagging [modifier] directly.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SelectField(
@@ -72,12 +79,13 @@ fun SelectField(
     selected: String,
     onSelect: (String) -> Unit,
     modifier: Modifier = Modifier,
+    testTag: String? = null,
 ) {
     var expanded by remember { mutableStateOf(false) }
     ExposedDropdownMenuBox(
         expanded = expanded,
         onExpandedChange = { expanded = it },
-        modifier = modifier.fillMaxWidth(),
+        modifier = (if (testTag != null) modifier.testTag(testTag) else modifier).fillMaxWidth(),
     ) {
         OutlinedTextField(
             value = selected,
@@ -90,13 +98,14 @@ fun SelectField(
             modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true).fillMaxWidth(),
         )
         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            options.forEach { option ->
+            options.forEachIndexed { index, option ->
                 DropdownMenuItem(
                     text = { Text(option) },
                     onClick = {
                         onSelect(option)
                         expanded = false
                     },
+                    modifier = if (testTag != null) Modifier.testTag("${testTag}_option_$index") else Modifier,
                 )
             }
         }

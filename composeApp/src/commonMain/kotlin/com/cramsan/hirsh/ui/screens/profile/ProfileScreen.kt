@@ -155,7 +155,7 @@ private fun PasswordCard(uiState: ProfileUiState, viewModel: ProfileViewModel) {
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
                 shape = fieldShape,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().testTag("profile_current_password_field"),
             )
             OutlinedTextField(
                 value = uiState.newPassword,
@@ -166,7 +166,7 @@ private fun PasswordCard(uiState: ProfileUiState, viewModel: ProfileViewModel) {
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
                 shape = fieldShape,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().testTag("profile_new_password_field"),
             )
             OutlinedTextField(
                 value = uiState.confirmPassword,
@@ -177,7 +177,7 @@ private fun PasswordCard(uiState: ProfileUiState, viewModel: ProfileViewModel) {
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
                 shape = fieldShape,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().testTag("profile_confirm_password_field"),
             )
             uiState.error?.let { error ->
                 Text(error, color = MaterialTheme.colorScheme.error, fontSize = FieldFontSize)
@@ -190,6 +190,7 @@ private fun PasswordCard(uiState: ProfileUiState, viewModel: ProfileViewModel) {
                     onClick = viewModel::updatePassword,
                     shape = fieldShape,
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                    modifier = Modifier.testTag("profile_update_password_button"),
                 ) {
                     Text("Actualizar contrasena", fontSize = FieldFontSize, fontWeight = FontWeight.Medium)
                 }

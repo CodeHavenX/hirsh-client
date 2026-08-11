@@ -126,7 +126,7 @@ private fun EditPatientForm(
                     options = listOf("Masculino", "Femenino"),
                     selected = uiState.sex?.toDisplayLabel().orEmpty(),
                     onSelect = { label -> viewModel.onSexChange(if (label == "Masculino") Sex.MALE else Sex.FEMALE) },
-                    modifier = Modifier.testTag("edit_sex_field"),
+                    testTag = "edit_sex_field",
                 )
             }
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {

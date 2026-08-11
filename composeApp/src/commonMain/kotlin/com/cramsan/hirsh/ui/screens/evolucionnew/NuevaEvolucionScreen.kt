@@ -123,6 +123,7 @@ fun NuevaEvolucionScreen(
                             shape = fieldShape,
                             border = BorderStroke(1.5.dp, HissWarn),
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                            modifier = Modifier.testTag("evo_new_discard_button"),
                         ) {
                             Text("Descartar", fontSize = FieldFontSize, fontWeight = FontWeight.Medium, color = HissWarn)
                         }
@@ -165,15 +166,21 @@ fun NuevaEvolucionScreen(
             title = { Text("Descartar evolucion") },
             text = { Text("¿Descartar esta evolucion? Se perderan todos los datos ingresados.") },
             confirmButton = {
-                TextButton(onClick = {
-                    showDiscardDialog = false
-                    onDiscarded()
-                }) {
+                TextButton(
+                    onClick = {
+                        showDiscardDialog = false
+                        onDiscarded()
+                    },
+                    modifier = Modifier.testTag("evo_new_discard_confirm_button"),
+                ) {
                     Text("Descartar")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDiscardDialog = false }) {
+                TextButton(
+                    onClick = { showDiscardDialog = false },
+                    modifier = Modifier.testTag("evo_new_discard_cancel_button"),
+                ) {
                     Text("Cancelar")
                 }
             },
@@ -194,11 +201,16 @@ private fun EvoTabBar(
             .padding(horizontal = 24.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        EvoTab("Evolucion", active = selectedTab == EvolucionTab.EVOLUCION) { onSelectTab(EvolucionTab.EVOLUCION) }
+        EvoTab(
+            "Evolucion",
+            active = selectedTab == EvolucionTab.EVOLUCION,
+            testTag = "evo_new_tab_evolucion",
+        ) { onSelectTab(EvolucionTab.EVOLUCION) }
         EvoTab(
             "Examenes",
             active = selectedTab == EvolucionTab.EXAMENES,
             badgeCount = examCount.takeIf { it > 0 },
+            testTag = "evo_new_tab_examenes",
         ) { onSelectTab(EvolucionTab.EXAMENES) }
     }
 }
@@ -208,6 +220,7 @@ private fun EvoTab(
     label: String,
     active: Boolean,
     badgeCount: Int? = null,
+    testTag: String,
     onClick: () -> Unit,
 ) {
     val containerColor = if (active) HissAccentWash else Color.Transparent
@@ -218,6 +231,7 @@ private fun EvoTab(
         shape = RoundedCornerShape(HissRadiusDefault),
         color = containerColor,
         border = BorderStroke(1.5.dp, borderColor),
+        modifier = Modifier.testTag(testTag),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
@@ -250,11 +264,46 @@ private fun EvolucionPanel(uiState: NuevaEvolucionUiState, viewModel: NuevaEvolu
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
         Column(modifier = Modifier.weight(1.3f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             FormSectionCaption("Notas SOAP")
-            SoapField("Subjetivo", required = true, value = uiState.subjective, onValueChange = viewModel::onSubjectiveChange, minLines = 4)
-            SoapField("Objetivo", required = true, value = uiState.objective, onValueChange = viewModel::onObjectiveChange, minLines = 4)
-            SoapField("Analisis", required = false, value = uiState.assessment, onValueChange = viewModel::onAssessmentChange, minLines = 3)
-            SoapField("Plan", required = false, value = uiState.plan, onValueChange = viewModel::onPlanChange, minLines = 3)
-            SoapField("Prescripcion", required = false, value = uiState.rx, onValueChange = viewModel::onRxChange, minLines = 4)
+            SoapField(
+                "Subjetivo",
+                required = true,
+                value = uiState.subjective,
+                onValueChange = viewModel::onSubjectiveChange,
+                minLines = 4,
+                testTag = "evo_new_subjective_field",
+            )
+            SoapField(
+                "Objetivo",
+                required = true,
+                value = uiState.objective,
+                onValueChange = viewModel::onObjectiveChange,
+                minLines = 4,
+                testTag = "evo_new_objective_field",
+            )
+            SoapField(
+                "Analisis",
+                required = false,
+                value = uiState.assessment,
+                onValueChange = viewModel::onAssessmentChange,
+                minLines = 3,
+                testTag = "evo_new_assessment_field",
+            )
+            SoapField(
+                "Plan",
+                required = false,
+                value = uiState.plan,
+                onValueChange = viewModel::onPlanChange,
+                minLines = 3,
+                testTag = "evo_new_plan_field",
+            )
+            SoapField(
+                "Prescripcion",
+                required = false,
+                value = uiState.rx,
+                onValueChange = viewModel::onRxChange,
+                minLines = 4,
+                testTag = "evo_new_rx_field",
+            )
             Text(
                 "Ej: Amoxicilina 500mg — TID — 7 dias",
                 fontFamily = FontFamily.Monospace,
@@ -278,12 +327,14 @@ private fun EvolucionPanel(uiState: NuevaEvolucionUiState, viewModel: NuevaEvolu
                 options = Pronostico.entries.map { it.toDisplayLabel() },
                 selected = uiState.pronostico,
                 onSelect = viewModel::onPronosticoChange,
+                testTag = "evo_new_pronostico_field",
             )
             SelectField(
                 label = { RequiredFieldLabel("Evolucion") },
                 options = EvolucionResultado.entries.map { it.toDisplayLabel() },
                 selected = uiState.resultadoEvolucion,
                 onSelect = viewModel::onResultadoEvolucionChange,
+                testTag = "evo_new_resultado_field",
             )
         }
     }
@@ -296,6 +347,7 @@ private fun SoapField(
     value: String,
     onValueChange: (String) -> Unit,
     minLines: Int,
+    testTag: String,
 ) {
     OutlinedTextField(
         value = value,
@@ -304,7 +356,7 @@ private fun SoapField(
         textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
         shape = fieldShape,
         minLines = minLines,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().testTag(testTag),
     )
 }
 
@@ -318,16 +370,16 @@ private fun FieldLabel(text: String) {
 private fun VitalsGrid(uiState: NuevaEvolucionUiState, viewModel: NuevaEvolucionViewModel) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            VitalField("PA (mmHg)", uiState.pa, viewModel::onPaChange, Modifier.weight(1f))
-            VitalField("FC (lpm)", uiState.fc, viewModel::onFcChange, Modifier.weight(1f))
+            VitalField("PA (mmHg)", uiState.pa, viewModel::onPaChange, Modifier.weight(1f).testTag("evo_new_vital_pa_field"))
+            VitalField("FC (lpm)", uiState.fc, viewModel::onFcChange, Modifier.weight(1f).testTag("evo_new_vital_fc_field"))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            VitalField("FR (rpm)", uiState.fr, viewModel::onFrChange, Modifier.weight(1f))
-            VitalField("T° (°C)", uiState.temp, viewModel::onTempChange, Modifier.weight(1f))
+            VitalField("FR (rpm)", uiState.fr, viewModel::onFrChange, Modifier.weight(1f).testTag("evo_new_vital_fr_field"))
+            VitalField("T° (°C)", uiState.temp, viewModel::onTempChange, Modifier.weight(1f).testTag("evo_new_vital_temp_field"))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            VitalField("SatO2 (%)", uiState.satO2, viewModel::onSatO2Change, Modifier.weight(1f))
-            VitalField("FiO2 (%)", uiState.fio2, viewModel::onFio2Change, Modifier.weight(1f))
+            VitalField("SatO2 (%)", uiState.satO2, viewModel::onSatO2Change, Modifier.weight(1f).testTag("evo_new_vital_sato2_field"))
+            VitalField("FiO2 (%)", uiState.fio2, viewModel::onFio2Change, Modifier.weight(1f).testTag("evo_new_vital_fio2_field"))
         }
     }
 }
@@ -357,7 +409,7 @@ private fun DiagnosisRows(rows: List<DxRow>, viewModel: NuevaEvolucionViewModel)
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
                     shape = fieldShape,
                     singleLine = true,
-                    modifier = Modifier.width(96.dp),
+                    modifier = Modifier.width(96.dp).testTag("evo_new_dx_codigo_$index"),
                 )
                 OutlinedTextField(
                     value = row.descripcion,
@@ -366,12 +418,12 @@ private fun DiagnosisRows(rows: List<DxRow>, viewModel: NuevaEvolucionViewModel)
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
                     shape = fieldShape,
                     singleLine = true,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).testTag("evo_new_dx_descripcion_$index"),
                 )
-                RemoveRowButton(onClick = { viewModel.removeDxRow(index) })
+                RemoveRowButton(onClick = { viewModel.removeDxRow(index) }, testTag = "evo_new_dx_remove_$index")
             }
         }
-        GhostSmallButton("+ Agregar diagnostico", onClick = viewModel::addDxRow)
+        GhostSmallButton("+ Agregar diagnostico", onClick = viewModel::addDxRow, testTag = "evo_new_dx_add_button")
     }
 }
 
@@ -387,7 +439,7 @@ private fun ExamenesPanel(uiState: NuevaEvolucionUiState, viewModel: NuevaEvoluc
             textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
             shape = fieldShape,
             minLines = 8,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().testTag("evo_new_examenes_obs_field"),
         )
     }
 }
@@ -416,16 +468,41 @@ private fun ExamRows(rows: List<ExamRow>, viewModel: NuevaEvolucionViewModel) {
                     selected = row.tipo,
                     onSelect = { viewModel.onExamTipoChange(index, it) },
                     modifier = Modifier.weight(1f),
+                    testTag = "evo_new_exam_tipo_$index",
                 )
-                ExamTextField(row.nombre, "Ej: Hemoglobina", Modifier.weight(1f)) { viewModel.onExamNombreChange(index, it) }
-                ExamTextField(row.resultado, "Ej: 11.2", Modifier.weight(1f)) { viewModel.onExamResultadoChange(index, it) }
-                ExamTextField(row.unidad, "g/dL", Modifier.weight(1f)) { viewModel.onExamUnidadChange(index, it) }
-                ExamTextField(row.referencia, "12.0 - 15.5", Modifier.weight(1f)) { viewModel.onExamReferenciaChange(index, it) }
-                ExamTextField(row.fecha, "DD/MM/AAAA", Modifier.weight(1f)) { viewModel.onExamFechaChange(index, it) }
-                RemoveRowButton(onClick = { viewModel.removeExamRow(index) }, modifier = Modifier.width(36.dp))
+                ExamTextField(
+                    row.nombre,
+                    "Ej: Hemoglobina",
+                    Modifier.weight(1f).testTag("evo_new_exam_nombre_$index"),
+                ) { viewModel.onExamNombreChange(index, it) }
+                ExamTextField(
+                    row.resultado,
+                    "Ej: 11.2",
+                    Modifier.weight(1f).testTag("evo_new_exam_resultado_$index"),
+                ) { viewModel.onExamResultadoChange(index, it) }
+                ExamTextField(
+                    row.unidad,
+                    "g/dL",
+                    Modifier.weight(1f).testTag("evo_new_exam_unidad_$index"),
+                ) { viewModel.onExamUnidadChange(index, it) }
+                ExamTextField(
+                    row.referencia,
+                    "12.0 - 15.5",
+                    Modifier.weight(1f).testTag("evo_new_exam_referencia_$index"),
+                ) { viewModel.onExamReferenciaChange(index, it) }
+                ExamTextField(
+                    row.fecha,
+                    "DD/MM/AAAA",
+                    Modifier.weight(1f).testTag("evo_new_exam_fecha_$index"),
+                ) { viewModel.onExamFechaChange(index, it) }
+                RemoveRowButton(
+                    onClick = { viewModel.removeExamRow(index) },
+                    modifier = Modifier.width(36.dp),
+                    testTag = "evo_new_exam_remove_$index",
+                )
             }
         }
-        GhostSmallButton("+ Agregar examen", onClick = viewModel::addExamRow)
+        GhostSmallButton("+ Agregar examen", onClick = viewModel::addExamRow, testTag = "evo_new_exam_add_button")
     }
 }
 
@@ -444,25 +521,26 @@ private fun ExamTextField(value: String, placeholder: String, modifier: Modifier
 
 /** Mirrors `.btn.btn-ghost.btn-sm` (`border-color: var(--ink)`, dashed -- see the app-wide solid-vs-dashed note this ticket's fidelity pass left unfixed). */
 @Composable
-private fun GhostSmallButton(text: String, onClick: () -> Unit) {
+private fun GhostSmallButton(text: String, onClick: () -> Unit, testTag: String) {
     OutlinedButton(
         onClick = onClick,
         shape = fieldShape,
         border = BorderStroke(1.5.dp, HissInk),
         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+        modifier = Modifier.testTag(testTag),
     ) {
         Text(text, fontSize = 12.sp, color = HissInk)
     }
 }
 
 @Composable
-private fun RemoveRowButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun RemoveRowButton(onClick: () -> Unit, modifier: Modifier = Modifier, testTag: String) {
     OutlinedButton(
         onClick = onClick,
         shape = fieldShape,
         border = BorderStroke(1.5.dp, HissInk),
         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-        modifier = modifier,
+        modifier = modifier.testTag(testTag),
     ) {
         Text("✕", fontSize = 12.sp, color = HissInk)
     }

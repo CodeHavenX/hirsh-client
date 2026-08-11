@@ -98,7 +98,7 @@ private fun AdmisionForm(
                     options = servicioOptions,
                     selected = uiState.servicio,
                     onSelect = viewModel::onServicioChange,
-                    modifier = Modifier.testTag("admision_servicio_field"),
+                    testTag = "admision_servicio_field",
                 )
                 OutlinedTextField(
                     value = uiState.cama,
@@ -114,7 +114,7 @@ private fun AdmisionForm(
                     options = medicoOptions,
                     selected = uiState.medicoResponsable,
                     onSelect = viewModel::onMedicoResponsableChange,
-                    modifier = Modifier.testTag("admision_medico_field"),
+                    testTag = "admision_medico_field",
                 )
             }
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {

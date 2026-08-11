@@ -107,6 +107,7 @@ fun AccountsScreen(
                 ),
                 rows = uiState.accounts,
                 rowAlpha = { account -> if (account.status == AccountStatus.INACTIVE) 0.5f else 1f },
+                rowTestTag = { account -> "account_row_${account.username}" },
             )
         }
     }
@@ -156,13 +157,13 @@ private fun AccountActions(
     when {
         account.role == Role.ADMIN -> Text("—", fontSize = CellFontSize, color = HissInk2)
         account.status == AccountStatus.ACTIVE -> Row(verticalAlignment = Alignment.CenterVertically) {
-            ActionLink("Editar", HissAccent) { onEdit(account) }
+            ActionLink("Editar", HissAccent, "account_edit_${account.username}") { onEdit(account) }
             ActionSeparator()
-            ActionLink("Reset clave", HissAccent) { onReset(account) }
+            ActionLink("Reset clave", HissAccent, "account_reset_${account.username}") { onReset(account) }
             ActionSeparator()
-            ActionLink("Desactivar", HissWarn) { onDeactivate(account) }
+            ActionLink("Desactivar", HissWarn, "account_deactivate_${account.username}") { onDeactivate(account) }
         }
-        else -> ActionLink("Reactivar", HissAccent) { onReactivate(account) }
+        else -> ActionLink("Reactivar", HissAccent, "account_reactivate_${account.username}") { onReactivate(account) }
     }
 }
 
@@ -172,13 +173,13 @@ private fun ActionSeparator() {
 }
 
 @Composable
-private fun ActionLink(text: String, color: Color, onClick: () -> Unit) {
+private fun ActionLink(text: String, color: Color, testTag: String, onClick: () -> Unit) {
     Text(
         text,
         fontSize = CellFontSize,
         color = color,
         textDecoration = TextDecoration.Underline,
-        modifier = Modifier.clickable(onClick = onClick),
+        modifier = Modifier.clickable(onClick = onClick).testTag(testTag),
     )
 }
 
@@ -196,7 +197,7 @@ private fun AddAccountDialog(dialog: AccountDialog.Add, viewModel: AccountsViewM
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
                     shape = fieldShape,
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().testTag("account_add_name_field"),
                 )
                 OutlinedTextField(
                     value = dialog.username,
@@ -205,7 +206,7 @@ private fun AddAccountDialog(dialog: AccountDialog.Add, viewModel: AccountsViewM
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
                     shape = fieldShape,
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().testTag("account_add_username_field"),
                 )
                 OutlinedTextField(
                     value = dialog.tempPassword,
@@ -229,10 +230,10 @@ private fun AddAccountDialog(dialog: AccountDialog.Add, viewModel: AccountsViewM
             }
         },
         confirmButton = {
-            Button(onClick = viewModel::confirmAdd) { Text("Crear cuenta") }
+            Button(onClick = viewModel::confirmAdd, modifier = Modifier.testTag("account_add_confirm_button")) { Text("Crear cuenta") }
         },
         dismissButton = {
-            TextButton(onClick = viewModel::closeDialog) { Text("Cancelar") }
+            TextButton(onClick = viewModel::closeDialog, modifier = Modifier.testTag("account_add_cancel_button")) { Text("Cancelar") }
         },
     )
 }
@@ -251,7 +252,7 @@ private fun EditAccountDialog(dialog: AccountDialog.Edit, viewModel: AccountsVie
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
                     shape = fieldShape,
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().testTag("account_edit_name_field"),
                 )
                 OutlinedTextField(
                     value = dialog.username,
@@ -260,7 +261,7 @@ private fun EditAccountDialog(dialog: AccountDialog.Edit, viewModel: AccountsVie
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
                     shape = fieldShape,
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().testTag("account_edit_username_field"),
                 )
                 if (dialog.error != null) {
                     Text(dialog.error, fontSize = 12.sp, color = HissWarn)
@@ -268,10 +269,10 @@ private fun EditAccountDialog(dialog: AccountDialog.Edit, viewModel: AccountsVie
             }
         },
         confirmButton = {
-            Button(onClick = viewModel::confirmEdit) { Text("Guardar cambios") }
+            Button(onClick = viewModel::confirmEdit, modifier = Modifier.testTag("account_edit_confirm_button")) { Text("Guardar cambios") }
         },
         dismissButton = {
-            TextButton(onClick = viewModel::closeDialog) { Text("Cancelar") }
+            TextButton(onClick = viewModel::closeDialog, modifier = Modifier.testTag("account_edit_cancel_button")) { Text("Cancelar") }
         },
     )
 }
@@ -302,10 +303,10 @@ private fun ResetPasswordDialog(dialog: AccountDialog.Reset, viewModel: Accounts
             }
         },
         confirmButton = {
-            Button(onClick = viewModel::confirmReset) { Text("Confirmar reset") }
+            Button(onClick = viewModel::confirmReset, modifier = Modifier.testTag("account_reset_confirm_button")) { Text("Confirmar reset") }
         },
         dismissButton = {
-            TextButton(onClick = viewModel::closeDialog) { Text("Cancelar") }
+            TextButton(onClick = viewModel::closeDialog, modifier = Modifier.testTag("account_reset_cancel_button")) { Text("Cancelar") }
         },
     )
 }
@@ -328,10 +329,11 @@ private fun DeactivateAccountDialog(dialog: AccountDialog.Deactivate, viewModel:
             OutlinedButton(
                 onClick = viewModel::confirmDeactivate,
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = HissWarn),
+                modifier = Modifier.testTag("account_deactivate_confirm_button"),
             ) { Text("Desactivar") }
         },
         dismissButton = {
-            TextButton(onClick = viewModel::closeDialog) { Text("Cancelar") }
+            TextButton(onClick = viewModel::closeDialog, modifier = Modifier.testTag("account_deactivate_cancel_button")) { Text("Cancelar") }
         },
     )
 }

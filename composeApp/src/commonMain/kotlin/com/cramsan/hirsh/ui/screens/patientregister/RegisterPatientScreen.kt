@@ -128,7 +128,7 @@ fun RegisterPatientScreen(
                     options = listOf("Masculino", "Femenino"),
                     selected = uiState.sex?.toDisplayLabel().orEmpty(),
                     onSelect = { label -> viewModel.onSexChange(if (label == "Masculino") Sex.MALE else Sex.FEMALE) },
-                    modifier = Modifier.testTag("register_sex_field"),
+                    testTag = "register_sex_field",
                 )
             }
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -211,7 +211,7 @@ private fun DuplicateWarningBanner(duplicate: Patient, onViewExisting: () -> Uni
                 color = HissWarn,
                 fontSize = FieldFontSize,
                 textDecoration = TextDecoration.Underline,
-                modifier = Modifier.clickable(onClick = onViewExisting),
+                modifier = Modifier.clickable(onClick = onViewExisting).testTag("register_duplicate_view_existing_link"),
             )
         }
     }
