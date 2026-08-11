@@ -96,6 +96,7 @@ fun PatientListScreen(
                 columns = patientColumns(today = today),
                 rows = uiState.patients,
                 onRowClick = { patient -> onPatientSelected(patient.id) },
+                rowTestTag = { patient -> "patient_row_${patient.id}" },
             )
         }
     }

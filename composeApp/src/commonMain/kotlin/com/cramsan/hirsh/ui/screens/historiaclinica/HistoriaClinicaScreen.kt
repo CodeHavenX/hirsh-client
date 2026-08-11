@@ -31,6 +31,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -107,6 +108,7 @@ fun HistoriaClinicaScreen(
                             onClick = viewModel::openPrintPreview,
                             shape = fieldShape,
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                            modifier = Modifier.testTag("hc_print_button"),
                         ) {
                             Text("Imprimir", fontWeight = FontWeight.Medium)
                         }
@@ -130,7 +132,7 @@ fun HistoriaClinicaScreen(
                         activeSection = uiState.activeSection,
                         onSelectSection = viewModel::selectSection,
                     )
-                    Column(modifier = Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+                    Column(modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).testTag("screen_scroll_container")) {
                         FormSectionCaption(sectionLabel(uiState.activeSection))
                         Column(modifier = Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                             if (uiState.activeSection == HcSectionKey.MOTIVO_INGRESO) {
@@ -153,6 +155,7 @@ fun HistoriaClinicaScreen(
                                 enabled = !uiState.isSaving,
                                 shape = fieldShape,
                                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                                modifier = Modifier.testTag("hc_save_section_button"),
                             ) {
                                 Text("Guardar seccion", fontWeight = FontWeight.Medium)
                             }
@@ -197,6 +200,7 @@ private fun HcSectionNav(
                     active = key == activeSection,
                     complete = historiaClinica.isSectionComplete(key),
                     onClick = { onSelectSection(key) },
+                    testTag = "hc_nav_${key.name}",
                 )
             }
         }
@@ -204,7 +208,7 @@ private fun HcSectionNav(
 }
 
 @Composable
-private fun HcNavItem(label: String, active: Boolean, complete: Boolean, onClick: () -> Unit) {
+private fun HcNavItem(label: String, active: Boolean, complete: Boolean, onClick: () -> Unit, testTag: String) {
     val containerColor = if (active) HissAccentWash else Color.Transparent
     val borderColor = if (active) HissAccent else Color.Transparent
     val textColor = if (active) HissAccent else HissInk2
@@ -213,7 +217,7 @@ private fun HcNavItem(label: String, active: Boolean, complete: Boolean, onClick
         shape = RoundedCornerShape(HissRadiusDefault),
         color = containerColor,
         border = BorderStroke(1.5.dp, borderColor),
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().testTag(testTag),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 9.dp),

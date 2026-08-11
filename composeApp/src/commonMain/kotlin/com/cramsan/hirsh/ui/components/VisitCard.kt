@@ -35,6 +35,7 @@ fun VisitCard(
     onClick: () -> Unit,
     active: Boolean = false,
     trailing: @Composable () -> Unit = {},
+    modifier: Modifier = Modifier,
 ) {
     val borderColor = if (active) HissAccent else HissFaint
     val containerColor = if (active) HissAccentWash else MaterialTheme.colorScheme.surface
@@ -43,7 +44,7 @@ fun VisitCard(
         shape = RoundedCornerShape(HissRadiusDefault),
         color = containerColor,
         border = BorderStroke(1.dp, borderColor),
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),

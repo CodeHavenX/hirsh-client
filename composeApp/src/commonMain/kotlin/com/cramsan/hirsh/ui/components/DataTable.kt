@@ -16,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -51,6 +52,7 @@ fun <T> DataTable(
     onRowClick: ((T) -> Unit)? = null,
     isHighlighted: (T) -> Boolean = { false },
     rowAlpha: (T) -> Float = { 1f },
+    rowTestTag: (T) -> String? = { null },
 ) {
     Column(
         modifier = Modifier
@@ -81,6 +83,7 @@ fun <T> DataTable(
             if (onRowClick != null) {
                 rowModifier = rowModifier.clickable { onRowClick(row) }
             }
+            rowTestTag(row)?.let { tag -> rowModifier = rowModifier.testTag(tag) }
             rowModifier = rowModifier.padding(vertical = 12.dp, horizontal = 12.dp)
             Row(modifier = rowModifier, verticalAlignment = Alignment.CenterVertically) {
                 columns.forEach { column ->

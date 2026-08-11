@@ -18,6 +18,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -72,6 +73,7 @@ fun PatientHistoryScreen(
                         shape = fieldShape,
                         border = BorderStroke(1.5.dp, HissInk),
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                        modifier = Modifier.testTag("history_back_button"),
                     ) {
                         Text("‹ Volver al perfil", fontSize = CellFontSize, fontWeight = FontWeight.Medium, color = HissInk)
                     }

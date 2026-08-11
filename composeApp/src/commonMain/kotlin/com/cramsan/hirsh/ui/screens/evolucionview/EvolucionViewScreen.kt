@@ -26,6 +26,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -105,6 +106,7 @@ fun EvolucionViewScreen(
                             onClick = viewModel::openPrintPreview,
                             shape = fieldShape,
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                            modifier = Modifier.testTag("evo_view_print_button"),
                         ) {
                             Text("Imprimir", fontWeight = FontWeight.Medium)
                         }
@@ -124,7 +126,7 @@ fun EvolucionViewScreen(
                     }
                 }
                 EvoTabBar(selectedTab = uiState.selectedTab, examCount = evolucion.examenes.size, onSelectTab = viewModel::selectTab)
-                Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp)) {
+                Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp).testTag("screen_scroll_container")) {
                     when (uiState.selectedTab) {
                         EvolucionViewTab.EVOLUCION -> EvolucionReadOnlyPanel(evolucion)
                         EvolucionViewTab.EXAMENES -> ExamenesReadOnlyPanel(evolucion)
@@ -148,11 +150,16 @@ private fun EvoTabBar(
             .padding(horizontal = 24.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        EvoTab("Evolucion", active = selectedTab == EvolucionViewTab.EVOLUCION) { onSelectTab(EvolucionViewTab.EVOLUCION) }
+        EvoTab(
+            "Evolucion",
+            active = selectedTab == EvolucionViewTab.EVOLUCION,
+            testTag = "evo_tab_evolucion",
+        ) { onSelectTab(EvolucionViewTab.EVOLUCION) }
         EvoTab(
             "Examenes",
             active = selectedTab == EvolucionViewTab.EXAMENES,
             badgeCount = examCount.takeIf { it > 0 },
+            testTag = "evo_tab_examenes",
         ) { onSelectTab(EvolucionViewTab.EXAMENES) }
     }
 }
@@ -162,6 +169,7 @@ private fun EvoTab(
     label: String,
     active: Boolean,
     badgeCount: Int? = null,
+    testTag: String,
     onClick: () -> Unit,
 ) {
     val containerColor = if (active) HissAccentWash else Color.Transparent
@@ -172,6 +180,7 @@ private fun EvoTab(
         shape = RoundedCornerShape(HissRadiusDefault),
         color = containerColor,
         border = BorderStroke(1.5.dp, borderColor),
+        modifier = Modifier.testTag(testTag),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),

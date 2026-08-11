@@ -18,6 +18,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.cramsan.hirsh.ui.theme.HissFaint
 import com.cramsan.hirsh.ui.theme.HissInk2
@@ -51,7 +52,8 @@ fun EncounterTopBar(
                 modifier = Modifier
                     .size(32.dp)
                     .border(1.5.dp, HissFaint, RoundedCornerShape(8.dp))
-                    .clickable(onClick = onClose),
+                    .clickable(onClick = onClose)
+                    .testTag("encounter_close_button"),
                 contentAlignment = Alignment.Center,
             ) {
                 Text("✕", color = HissInk2, style = MaterialTheme.typography.bodyMedium)

@@ -35,6 +35,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -81,7 +82,7 @@ fun HospitalizationScreen(
     val patient = uiState.patient
     val hospitalizacion = uiState.hospitalizacion
 
-    Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp)) {
+    Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp).testTag("screen_scroll_container")) {
         when {
             uiState.isLoading -> Text("Cargando...", style = MaterialTheme.typography.bodyMedium)
             patient == null -> Text("Paciente no encontrado: $patientId", style = MaterialTheme.typography.bodyMedium)
@@ -158,6 +159,7 @@ private fun HospitalizationHeader(
                 onClick = onNewEvolucion,
                 shape = ButtonShape,
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                modifier = Modifier.testTag("hosp_new_evolucion_button"),
             ) {
                 Text("+ Nueva evolucion", fontWeight = FontWeight.Medium)
             }
@@ -248,6 +250,7 @@ private fun HistoriaClinicaStrip(
                 onClick = onOpenHistoriaClinica,
                 shape = ButtonShape,
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                modifier = Modifier.testTag("hosp_open_hc_button"),
             ) {
                 Text("Abrir Historia Clinica", fontWeight = FontWeight.Medium)
             }
@@ -308,6 +311,7 @@ private fun EvolucionesSection(
                         active = index == 0,
                         onClick = { onEvolucionSelected(evolucion.id) },
                         trailing = { StatusBadge(text = evolucion.resultado.toDisplayLabel(), tone = BadgeTone.Done) },
+                        modifier = Modifier.testTag("evo_card_${evolucion.id}"),
                     )
                 }
             }

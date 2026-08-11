@@ -63,7 +63,7 @@ fun RegisterPatientScreen(
     }
 
     Column(
-        modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp),
+        modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp).testTag("screen_scroll_container"),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
         Column {

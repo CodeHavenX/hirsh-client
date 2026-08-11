@@ -24,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
@@ -67,6 +68,7 @@ fun AccountsScreen(
                 onClick = viewModel::openAddDialog,
                 shape = RoundedCornerShape(HissRadiusDefault),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                modifier = Modifier.testTag("accounts_add_button"),
             ) {
                 Text("+ Agregar medico", fontSize = CellFontSize, fontWeight = FontWeight.Medium)
             }

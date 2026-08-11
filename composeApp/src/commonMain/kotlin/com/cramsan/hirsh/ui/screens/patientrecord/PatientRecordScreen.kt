@@ -29,6 +29,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -125,6 +126,7 @@ private fun RecordHeader(
                 shape = ButtonShape,
                 border = BorderStroke(1.5.dp, HissInk),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                modifier = Modifier.testTag("record_edit_button"),
             ) {
                 Text("Editar perfil", fontWeight = FontWeight.Medium, color = HissInk)
             }
@@ -132,6 +134,7 @@ private fun RecordHeader(
                 onClick = onNewHospitalization,
                 shape = ButtonShape,
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                modifier = Modifier.testTag("record_new_hospitalization_button"),
             ) {
                 Text("+ Nueva hospitalizacion", fontWeight = FontWeight.Medium)
             }
@@ -195,7 +198,7 @@ private fun ProfileCard(
                     fontFamily = FontFamily.Monospace,
                     fontSize = 10.sp,
                     color = HissAccent,
-                    modifier = Modifier.padding(top = 2.dp).clickable(onClick = onViewHistory),
+                    modifier = Modifier.padding(top = 2.dp).clickable(onClick = onViewHistory).testTag("record_history_link"),
                 )
             }
         }
@@ -243,6 +246,7 @@ private fun HospitalizationsSection(
                         active = index == 0,
                         onClick = { onHospitalizationSelected(hospitalization.id) },
                         trailing = { EstadoBadge(hospitalization.estado) },
+                        modifier = Modifier.testTag("hosp_card_${hospitalization.id}"),
                     )
                 }
             }

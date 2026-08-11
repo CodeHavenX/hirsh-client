@@ -35,6 +35,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -130,6 +131,7 @@ fun NuevaEvolucionScreen(
                             enabled = !uiState.isSaving,
                             shape = fieldShape,
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                            modifier = Modifier.testTag("evo_new_save_button"),
                         ) {
                             Text("Guardar evolucion", fontSize = FieldFontSize, fontWeight = FontWeight.Medium)
                         }
@@ -147,7 +149,7 @@ fun NuevaEvolucionScreen(
                         modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
                     )
                 }
-                Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp)) {
+                Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp).testTag("screen_scroll_container")) {
                     when (uiState.selectedTab) {
                         EvolucionTab.EVOLUCION -> EvolucionPanel(uiState, viewModel)
                         EvolucionTab.EXAMENES -> ExamenesPanel(uiState, viewModel)
