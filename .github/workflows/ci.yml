@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Run verifyCi
+        run: ./gradlew verifyCi --stacktrace
+
+  package-windows:
+    if: github.event_name == 'push'
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # Built on a Windows runner (not the Linux dev machine) so the bundled
+      # Skiko/JNI native libraries match the OS the jar will actually run on --
+      # packageXUberJarForCurrentOS packages natives for whichever OS runs the build.
+      - name: Build Windows uber jar
+        run: ./gradlew :composeApp:packageReleaseUberJarForCurrentOS --stacktrace
+
+      - name: Upload uber jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: hirsh-client-windows-uberjar
+          path: composeApp/build/compose/jars/*.jar
+          if-no-files-found: error
