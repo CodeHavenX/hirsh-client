@@ -48,15 +48,15 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      # Built on a Windows runner (not the Linux dev machine) so the bundled
-      # Skiko/JNI native libraries match the OS the jar will actually run on --
-      # packageXUberJarForCurrentOS packages natives for whichever OS runs the build.
-      - name: Build Windows uber jar
-        run: ./gradlew :composeApp:packageReleaseUberJarForCurrentOS --stacktrace
+      # Built on a Windows runner (not the Linux dev machine) so jpackage bundles a
+      # Windows JRE via jlink and produces a real Windows installer, not a Linux one --
+      # packageReleaseMsi packages for whichever OS runs the build.
+      - name: Build Windows MSI installer
+        run: ./gradlew :composeApp:packageReleaseMsi --stacktrace
 
-      - name: Upload uber jar
+      - name: Upload MSI installer
         uses: actions/upload-artifact@v4
         with:
-          name: hirsh-client-windows-uberjar
-          path: composeApp/build/compose/jars/*.jar
+          name: hirsh-client-windows-installer
+          path: composeApp/build/compose/binaries/main-release/msi/*.msi
           if-no-files-found: error
