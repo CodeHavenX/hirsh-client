@@ -1,5 +1,6 @@
 package com.cramsan.hirsh.di
 
+import com.cramsan.hirsh.network.ApiConfig
 import com.cramsan.hirsh.preferences.AppPreferences
 import com.cramsan.hirsh.repository.AccountRepository
 import com.cramsan.hirsh.repository.AuthRepository
@@ -29,8 +30,11 @@ import com.cramsan.hirsh.util.DefaultClock
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.HttpClientEngineFactory
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.cookies.HttpCookies
+import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.plugins.logging.LogLevel
 import io.ktor.client.plugins.logging.Logging
+import io.ktor.client.request.url
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 import org.koin.core.context.startKoin
@@ -49,9 +53,13 @@ private val sharedModule = module {
     }
     single {
         val engineFactory = get<HttpClientEngineFactory<*>>()
+        val engineTuning = get<HttpClientEngineTuning>()
         HttpClient(engineFactory) {
             install(ContentNegotiation) { json(get()) }
             install(Logging) { level = LogLevel.INFO }
+            install(HttpCookies)
+            defaultRequest { url(ApiConfig.BASE_URL) }
+            engine(engineTuning)
         }
     }
     singleOf(::AppPreferences)
