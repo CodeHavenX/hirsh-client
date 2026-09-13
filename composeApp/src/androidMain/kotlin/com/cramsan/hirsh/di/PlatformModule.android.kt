@@ -14,4 +14,6 @@ actual val platformModule: Module = module {
     single<Settings> {
         SharedPreferencesSettings(androidContext().getSharedPreferences("hirsh_prefs", Context.MODE_PRIVATE))
     }
+    // OkHttp has a real cookie jar via HttpCookies with no engine-specific config needed.
+    single<HttpClientEngineTuning> { {} }
 }

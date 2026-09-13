@@ -11,4 +11,6 @@ import platform.Foundation.NSUserDefaults
 actual val platformModule: Module = module {
     single<HttpClientEngineFactory<*>> { Darwin }
     single<Settings> { NSUserDefaultsSettings(NSUserDefaults.standardUserDefaults) }
+    // Darwin has a real cookie jar via HttpCookies with no engine-specific config needed.
+    single<HttpClientEngineTuning> { {} }
 }

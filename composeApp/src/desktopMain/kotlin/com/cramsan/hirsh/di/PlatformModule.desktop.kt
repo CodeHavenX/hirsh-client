@@ -11,4 +11,6 @@ import java.util.prefs.Preferences
 actual val platformModule: Module = module {
     single<HttpClientEngineFactory<*>> { CIO }
     single<Settings> { PreferencesSettings(Preferences.userRoot().node("com/cramsan/hirsh")) }
+    // CIO has a real cookie jar via HttpCookies with no engine-specific config needed.
+    single<HttpClientEngineTuning> { {} }
 }

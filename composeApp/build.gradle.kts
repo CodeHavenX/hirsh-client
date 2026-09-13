@@ -160,6 +160,24 @@ tasks.named<Test>("desktopTest") {
     systemProperty("e2e.repoRoot", rootProject.projectDir.absolutePath)
 }
 
+// CI has no OS-level Playwright dependencies preinstalled (WebE2ETest's headless browser
+// otherwise fails/times out launching), and Playwright itself knows exactly which apt packages
+// its bundled browsers need per-OS -- rather than hand-maintain that list, this prints
+// desktopTest's actual runtime classpath (which already carries com.microsoft.playwright:playwright
+// transitively via cmp-bridge-driver) so CI can invoke Playwright's own `install-deps` CLI
+// directly with `sudo java -cp <output> com.microsoft.playwright.CLI install-deps` -- installing
+// OS packages needs root, and running all of Gradle itself as root is worth avoiding (it leaves
+// root-owned files in ~/.gradle that break later non-root invocations).
+tasks.register("printDesktopTestRuntimeClasspath") {
+    group = "verification"
+    description = "Prints :composeApp:desktopTest's runtime classpath, one absolute jar path per " +
+        "line, so CI can run Playwright's install-deps CLI outside Gradle."
+    doLast {
+        val testTask = tasks.named<Test>("desktopTest").get()
+        println(testTask.classpath.files.joinToString(File.pathSeparator) { it.absolutePath })
+    }
+}
+
 android {
     namespace = "com.cramsan.hirsh"
     compileSdk = libs.versions.android.compileSdk.get().toInt()

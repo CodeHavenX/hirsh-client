@@ -20,17 +20,58 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 17
+          java-version: 21
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      # DesktopE2ETest launches a real windowed Compose Desktop process -- ubuntu-latest has no
+      # X server, which fails it with java.awt.HeadlessException ("No X11 DISPLAY variable was
+      # set"). Xvfb provides a virtual one; xvfb-run wraps the actual test invocation below.
+      - name: Install Xvfb
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+
+      # WebE2ETest drives a real headless browser via Playwright, which needs OS-level packages
+      # (libevent, libavif, libmanette, libwoff, ...) ubuntu-latest doesn't preinstall. Playwright
+      # itself knows exactly which packages its bundled browser versions need per-OS -- rather
+      # than hand-maintain that list here, invoke its own install-deps CLI. Needs root (that's
+      # what it installs with, per its own --help text), so this deliberately runs the JVM
+      # directly rather than through Gradle -- running all of Gradle as root would leave
+      # root-owned files under ~/.gradle that break the later non-root `xvfb-run ./gradlew` step.
+      - name: Install Playwright OS dependencies
+        run: |
+          CP=$(./gradlew :composeApp:printDesktopTestRuntimeClasspath -q)
+          sudo java -cp "$CP" com.microsoft.playwright.CLI install-deps
+
+      # WebE2ETest's WasmDevServerProcess only waits for the dev server's port to open (180s
+      # budget) before handing off to WebBridgeDriver.connect(), whose own timeout is a hardcoded
+      # 30s in the pinned cmp-bridge-driver:0.1.0.3 -- there's no public API to configure it on
+      # that version. A cold first-ever Kotlin/Wasm compile + webpack bundle easily exceeds 30s on
+      # a fresh CI runner, well before the dev server can actually serve anything past its open
+      # port. Building the identical bundle here first means Gradle's normal up-to-date checking
+      # makes WasmDevServerProcess's later internal `wasmJsBrowserDevelopmentRun` invocation
+      # near-instant instead (confirmed locally: under 1s once this output is already current).
+      - name: Pre-warm the wasmJs dev bundle
+        run: ./gradlew :composeApp:wasmJsBrowserDevelopmentWebpack --stacktrace
+
       - name: Run verifyCi
-        run: ./gradlew verifyCi --stacktrace
+        run: xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" ./gradlew verifyCi --stacktrace
+
+      # The console log only prints exception type + location for a failing test, never its
+      # message (e.g. which tag timed out) -- this job has never uploaded the actual test report,
+      # so a failure here has been undebuggable without reproducing it locally. Runs unconditionally
+      # so a failure upstream still leaves something to inspect.
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktopTest-reports
+          path: composeApp/build/reports/tests/desktopTest/
+          if-no-files-found: warn
 
   package-windows:
     if: github.event_name == 'push'
