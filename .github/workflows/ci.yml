@@ -61,6 +61,18 @@ jobs:
       - name: Run verifyCi
         run: xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" ./gradlew verifyCi --stacktrace
 
+      # The console log only prints exception type + location for a failing test, never its
+      # message (e.g. which tag timed out) -- this job has never uploaded the actual test report,
+      # so a failure here has been undebuggable without reproducing it locally. Runs unconditionally
+      # so a failure upstream still leaves something to inspect.
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktopTest-reports
+          path: composeApp/build/reports/tests/desktopTest/
+          if-no-files-found: warn
+
   package-windows:
     if: github.event_name == 'push'
     runs-on: windows-latest
