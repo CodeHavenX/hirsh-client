@@ -29,8 +29,26 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      # DesktopE2ETest launches a real windowed Compose Desktop process -- ubuntu-latest has no
+      # X server, which fails it with java.awt.HeadlessException ("No X11 DISPLAY variable was
+      # set"). Xvfb provides a virtual one; xvfb-run wraps the actual test invocation below.
+      - name: Install Xvfb
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+
+      # WebE2ETest drives a real headless browser via Playwright, which needs OS-level packages
+      # (libevent, libavif, libmanette, libwoff, ...) ubuntu-latest doesn't preinstall. Playwright
+      # itself knows exactly which packages its bundled browser versions need per-OS -- rather
+      # than hand-maintain that list here, invoke its own install-deps CLI. Needs root (that's
+      # what it installs with, per its own --help text), so this deliberately runs the JVM
+      # directly rather than through Gradle -- running all of Gradle as root would leave
+      # root-owned files under ~/.gradle that break the later non-root `xvfb-run ./gradlew` step.
+      - name: Install Playwright OS dependencies
+        run: |
+          CP=$(./gradlew :composeApp:printDesktopTestRuntimeClasspath -q)
+          sudo java -cp "$CP" com.microsoft.playwright.CLI install-deps
+
       - name: Run verifyCi
-        run: ./gradlew verifyCi --stacktrace
+        run: xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" ./gradlew verifyCi --stacktrace
 
   package-windows:
     if: github.event_name == 'push'
