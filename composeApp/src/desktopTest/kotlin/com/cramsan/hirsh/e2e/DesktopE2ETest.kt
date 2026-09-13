@@ -31,7 +31,14 @@ class DesktopE2ETest : HissE2EScenarios() {
         @JvmStatic
         @AfterClass
         fun tearDownApp() {
-            managedDriver.close()
+            // Same guard as WebE2ETest's tearDownApp -- launchApp() can fail after appProcess
+            // starts but before DesktopBridgeDriver.connect succeeds, leaving managedDriver
+            // (which would normally own closing appProcess too) never constructed.
+            if (::managedDriver.isInitialized) {
+                managedDriver.close()
+            } else if (::appProcess.isInitialized) {
+                appProcess.close()
+            }
         }
     }
 

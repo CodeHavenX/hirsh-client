@@ -47,7 +47,18 @@ class WebE2ETest : HissE2EScenarios() {
         @JvmStatic
         @AfterClass
         fun tearDownApp() {
-            managedDriver.close()
+            // launchApp() can fail after devServer starts but before WebBridgeDriver.connect
+            // succeeds (e.g. the connect timeout) -- managedDriver, which would normally own
+            // closing devServer too, is never constructed in that case. Guard both independently
+            // so a setup failure doesn't (a) throw a second, confusing
+            // UninitializedPropertyAccessException on top of the real error, or (b) leak the
+            // dev-server subprocess (confirmed via CI needing to force-kill an orphaned webpack
+            // process after exactly this failure mode).
+            if (::managedDriver.isInitialized) {
+                managedDriver.close()
+            } else if (::devServer.isInitialized) {
+                devServer.close()
+            }
         }
     }
 
