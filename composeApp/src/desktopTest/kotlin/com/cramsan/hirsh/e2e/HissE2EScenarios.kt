@@ -38,7 +38,7 @@ import kotlin.test.assertTrue
  * It is fine for a test here to fail -- some flows (documented per-test below) are known
  * gaps in the app itself (e.g. no backend yet) or in cmp-bridge's own web-driver coverage
  * (some fields/scroll report zero bounds in the web accessibility DOM as of
- * cmp-bridge-driver 0.1.0.3) rather than bugs in this suite.
+ * cmp-bridge-driver 0.2.0.0) rather than bugs in this suite.
  */
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 abstract class HissE2EScenarios {

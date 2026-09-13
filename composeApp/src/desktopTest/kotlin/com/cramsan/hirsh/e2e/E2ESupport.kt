@@ -2,6 +2,9 @@ package com.cramsan.hirsh.e2e
 
 import com.cramsan.cmpbridge.HierarchyNode
 import com.cramsan.cmpbridge.driver.BridgeDriver
+import com.cramsan.cmpbridge.driver.TagVisibility
+import kotlinx.coroutines.runBlocking
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Small helpers on top of [BridgeDriver]/[HierarchyNode] shared by every scenario in
@@ -10,6 +13,16 @@ import com.cramsan.cmpbridge.driver.BridgeDriver
  * below goes through a `testTag`; `getHierarchy()`'s tree is used to read rendered text
  * back for assertions regardless of whether a node has a tag.
  */
+
+/**
+ * Restores cmp-bridge-driver 0.1.0.3's synchronous `waitForTag` -- removed in 0.2.0.0 in favor of
+ * the suspend `waitForTagVisibility`/`waitForText`. JUnit4 test methods (and this whole call chain
+ * below) are plain synchronous functions, so this bridges via [runBlocking] rather than converting
+ * every scenario to suspend. Safe to non-null-assert: every caller here only ever waits for
+ * [TagVisibility.VISIBLE], which [BridgeDriver.waitForTagVisibility] always returns non-null for.
+ */
+fun BridgeDriver.waitForTag(tag: String, timeoutMs: Long = 15_000): HierarchyNode =
+    runBlocking { checkNotNull(waitForTagVisibility(tag, TagVisibility.VISIBLE, timeoutMs.milliseconds)) }
 
 /** Depth-first collection of every non-blank [HierarchyNode.text] in the tree. */
 fun HierarchyNode.allTexts(): List<String> = buildList {

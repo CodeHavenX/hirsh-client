@@ -4,6 +4,7 @@ import com.cramsan.cmpbridge.driver.BridgeDriver
 import com.cramsan.cmpbridge.driver.DesktopAppProcess
 import com.cramsan.cmpbridge.driver.DesktopBridgeDriver
 import com.cramsan.cmpbridge.driver.ManagedBridgeDriver
+import kotlinx.coroutines.runBlocking
 import org.junit.AfterClass
 import org.junit.BeforeClass
 
@@ -22,7 +23,7 @@ class DesktopE2ETest : HissE2EScenarios() {
 
         @JvmStatic
         @BeforeClass
-        fun launchApp() {
+        fun launchApp() = runBlocking {
             appProcess = DesktopAppProcess.launch("com.cramsan.hirsh.MainKt")
             managedDriver = ManagedBridgeDriver(appProcess, DesktopBridgeDriver.connect(appProcess.host, appProcess.port))
         }
