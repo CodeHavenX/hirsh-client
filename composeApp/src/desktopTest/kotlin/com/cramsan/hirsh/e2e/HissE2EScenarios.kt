@@ -77,6 +77,9 @@ abstract class HissE2EScenarios {
         assertFalse(hierarchy.containsTag("nav_accounts"), "a DOCTOR-role session must not see the Cuentas nav item")
         // Signs back out so the rest of the suite runs as admin (accounts management needs it).
         driver.clickTag("nav_profile")
+        // profile_sign_out_button sits below the fold of Compose Desktop's default 800x600
+        // window -- see scrollDown's own doc.
+        driver.scrollDown("profile_scroll_container")
         driver.clickTag("profile_sign_out_button")
         driver.waitForTag("login_submit_button")
     }
@@ -311,6 +314,8 @@ abstract class HissE2EScenarios {
         driver.type("profile_current_password_field", "whatever123")
         driver.type("profile_new_password_field", "newpassword123")
         driver.type("profile_confirm_password_field", "newpassword123")
+        // profile_update_password_button sits below the fold -- see scrollDown's own doc.
+        driver.scrollDown("profile_scroll_container")
         driver.clickTag("profile_update_password_button")
         assertTrue(driver.getHierarchy().containsText("Contrasena actualizada."))
     }
@@ -326,6 +331,9 @@ abstract class HissE2EScenarios {
         driver.type("account_add_name_field", "Dr. E2E Test")
         driver.type("account_add_username_field", "e2etest")
         driver.clickTag("account_add_confirm_button")
+        // The new row is appended last -- below the fold once the seeded 5 + this one no longer
+        // fit the window; see scrollDown's own doc.
+        driver.scrollDown("screen_scroll_container")
         driver.waitForTag("account_row_e2etest")
         assertTrue(driver.getHierarchy().containsText("Dr. E2E Test"))
     }
@@ -333,6 +341,7 @@ abstract class HissE2EScenarios {
     @Test
     fun test17_accounts_editDoctor_updatesRow() {
         driver.clickTag("nav_accounts")
+        driver.scrollDown("screen_scroll_container")
         driver.waitForTag("account_edit_e2etest")
         driver.clickTag("account_edit_e2etest")
         driver.waitForTag("account_edit_name_field")
@@ -345,6 +354,7 @@ abstract class HissE2EScenarios {
     @Test
     fun test18_accounts_resetPassword_showsTempPassword() {
         driver.clickTag("nav_accounts")
+        driver.scrollDown("screen_scroll_container")
         driver.waitForTag("account_reset_e2etest")
         driver.clickTag("account_reset_e2etest")
         driver.waitForTag("account_reset_confirm_button")
@@ -357,6 +367,7 @@ abstract class HissE2EScenarios {
     @Test
     fun test19_accounts_deactivateThenReactivate_togglesStatus() {
         driver.clickTag("nav_accounts")
+        driver.scrollDown("screen_scroll_container")
         driver.waitForTag("account_deactivate_e2etest")
         driver.clickTag("account_deactivate_e2etest")
         driver.waitForTag("account_deactivate_confirm_button")
@@ -374,6 +385,8 @@ abstract class HissE2EScenarios {
     @Test
     fun test20_profile_signOut_returnsToLogin() {
         driver.clickTag("nav_profile")
+        // profile_sign_out_button sits below the fold -- see scrollDown's own doc.
+        driver.scrollDown("profile_scroll_container")
         driver.waitForTag("profile_sign_out_button")
         driver.clickTag("profile_sign_out_button")
         driver.waitForTag("login_submit_button")

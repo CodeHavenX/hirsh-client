@@ -67,6 +67,23 @@ fun BridgeDriver.type(tag: String, text: String, timeoutMs: Long = 10_000) {
 }
 
 /**
+ * Scrolls [containerTag] down by [deltaY] -- needed before interacting with any tag below the
+ * visible viewport of a `verticalScroll` container: the bridge reports zero bounds for a node
+ * scrolled outside the window's visible clip rect (confirmed by dumping the actual hierarchy
+ * JSON for `ProfileScreen`'s `profile_sign_out_button`/`profile_update_password_button` on
+ * Compose Desktop's default 800x600 window -- both report `x=0, y=0, width=0, height=0` until
+ * scrolled into view), so no amount of waiting brings such a tag into [BridgeDriver.getBounds]'s
+ * view. [deltaY] defaults large enough to reach the bottom of any screen this suite drives;
+ * scrolling past a container's actual content end is a no-op, not an error.
+ */
+fun BridgeDriver.scrollDown(containerTag: String, deltaY: Int = 1_000, times: Int = 3) {
+    repeat(times) {
+        scroll(containerTag, deltaY)
+        Thread.sleep(300)
+    }
+}
+
+/**
  * Drives a [SelectField][com.cramsan.hirsh.ui.components.SelectField] tagged [fieldTag]:
  * opens the dropdown, then clicks the option at [optionIndex] (tagged
  * `"${fieldTag}_option_$optionIndex"` by that component -- see FormFields.kt).
