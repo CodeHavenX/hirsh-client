@@ -47,6 +47,17 @@ jobs:
           CP=$(./gradlew :composeApp:printDesktopTestRuntimeClasspath -q)
           sudo java -cp "$CP" com.microsoft.playwright.CLI install-deps
 
+      # WebE2ETest's WasmDevServerProcess only waits for the dev server's port to open (180s
+      # budget) before handing off to WebBridgeDriver.connect(), whose own timeout is a hardcoded
+      # 30s in the pinned cmp-bridge-driver:0.1.0.3 -- there's no public API to configure it on
+      # that version. A cold first-ever Kotlin/Wasm compile + webpack bundle easily exceeds 30s on
+      # a fresh CI runner, well before the dev server can actually serve anything past its open
+      # port. Building the identical bundle here first means Gradle's normal up-to-date checking
+      # makes WasmDevServerProcess's later internal `wasmJsBrowserDevelopmentRun` invocation
+      # near-instant instead (confirmed locally: under 1s once this output is already current).
+      - name: Pre-warm the wasmJs dev bundle
+        run: ./gradlew :composeApp:wasmJsBrowserDevelopmentWebpack --stacktrace
+
       - name: Run verifyCi
         run: xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" ./gradlew verifyCi --stacktrace
 
