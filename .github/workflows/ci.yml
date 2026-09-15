@@ -16,9 +16,19 @@ jobs:
   verify:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    # syncScreenshots (see root build.gradle.kts) commits and pushes a Roborazzi screenshot
+    # sync straight back to the PR branch when CI's own render drifts from what's committed.
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # Default pull_request checkout is a detached synthetic merge commit -- syncScreenshots
+          # needs the PR's actual branch tip checked out so its commit (and push back to
+          # $GITHUB_HEAD_REF) lands as a clean fast-forward on the real branch, not on a merge
+          # commit's own throwaway history.
+          ref: ${{ github.head_ref }}
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4

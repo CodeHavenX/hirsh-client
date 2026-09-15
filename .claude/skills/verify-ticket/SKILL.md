@@ -62,9 +62,12 @@ diff-checks Roborazzi screenshots as part of the same gate (see root
 
 This subsumes `compileKotlinDesktop`, `compileKotlinMetadata`,
 `:composeApp:desktopTest`, `:composeApp:detekt`, `:detekt-rules:test`, and a
-clear+record+diff pass over `composeApp/screenshots/` (`checkScreenshotsClean`)
-— run it in full even for a diff with no `*Screen.kt`/`*Previews.kt` changes,
+clear+record+diff pass over `composeApp/screenshots/` (`syncScreenshots`) —
+run it in full even for a diff with no `*Screen.kt`/`*Previews.kt` changes,
 so a screenshot drifted by something else entirely doesn't slip through.
+Note `syncScreenshots` only fails on drift when run locally (as here); in
+actual CI it commits and pushes the regenerated PNGs to the PR branch instead
+(see root `build.gradle.kts`'s doc comment on that task for why).
 
 A **red build, detekt failure, test failure, or screenshot drift stops the gate
 here.** Report the failure (paste the actual Gradle output for whichever task
@@ -132,7 +135,7 @@ shouldn't be taken at face value.
 
 ## Build & Tests
 - `./gradlew verifyCi`: PASS | FAIL (paste failure output for whichever
-  sub-task failed — compile, detekt, desktopTest, or checkScreenshotsClean)
+  sub-task failed — compile, detekt, desktopTest, or syncScreenshots)
 
 ## Scope / Added-on-review bullets
 - [x] <bullet> — verified by `<TestClass>.<testMethod>` or `<file>:<line>`
