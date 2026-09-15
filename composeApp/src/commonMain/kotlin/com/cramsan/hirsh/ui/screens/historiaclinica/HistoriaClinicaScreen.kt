@@ -132,7 +132,9 @@ fun HistoriaClinicaScreen(
                         activeSection = uiState.activeSection,
                         onSelectSection = viewModel::selectSection,
                     )
-                    Column(modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).testTag("screen_scroll_container")) {
+                    val sectionScrollState = rememberScrollState()
+                    LaunchedEffect(uiState.activeSection) { sectionScrollState.scrollTo(0) }
+                    Column(modifier = Modifier.weight(1f).verticalScroll(sectionScrollState).testTag("screen_scroll_container")) {
                         FormSectionCaption(sectionLabel(uiState.activeSection))
                         Column(modifier = Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                             if (uiState.activeSection == HcSectionKey.MOTIVO_INGRESO) {

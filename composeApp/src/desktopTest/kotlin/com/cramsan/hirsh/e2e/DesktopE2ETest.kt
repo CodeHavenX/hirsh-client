@@ -5,8 +5,8 @@ import com.cramsan.cmpbridge.driver.DesktopAppProcess
 import com.cramsan.cmpbridge.driver.DesktopBridgeDriver
 import com.cramsan.cmpbridge.driver.ManagedBridgeDriver
 import kotlinx.coroutines.runBlocking
-import org.junit.AfterClass
-import org.junit.BeforeClass
+import org.junit.After
+import org.junit.Before
 
 /**
  * Runs [HissE2EScenarios] against the real Compose Desktop app: [DesktopAppProcess] launches
@@ -14,31 +14,33 @@ import org.junit.BeforeClass
  * (so a persisted `sessionUsername` from an unrelated manual run -- see the run-desktop skill's
  * gotchas -- can't leak in), then [DesktopBridgeDriver] talks to its embedded
  * `DesktopBridgeServer` over a socket.
+ *
+ * One full process launch PER TEST METHOD ([Before]/[After], not [BeforeClass]/[AfterClass]):
+ * every test starts from a genuinely fresh app with the seeded fixture data and nothing else --
+ * see [HissE2EScenarios]'s own doc comment for why this replaced the earlier one-process-per-class
+ * design. This is slow (each launch is several seconds) but gives real isolation: no test's
+ * failure or leftover state can affect any other test.
  */
 class DesktopE2ETest : HissE2EScenarios() {
 
-    companion object {
-        private lateinit var appProcess: DesktopAppProcess
-        private lateinit var managedDriver: ManagedBridgeDriver
+    private lateinit var appProcess: DesktopAppProcess
+    private lateinit var managedDriver: ManagedBridgeDriver
 
-        @JvmStatic
-        @BeforeClass
-        fun launchApp() = runBlocking {
-            appProcess = DesktopAppProcess.launch("com.cramsan.hirsh.MainKt")
-            managedDriver = ManagedBridgeDriver(appProcess, DesktopBridgeDriver.connect(appProcess.host, appProcess.port))
-        }
+    @Before
+    fun launchApp() = runBlocking {
+        appProcess = DesktopAppProcess.launch("com.cramsan.hirsh.MainKt")
+        managedDriver = ManagedBridgeDriver(appProcess, DesktopBridgeDriver.connect(appProcess.host, appProcess.port))
+    }
 
-        @JvmStatic
-        @AfterClass
-        fun tearDownApp() {
-            // Same guard as WebE2ETest's tearDownApp -- launchApp() can fail after appProcess
-            // starts but before DesktopBridgeDriver.connect succeeds, leaving managedDriver
-            // (which would normally own closing appProcess too) never constructed.
-            if (::managedDriver.isInitialized) {
-                managedDriver.close()
-            } else if (::appProcess.isInitialized) {
-                appProcess.close()
-            }
+    @After
+    fun tearDownApp() {
+        // launchApp() can fail after appProcess starts but before DesktopBridgeDriver.connect
+        // succeeds, leaving managedDriver (which would normally own closing appProcess too)
+        // never constructed.
+        if (::managedDriver.isInitialized) {
+            managedDriver.close()
+        } else if (::appProcess.isInitialized) {
+            appProcess.close()
         }
     }
 

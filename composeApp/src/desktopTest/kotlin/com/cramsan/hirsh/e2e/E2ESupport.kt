@@ -84,6 +84,59 @@ fun BridgeDriver.scrollDown(containerTag: String, deltaY: Int = 1_000, times: In
 }
 
 /**
+ * Logs in as the seeded ADMIN account (`admin`/`whatever123`) and waits for `nav_accounts`,
+ * confirming the ADMIN-only nav item rendered. Every scenario below runs against its own
+ * freshly-launched app instance (see [DesktopE2ETest]/[WebE2ETest]'s doc comments), so any
+ * test that needs to be signed in calls this itself rather than relying on an earlier test's
+ * login.
+ */
+fun BridgeDriver.loginAsAdmin() {
+    type("login_username_field", "admin")
+    type("login_password_field", "whatever123")
+    clickTag("login_submit_button")
+    waitForTag("nav_accounts")
+}
+
+/**
+ * Logs in as the seeded DOCTOR account (`apatel`/`whatever123`) and waits for `nav_patients`.
+ * Used only by the login scenario that specifically asserts on the DOCTOR role's nav --
+ * everything else uses [loginAsAdmin] so accounts-management tags stay reachable too.
+ */
+fun BridgeDriver.loginAsDoctor() {
+    type("login_username_field", "apatel")
+    type("login_password_field", "whatever123")
+    clickTag("login_submit_button")
+    waitForTag("nav_patients")
+}
+
+/**
+ * Creates the `e2etest` doctor account used by the accounts CRUD scenarios (edit/reset/
+ * deactivate), then waits for its row to appear. Each of those scenarios runs against its own
+ * fresh app instance, so unlike the old shared-session suite, each one now creates this account
+ * itself rather than depending on a `test16`-equivalent having run first. Caller must already
+ * be logged in as ADMIN (see [loginAsAdmin]).
+ */
+fun BridgeDriver.createE2eTestDoctorAccount() {
+    clickTag("nav_accounts")
+    waitForTag("accounts_add_button")
+    clickTag("accounts_add_button")
+    waitForTag("account_add_name_field")
+    type("account_add_name_field", "Dr. E2E Test")
+    type("account_add_username_field", "e2etest")
+    clickTag("account_add_confirm_button")
+    // The new row is appended last -- below the fold once the seeded 5 + this one no longer
+    // fit the window; see scrollDown's own doc.
+    scrollDown("screen_scroll_container")
+    waitForTag("account_row_e2etest")
+    // The e2etest row renders taller than the seeded rows (its action buttons wrap onto their
+    // own line at this column width), so it only reaches its final height after this point --
+    // the scrollDown above, issued before the row existed, undershoots that final height and
+    // can leave account_deactivate_e2etest just past the visible bottom. One more scroll now
+    // that the row exists reaches the container's true bottom.
+    scrollDown("screen_scroll_container")
+}
+
+/**
  * Drives a [SelectField][com.cramsan.hirsh.ui.components.SelectField] tagged [fieldTag]:
  * opens the dropdown, then clicks the option at [optionIndex] (tagged
  * `"${fieldTag}_option_$optionIndex"` by that component -- see FormFields.kt).

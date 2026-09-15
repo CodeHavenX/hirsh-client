@@ -1,11 +1,12 @@
 package com.cramsan.hirsh.e2e
 
 import com.cramsan.cmpbridge.driver.BridgeDriver
-import com.cramsan.cmpbridge.driver.ManagedBridgeDriver
 import com.cramsan.cmpbridge.driver.WasmDevServerProcess
 import com.cramsan.cmpbridge.driver.WebBridgeDriver
 import kotlinx.coroutines.runBlocking
+import org.junit.After
 import org.junit.AfterClass
+import org.junit.Before
 import org.junit.BeforeClass
 import java.io.File
 
@@ -21,16 +22,25 @@ import java.io.File
  * own cmp-bridge-sample): some fields/scroll can report zero bounds in the accessibility DOM,
  * and password masking isn't reflected there. A failure here that doesn't reproduce on
  * [DesktopE2ETest] is worth checking against those gaps before assuming it's an app bug.
+ *
+ * The dev server itself stays [BeforeClass]/[AfterClass] -- it's just serving the static
+ * webpack bundle, not holding any app state, and restarting the whole Gradle task per test
+ * would be far too slow. What DOES need to reset per test (matching [DesktopE2ETest]'s full
+ * relaunch, per [HissE2EScenarios]'s doc comment) is the app instance itself; for web that's
+ * the browser page, not the server. [WebBridgeDriver.connect] launches a brand-new Playwright
+ * browser + page and navigates it fresh, which reinstantiates the wasmJs app (and all its
+ * in-memory Koin singletons) from scratch -- so moving connect/close to [Before]/[After] gives
+ * the same per-test isolation as the desktop target's process relaunch, without paying for a
+ * dev-server restart each time.
  */
 class WebE2ETest : HissE2EScenarios() {
 
     companion object {
         private lateinit var devServer: WasmDevServerProcess
-        private lateinit var managedDriver: ManagedBridgeDriver
 
         @JvmStatic
         @BeforeClass
-        fun launchApp() = runBlocking {
+        fun launchDevServer() = runBlocking {
             // 0.2.0.0's WasmDevServerProcess.launch no longer builds the Gradle command
             // internally (0.1.0.3 read this same e2e.repoRoot property and hardcoded
             // "$module:wasmJsBrowserDevelopmentRun --console=plain") -- the caller now owns it.
@@ -41,24 +51,28 @@ class WebE2ETest : HissE2EScenarios() {
                 command = listOf(File(repoRoot, "gradlew").absolutePath, ":composeApp:wasmJsBrowserDevelopmentRun", "--console=plain"),
                 workingDir = repoRoot,
             )
-            managedDriver = ManagedBridgeDriver(devServer, WebBridgeDriver.connect(devServer.url))
         }
 
         @JvmStatic
         @AfterClass
-        fun tearDownApp() {
-            // launchApp() can fail after devServer starts but before WebBridgeDriver.connect
-            // succeeds (e.g. the connect timeout) -- managedDriver, which would normally own
-            // closing devServer too, is never constructed in that case. Guard both independently
-            // so a setup failure doesn't (a) throw a second, confusing
-            // UninitializedPropertyAccessException on top of the real error, or (b) leak the
-            // dev-server subprocess (confirmed via CI needing to force-kill an orphaned webpack
-            // process after exactly this failure mode).
-            if (::managedDriver.isInitialized) {
-                managedDriver.close()
-            } else if (::devServer.isInitialized) {
+        fun tearDownDevServer() {
+            if (::devServer.isInitialized) {
                 devServer.close()
             }
+        }
+    }
+
+    private lateinit var managedDriver: WebBridgeDriver
+
+    @Before
+    fun launchApp() = runBlocking {
+        managedDriver = WebBridgeDriver.connect(devServer.url)
+    }
+
+    @After
+    fun tearDownApp() {
+        if (::managedDriver.isInitialized) {
+            managedDriver.close()
         }
     }
 

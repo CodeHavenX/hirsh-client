@@ -8,7 +8,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -50,7 +52,7 @@ fun PatientListScreen(
     val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
 
     Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             Column {
                 Text(
                     "Pacientes",
@@ -91,7 +93,10 @@ fun PatientListScreen(
             }
         }
 
-        Column(modifier = Modifier.padding(top = 16.dp)) {
+        Column(
+            modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())
+                .padding(top = 16.dp).testTag("screen_scroll_container"),
+        ) {
             DataTable(
                 columns = patientColumns(today = today),
                 rows = uiState.patients,

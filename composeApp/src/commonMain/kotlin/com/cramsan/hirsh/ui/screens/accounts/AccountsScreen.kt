@@ -143,8 +143,8 @@ private fun accountColumns(
             tone = if (account.status == AccountStatus.ACTIVE) BadgeTone.Done else BadgeTone.Off,
         )
     },
-    DataTableColumn(label = "Ultimo acceso", weight = 1.2f) { account -> Text(account.lastLogin, fontSize = CellFontSize) },
-    DataTableColumn(label = "Acciones", weight = 2f) { account ->
+    DataTableColumn(label = "Ultimo acceso", weight = 0.6f) { account -> Text(account.lastLogin, fontSize = CellFontSize) },
+    DataTableColumn(label = "Acciones", weight = 2.6f) { account ->
         AccountActions(account, onEdit, onReset, onDeactivate, onReactivate)
     },
 )
