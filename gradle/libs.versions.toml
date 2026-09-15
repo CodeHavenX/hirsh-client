@@ -26,7 +26,7 @@ turbine = "1.2.1"
 roborazzi = "1.70.0"
 composable-preview-scanner = "0.9.1"
 junit = "4.13.2"
-cmp-bridge = "0.1.0.3"
+cmp-bridge = "0.2.0.0"
 
 [libraries]
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }

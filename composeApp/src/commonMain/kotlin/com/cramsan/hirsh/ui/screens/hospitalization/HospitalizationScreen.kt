@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -82,7 +83,7 @@ fun HospitalizationScreen(
     val patient = uiState.patient
     val hospitalizacion = uiState.hospitalizacion
 
-    Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp).testTag("screen_scroll_container")) {
+    Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
         when {
             uiState.isLoading -> Text("Cargando...", style = MaterialTheme.typography.bodyMedium)
             patient == null -> Text("Paciente no encontrado: $patientId", style = MaterialTheme.typography.bodyMedium)
@@ -96,17 +97,22 @@ fun HospitalizationScreen(
                     onNewEvolucion = onNewEvolucion,
                     onRequestDischarge = { showDischargeDialog = true },
                 )
-                InfoCard(patient, hospitalizacion, modifier = Modifier.padding(top = 20.dp))
-                HistoriaClinicaStrip(
-                    historiaClinica = hospitalizacion.historiaClinica,
-                    onOpenHistoriaClinica = onOpenHistoriaClinica,
-                    modifier = Modifier.padding(top = 16.dp),
-                )
-                EvolucionesSection(
-                    evoluciones = hospitalizacion.evoluciones,
-                    onEvolucionSelected = onEvolucionSelected,
-                    modifier = Modifier.padding(top = 20.dp),
-                )
+                Column(
+                    modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())
+                        .testTag("screen_scroll_container"),
+                ) {
+                    InfoCard(patient, hospitalizacion, modifier = Modifier.padding(top = 20.dp))
+                    HistoriaClinicaStrip(
+                        historiaClinica = hospitalizacion.historiaClinica,
+                        onOpenHistoriaClinica = onOpenHistoriaClinica,
+                        modifier = Modifier.padding(top = 16.dp),
+                    )
+                    EvolucionesSection(
+                        evoluciones = hospitalizacion.evoluciones,
+                        onEvolucionSelected = onEvolucionSelected,
+                        modifier = Modifier.padding(top = 20.dp),
+                    )
+                }
             }
         }
     }
@@ -148,7 +154,13 @@ private fun HospitalizationHeader(
     onRequestDischarge: () -> Unit,
 ) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-        Text(title, style = MaterialTheme.typography.headlineSmall.copy(fontSize = 20.sp, fontWeight = FontWeight.Bold))
+        Text(
+            title,
+            style = MaterialTheme.typography.headlineSmall.copy(fontSize = 20.sp, fontWeight = FontWeight.Bold),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f, fill = false).padding(end = 12.dp),
+        )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (canDischarge) {
                 OutlinedButton(
