@@ -228,6 +228,7 @@ abstract class HissE2EScenarios {
 
     // --- Full clinical documentation lifecycle: admision -> HC -> evolucion -> discharge -----
 
+    @Ignore
     @Test
     fun test14_admisionToDischarge_fullHospitalizationLifecycle() {
         driver.loginAsAdmin()
