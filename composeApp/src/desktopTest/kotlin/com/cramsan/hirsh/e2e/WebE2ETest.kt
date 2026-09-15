@@ -7,6 +7,7 @@ import com.cramsan.cmpbridge.driver.WebBridgeDriver
 import kotlinx.coroutines.runBlocking
 import org.junit.AfterClass
 import org.junit.BeforeClass
+import org.junit.Ignore
 import java.io.File
 
 /**
@@ -34,7 +35,16 @@ import java.io.File
  * [loginAsAdmin]/[loginAsDoctor]/[createE2eTestDoctorAccount] helpers are written to tolerate
  * that (signing out first if already authenticated, skipping account creation if the row already
  * exists) so the same test bodies work correctly on both targets despite the different lifecycle.
+ *
+ * Ignored for now: on at least one dev machine, the very first [WebBridgeDriver.connect] in
+ * [launchApp] hangs indefinitely -- Compose Web's accessibility root never populates, even though
+ * the identical dev server URL loads and works correctly in a normal, non-automated browser tab
+ * on the same machine. Extensive isolated testing (different browsers, headless vs. headed, GPU/
+ * sandbox flags) narrowed it to something Playwright-automation-specific rather than an app or
+ * lifecycle bug -- see https://github.com/CodeHavenX/hirsh-client/issues/32 for the full
+ * investigation. Remove this once that's resolved (or confirmed CI-only-safe).
  */
+@Ignore("WebBridgeDriver.connect() hangs under Playwright automation on at least one dev machine -- see hirsh-client#32")
 class WebE2ETest : HissE2EScenarios() {
 
     companion object {
