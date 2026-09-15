@@ -410,6 +410,11 @@ abstract class HissE2EScenarios {
         assertTrue(driver.getHierarchy().containsTag("account_reactivate_e2etest"), "a deactivated account's row must offer Reactivar instead of Editar/Desactivar")
 
         driver.clickTag("account_reactivate_e2etest")
+        // Reactivating swaps the row back from a single "Reactivar" link to the full
+        // Editar/Reset clave/Desactivar set, which (per createE2eTestDoctorAccount's own doc)
+        // renders taller at this column width -- the row can grow past the previous scroll
+        // position, pushing account_edit_e2etest below the fold again.
+        driver.scrollDown("screen_scroll_container")
         driver.waitForTag("account_edit_e2etest")
         assertTrue(driver.getHierarchy().containsTag("account_edit_e2etest"), "reactivating must restore the normal action set")
     }
