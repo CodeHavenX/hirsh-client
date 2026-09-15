@@ -84,13 +84,31 @@ fun BridgeDriver.scrollDown(containerTag: String, deltaY: Int = 1_000, times: In
 }
 
 /**
+ * Signs out first if the current page is already authenticated, otherwise does nothing.
+ * [DesktopE2ETest] relaunches the whole app process per test (see its doc comment), so this is
+ * always a no-op there -- every test already starts at a fresh login screen. [WebE2ETest] shares
+ * one browser page across its entire class instead (a per-test browser relaunch proved far too
+ * slow for this app's wasmJs payload size -- see its own doc comment), so a later test can land
+ * here still signed in from an earlier one and needs this to reach the login screen at all.
+ */
+private fun BridgeDriver.ensureSignedOut() {
+    if (!getHierarchy().containsTag("nav_profile")) return
+    clickTag("nav_profile")
+    // profile_sign_out_button sits below the fold -- see scrollDown's own doc.
+    scrollDown("profile_scroll_container")
+    waitForTag("profile_sign_out_button")
+    clickTag("profile_sign_out_button")
+    waitForTag("login_submit_button")
+}
+
+/**
  * Logs in as the seeded ADMIN account (`admin`/`whatever123`) and waits for `nav_accounts`,
- * confirming the ADMIN-only nav item rendered. Every scenario below runs against its own
- * freshly-launched app instance (see [DesktopE2ETest]/[WebE2ETest]'s doc comments), so any
- * test that needs to be signed in calls this itself rather than relying on an earlier test's
- * login.
+ * confirming the ADMIN-only nav item rendered. Every scenario below calls this (or
+ * [loginAsDoctor]) itself as its first step rather than relying on an earlier test's login --
+ * see [ensureSignedOut]'s doc comment for why that's a no-op on desktop but not on web.
  */
 fun BridgeDriver.loginAsAdmin() {
+    ensureSignedOut()
     type("login_username_field", "admin")
     type("login_password_field", "whatever123")
     clickTag("login_submit_button")
@@ -103,6 +121,7 @@ fun BridgeDriver.loginAsAdmin() {
  * everything else uses [loginAsAdmin] so accounts-management tags stay reachable too.
  */
 fun BridgeDriver.loginAsDoctor() {
+    ensureSignedOut()
     type("login_username_field", "apatel")
     type("login_password_field", "whatever123")
     clickTag("login_submit_button")
@@ -111,21 +130,25 @@ fun BridgeDriver.loginAsDoctor() {
 
 /**
  * Creates the `e2etest` doctor account used by the accounts CRUD scenarios (edit/reset/
- * deactivate), then waits for its row to appear. Each of those scenarios runs against its own
- * fresh app instance, so unlike the old shared-session suite, each one now creates this account
- * itself rather than depending on a `test16`-equivalent having run first. Caller must already
- * be logged in as ADMIN (see [loginAsAdmin]).
+ * deactivate) if it doesn't already exist, then waits for its row to appear either way. On
+ * [DesktopE2ETest] (fresh app per test) it never already exists, so every scenario creates it
+ * itself rather than depending on a `test16`-equivalent having run first. On [WebE2ETest]
+ * (one shared page for the whole class -- see its doc comment) an earlier scenario's row is
+ * still there, so this skips straight to waiting for it instead of trying to create a duplicate.
+ * Caller must already be logged in as ADMIN (see [loginAsAdmin]).
  */
 fun BridgeDriver.createE2eTestDoctorAccount() {
     clickTag("nav_accounts")
-    waitForTag("accounts_add_button")
-    clickTag("accounts_add_button")
-    waitForTag("account_add_name_field")
-    type("account_add_name_field", "Dr. E2E Test")
-    type("account_add_username_field", "e2etest")
-    clickTag("account_add_confirm_button")
-    // The new row is appended last -- below the fold once the seeded 5 + this one no longer
-    // fit the window; see scrollDown's own doc.
+    if (!getHierarchy().containsTag("account_row_e2etest")) {
+        waitForTag("accounts_add_button")
+        clickTag("accounts_add_button")
+        waitForTag("account_add_name_field")
+        type("account_add_name_field", "Dr. E2E Test")
+        type("account_add_username_field", "e2etest")
+        clickTag("account_add_confirm_button")
+    }
+    // The row (whether just-created or pre-existing) is appended last -- below the fold once
+    // the seeded 5 + this one no longer fit the window; see scrollDown's own doc.
     scrollDown("screen_scroll_container")
     waitForTag("account_row_e2etest")
     // The e2etest row renders taller than the seeded rows (its action buttons wrap onto their
