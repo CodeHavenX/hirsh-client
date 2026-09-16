@@ -6,7 +6,7 @@ import com.cramsan.hirsh.model.HistoriaClinica
 import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.Sex
-import com.cramsan.hirsh.ui.preview.Preview
+import com.cramsan.hirsh.ui.preview.PreviewResponsive
 import com.cramsan.hirsh.ui.theme.HirshTheme
 import com.cramsan.hirsh.util.formatDate
 import com.cramsan.hirsh.util.formatTime
@@ -56,7 +56,7 @@ private fun previewUiState(
     openedHora = formatTime(previewOpenedNow.time),
 )
 
-@Preview
+@PreviewResponsive
 @Composable
 private fun NuevaEvolucionScreenPreview() {
     HirshTheme {
@@ -103,7 +103,7 @@ private fun NuevaEvolucionScreenPreview() {
 }
 
 /** Two diagnosis rows and one filled exam row -- exercises the Examenes tab's count badge. */
-@Preview
+@PreviewResponsive
 @Composable
 private fun NuevaEvolucionScreenFilledPreview() {
     val uiState = previewUiState().copy(
@@ -161,7 +161,7 @@ private fun NuevaEvolucionScreenFilledPreview() {
 }
 
 /** Examenes tab selected. */
-@Preview
+@PreviewResponsive
 @Composable
 private fun NuevaEvolucionScreenExamenesTabPreview() {
     val uiState = previewUiState(selectedTab = EvolucionTab.EXAMENES).copy(

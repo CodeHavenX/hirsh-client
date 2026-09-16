@@ -15,7 +15,7 @@ import com.cramsan.hirsh.model.MotivoIngreso
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.Plan
 import com.cramsan.hirsh.model.Sex
-import com.cramsan.hirsh.ui.preview.Preview
+import com.cramsan.hirsh.ui.preview.PreviewComponent
 import com.cramsan.hirsh.ui.preview.PreviewResponsive
 import com.cramsan.hirsh.ui.theme.HirshTheme
 
@@ -214,7 +214,7 @@ private fun HistoriaClinicaScreenMotivoIngresoPreview() {
 }
 
 /** HISS-501's print-preview summary, standalone (not behind the Screen's Dialog) so Roborazzi can capture it. */
-@Preview
+@PreviewComponent
 @Composable
 private fun HistoriaClinicaPrintablePreview() {
     val hospitalizacion = previewHospitalizacion(previewHistoriaClinica(partial = false))

@@ -14,7 +14,7 @@ import com.cramsan.hirsh.model.Plan
 import com.cramsan.hirsh.model.Pronostico
 import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.model.Vitals
-import com.cramsan.hirsh.ui.preview.Preview
+import com.cramsan.hirsh.ui.preview.PreviewResponsive
 import com.cramsan.hirsh.ui.theme.HirshTheme
 
 private val previewPatient = Patient(
@@ -88,7 +88,7 @@ private fun previewUiState(hospitalizacion: Hospitalizacion) = HospitalizationUi
     hospitalizacion = hospitalizacion,
 )
 
-@Preview
+@PreviewResponsive
 @Composable
 private fun HospitalizationScreenActivaPreview() {
     val hospitalizacion = previewHospitalizacion(
@@ -113,7 +113,7 @@ private fun HospitalizationScreenActivaPreview() {
 }
 
 /** estado = Alta -- exercises the "Dar de alta" button being hidden and the "Fecha alta" KV row. */
-@Preview
+@PreviewResponsive
 @Composable
 private fun HospitalizationScreenAltaPreview() {
     val hospitalizacion = previewHospitalizacion(
@@ -135,7 +135,7 @@ private fun HospitalizationScreenAltaPreview() {
 }
 
 /** No evoluciones yet -- exercises the empty-state copy. */
-@Preview
+@PreviewResponsive
 @Composable
 private fun HospitalizationScreenNoEvolucionesPreview() {
     val hospitalizacion = previewHospitalizacion(

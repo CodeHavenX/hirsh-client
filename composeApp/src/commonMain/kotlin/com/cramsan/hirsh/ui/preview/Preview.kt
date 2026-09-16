@@ -4,15 +4,6 @@ import androidx.compose.ui.tooling.preview.AndroidUiModes
 import androidx.compose.ui.tooling.preview.Preview as ComposePreview
 
 /**
- * Project-local wrapper over Compose Multiplatform's [ComposePreview] (real on all of
- * android/desktop/iOS/wasmJs as of Compose Multiplatform 1.10+, so no expect/actual is needed
- * here). `*Previews.kt` files import this name rather than the tooling annotation directly, so
- * shared preview configuration can be added here later without touching every call site.
- */
-@ComposePreview
-annotation class Preview
-
-/**
  * Phone/Tablet/Desktop layouts, plus a dark-mode pass of the Desktop layout -- 4 variants from one
  * annotation, no wrapper composable or `PreviewParameter` needed (see [PreviewComponent] for why
  * the dark pass works automatically, with no explicit `useDarkTheme` handling in the preview

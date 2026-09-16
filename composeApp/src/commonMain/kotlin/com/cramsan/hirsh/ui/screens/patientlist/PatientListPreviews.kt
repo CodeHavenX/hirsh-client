@@ -3,7 +3,7 @@ package com.cramsan.hirsh.ui.screens.patientlist
 import androidx.compose.runtime.Composable
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.Sex
-import com.cramsan.hirsh.ui.preview.Preview
+import com.cramsan.hirsh.ui.preview.PreviewResponsive
 import com.cramsan.hirsh.ui.theme.HirshTheme
 
 private val previewPatients = listOf(
@@ -33,7 +33,7 @@ private val previewPatients = listOf(
     ),
 )
 
-@Preview
+@PreviewResponsive
 @Composable
 private fun PatientListScreenPreview() {
     HirshTheme {
@@ -46,7 +46,7 @@ private fun PatientListScreenPreview() {
     }
 }
 
-@Preview
+@PreviewResponsive
 @Composable
 private fun PatientListScreenEmptyPreview() {
     HirshTheme {

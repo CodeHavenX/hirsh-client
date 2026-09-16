@@ -12,7 +12,8 @@ import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.Pronostico
 import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.model.Vitals
-import com.cramsan.hirsh.ui.preview.Preview
+import com.cramsan.hirsh.ui.preview.PreviewComponent
+import com.cramsan.hirsh.ui.preview.PreviewResponsive
 import com.cramsan.hirsh.ui.theme.HirshTheme
 
 private val previewPatient = Patient(
@@ -96,7 +97,7 @@ private fun previewUiState(
     selectedTab = selectedTab,
 )
 
-@Preview
+@PreviewResponsive
 @Composable
 private fun EvolucionViewScreenPreview() {
     val evolucion = previewEvolucion(previewExamenes)
@@ -116,7 +117,7 @@ private fun EvolucionViewScreenPreview() {
 }
 
 /** No examenes recorded -- exercises the Examenes tab's empty-state box. */
-@Preview
+@PreviewResponsive
 @Composable
 private fun EvolucionViewScreenNoExamenesPreview() {
     val evolucion = previewEvolucion(emptyList())
@@ -136,7 +137,7 @@ private fun EvolucionViewScreenNoExamenesPreview() {
 }
 
 /** Examenes tab selected. */
-@Preview
+@PreviewResponsive
 @Composable
 private fun EvolucionViewScreenExamenesTabPreview() {
     val evolucion = previewEvolucion(previewExamenes)
@@ -156,7 +157,7 @@ private fun EvolucionViewScreenExamenesTabPreview() {
 }
 
 /** HISS-501's print-preview summary, standalone (not behind the Screen's Dialog) so Roborazzi can capture it. */
-@Preview
+@PreviewComponent
 @Composable
 private fun EvolucionPrintablePreview() {
     val evolucion = previewEvolucion(previewExamenes)

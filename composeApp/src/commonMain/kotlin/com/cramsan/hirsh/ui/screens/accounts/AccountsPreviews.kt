@@ -4,7 +4,7 @@ import androidx.compose.runtime.Composable
 import com.cramsan.hirsh.model.Account
 import com.cramsan.hirsh.model.AccountStatus
 import com.cramsan.hirsh.model.Role
-import com.cramsan.hirsh.ui.preview.Preview
+import com.cramsan.hirsh.ui.preview.PreviewResponsive
 import com.cramsan.hirsh.ui.theme.HirshTheme
 
 private val previewAccounts = listOf(
@@ -22,7 +22,7 @@ private val previewAccounts = listOf(
 // window, which produces two semantics roots and fails captureRoboImage's
 // single-root assertion. Dialog content/behavior is covered by
 // AccountsViewModelTest instead.
-@Preview
+@PreviewResponsive
 @Composable
 private fun AccountsScreenPreview() {
     HirshTheme {

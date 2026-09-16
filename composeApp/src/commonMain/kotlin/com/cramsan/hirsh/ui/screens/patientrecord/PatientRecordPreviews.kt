@@ -11,7 +11,7 @@ import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.PatientChangeLogEntry
 import com.cramsan.hirsh.model.Plan
 import com.cramsan.hirsh.model.Sex
-import com.cramsan.hirsh.ui.preview.Preview
+import com.cramsan.hirsh.ui.preview.PreviewResponsive
 import com.cramsan.hirsh.ui.theme.HirshTheme
 
 private val previewPatients = listOf(
@@ -82,7 +82,7 @@ private fun previewHospitalization(id: String, fechaAlta: String?) = Hospitaliza
     evoluciones = emptyList(),
 )
 
-@Preview
+@PreviewResponsive
 @Composable
 private fun PatientRecordScreenPreview() {
     HirshTheme {
@@ -107,7 +107,7 @@ private fun PatientRecordScreenPreview() {
 }
 
 /** #00124 has no hospitalizaciones in this preview's fixtures -- exercises the empty state. */
-@Preview
+@PreviewResponsive
 @Composable
 private fun PatientRecordScreenEmptyHospitalizationsPreview() {
     HirshTheme {

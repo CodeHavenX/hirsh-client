@@ -3,7 +3,7 @@ package com.cramsan.hirsh.ui.screens.admision
 import androidx.compose.runtime.Composable
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.Sex
-import com.cramsan.hirsh.ui.preview.Preview
+import com.cramsan.hirsh.ui.preview.PreviewResponsive
 import com.cramsan.hirsh.ui.theme.HirshTheme
 
 private val previewPatient = Patient(
@@ -19,7 +19,7 @@ private val previewPatient = Patient(
     sex = Sex.FEMALE,
 )
 
-@Preview
+@PreviewResponsive
 @Composable
 private fun AdmisionScreenPreview() {
     HirshTheme {

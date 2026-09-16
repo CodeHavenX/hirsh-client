@@ -5,7 +5,7 @@ import com.cramsan.hirsh.model.FieldChange
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.PatientChangeLogEntry
 import com.cramsan.hirsh.model.Sex
-import com.cramsan.hirsh.ui.preview.Preview
+import com.cramsan.hirsh.ui.preview.PreviewResponsive
 import com.cramsan.hirsh.ui.theme.HirshTheme
 
 private val previewPatients = listOf(
@@ -69,7 +69,7 @@ private fun previewUiState(patientId: String) = PatientHistoryUiState(
     },
 )
 
-@Preview
+@PreviewResponsive
 @Composable
 private fun PatientHistoryScreenPreview() {
     HirshTheme {
@@ -82,7 +82,7 @@ private fun PatientHistoryScreenPreview() {
 }
 
 /** #00135 has no change-log entries in this preview's fixtures -- exercises the empty state. */
-@Preview
+@PreviewResponsive
 @Composable
 private fun PatientHistoryScreenEmptyPreview() {
     HirshTheme {
