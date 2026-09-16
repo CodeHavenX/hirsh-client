@@ -250,4 +250,10 @@ detekt {
 
 dependencies {
     detektPlugins(project(":detekt-rules"))
+
+    // ComposeViewAdapter, which the IDE's own live preview renderer needs to inflate @Preview
+    // composables -- ui-tooling-preview only supplies the @Preview annotation, not the renderer.
+    // debug-only per AGP convention (never shipped in release); see
+    // https://kotlinlang.org/docs/multiplatform/compose-previews.html#preview-setup.
+    debugImplementation("org.jetbrains.compose.ui:ui-tooling:1.11.1")
 }
