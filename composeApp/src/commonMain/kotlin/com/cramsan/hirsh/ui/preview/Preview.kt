@@ -13,51 +13,34 @@ import androidx.compose.ui.tooling.preview.Preview as ComposePreview
 annotation class Preview
 
 /**
- * Desktop-width preview canvas: above this project's 900dp narrow-nav breakpoint
- * (see `prototype/shared/styles.css`'s `@media (max-width: 900px)` rule), so the sidebar renders
- * expanded.
+ * Phone/Tablet/Desktop layouts, plus a dark-mode pass of the Desktop layout -- 4 variants from one
+ * annotation, no wrapper composable or `PreviewParameter` needed (see [PreviewComponent] for why
+ * the dark pass works automatically, with no explicit `useDarkTheme` handling in the preview
+ * body). Only Desktop gets a dark pass; stack a dark [ComposePreview] directly if a screen needs
+ * Phone/Tablet dark coverage too.
+ *
+ * For a UI component rather than a full screen, use [PreviewComponent] instead -- components
+ * don't need viewport-breakpoint coverage, just light/dark.
  */
-@ComposePreview(name = "Desktop", widthDp = 1280, heightDp = 800)
-annotation class PreviewDesktop
-
-/**
- * Tablet-width preview canvas: just under this project's 900dp narrow-nav breakpoint, so the
- * sidebar renders collapsed.
- */
-@ComposePreview(name = "Tablet", widthDp = 820, heightDp = 1024)
-annotation class PreviewTablet
-
-/** Phone-width preview canvas: well under the 900dp narrow-nav breakpoint. */
 @ComposePreview(name = "Phone", widthDp = 400, heightDp = 800)
-annotation class PreviewPhone
+@ComposePreview(name = "Tablet", widthDp = 820, heightDp = 1024)
+@ComposePreview(name = "Desktop", widthDp = 1280, heightDp = 800)
+@ComposePreview(name = "Desktop dark", widthDp = 1280, heightDp = 800, uiMode = AndroidUiModes.UI_MODE_NIGHT_YES or AndroidUiModes.UI_MODE_TYPE_NORMAL)
+annotation class PreviewResponsive
 
 /**
- * Light-mode preview. Pair with a sibling function annotated [PreviewDark] -- see its doc for why
- * both the annotation *and* an explicit `HirshTheme(useDarkTheme = ...)` call are required.
+ * Light/dark variants for a UI component -- 2 variants from one annotation, no wrapper composable
+ * needed. Use this instead of [PreviewResponsive] for a component (not a full screen), where
+ * viewport-breakpoint coverage doesn't apply and only theme coverage matters.
+ *
+ * No `HirshTheme(useDarkTheme = ...)` override is needed in the preview body: Roborazzi's Compose
+ * Desktop preview runner (`DefaultDesktopComposePreviewTester`) reads the `uiMode` bit off each
+ * scanned preview and wraps rendering in `CompositionLocalProvider(LocalSystemTheme provides
+ * SystemTheme.Dark)`, which is exactly what `isSystemInDarkTheme()` (and so `HirshTheme`'s default
+ * `useDarkTheme`) reads on desktop. A plain `HirshTheme { content() }` with no explicit dark-mode
+ * handling already renders correctly for both variants -- confirmed empirically against this
+ * project's own Roborazzi Desktop pipeline, not just Android Studio's renderer.
  */
 @ComposePreview(name = "Light")
-annotation class PreviewLight
-
-/**
- * Dark-mode preview.
- *
- * `uiMode` here makes Android Studio's own renderer show this correctly (it reads
- * `LocalConfiguration.uiMode`, which Studio derives from the annotation), but this project's
- * actual golden-image tests run on Compose Desktop (`generateComposePreviewDesktopTests`), and
- * Compose Desktop has no such config to derive `isSystemInDarkTheme()` from -- so the annotation
- * alone does nothing there.
- *
- * To get a real, distinct dark golden, the annotated function must *also* explicitly force it:
- *
- * ```
- * @PreviewLight
- * @Composable
- * private fun FooPreview() = HirshTheme(useDarkTheme = false) { Foo() }
- *
- * @PreviewDark
- * @Composable
- * private fun FooPreviewDark() = HirshTheme(useDarkTheme = true) { Foo() }
- * ```
- */
 @ComposePreview(name = "Dark", uiMode = AndroidUiModes.UI_MODE_NIGHT_YES or AndroidUiModes.UI_MODE_TYPE_NORMAL)
-annotation class PreviewDark
+annotation class PreviewComponent

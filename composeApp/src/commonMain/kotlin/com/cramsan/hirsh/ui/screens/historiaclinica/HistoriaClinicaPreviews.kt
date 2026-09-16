@@ -16,7 +16,7 @@ import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.Plan
 import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.ui.preview.Preview
-import com.cramsan.hirsh.ui.preview.PreviewDark
+import com.cramsan.hirsh.ui.preview.PreviewResponsive
 import com.cramsan.hirsh.ui.theme.HirshTheme
 
 private val previewPatient = Patient(
@@ -148,7 +148,7 @@ private fun previewUiState(
     motivoIngresoDraft = hospitalizacion.historiaClinica.motivoIngreso.data ?: MotivoIngreso(),
 )
 
-@Preview
+@PreviewResponsive
 @Composable
 private fun HistoriaClinicaScreenFiliacionPreview() {
     val hospitalizacion = previewHospitalizacion(previewHistoriaClinica(partial = false))
@@ -170,7 +170,7 @@ private fun HistoriaClinicaScreenFiliacionPreview() {
 }
 
 /** Only Filiacion/Motivo/Enfermedad Actual complete -- exercises the rail's mixed done/pending markers. */
-@Preview
+@PreviewResponsive
 @Composable
 private fun HistoriaClinicaScreenPartialPreview() {
     val hospitalizacion = previewHospitalizacion(previewHistoriaClinica(partial = true))
@@ -192,7 +192,7 @@ private fun HistoriaClinicaScreenPartialPreview() {
 }
 
 /** Motivo de Ingreso section active -- exercises the checkbox grid. */
-@Preview
+@PreviewResponsive
 @Composable
 private fun HistoriaClinicaScreenMotivoIngresoPreview() {
     val hospitalizacion = previewHospitalizacion(previewHistoriaClinica(partial = false))
