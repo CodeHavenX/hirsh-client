@@ -5,14 +5,8 @@ import com.cramsan.hirsh.model.FieldChange
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.PatientChangeLogEntry
 import com.cramsan.hirsh.model.Sex
-import com.cramsan.hirsh.repository.PatientRepository
 import com.cramsan.hirsh.ui.preview.Preview
 import com.cramsan.hirsh.ui.theme.HirshTheme
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.map
 
 private val previewPatients = listOf(
     Patient(
@@ -58,41 +52,31 @@ private val previewChangeLog = mapOf(
     ),
 )
 
-private class PreviewPatientRepository(patients: List<Patient>) : PatientRepository {
-    private val _patients = MutableStateFlow(patients)
-    override val patients: StateFlow<List<Patient>> = _patients.asStateFlow()
-    override fun getPatient(id: String): Flow<Patient?> = patients.map { list -> list.find { it.id == id } }
-    override fun getChangeLog(patientId: String): Flow<List<PatientChangeLogEntry>> =
-        MutableStateFlow(previewChangeLog[patientId].orEmpty())
-
-    override suspend fun updatePatient(
-        id: String,
-        newValues: Patient,
-        changedBy: String,
-        fecha: String,
-        hora: String,
-    ) = Unit
-
-    override suspend fun addPatient(
-        name: String,
-        nationalId: String,
-        dateOfBirth: String,
-        phone: String,
-        sex: Sex,
-        bloodType: String,
-        allergies: String,
-        assignedDoctor: String,
-    ): Patient = error("not used in this preview")
-}
+private fun previewUiState(patientId: String) = PatientHistoryUiState(
+    isLoading = false,
+    patient = previewPatients.find { it.id == patientId },
+    rows = previewChangeLog[patientId].orEmpty().flatMap { entry ->
+        entry.fields.map { field ->
+            ChangeHistoryRow(
+                fecha = entry.fecha,
+                hora = entry.hora,
+                changedBy = entry.changedBy,
+                label = field.label,
+                oldValue = field.oldValue,
+                newValue = field.newValue,
+            )
+        }
+    },
+)
 
 @Preview
 @Composable
 private fun PatientHistoryScreenPreview() {
     HirshTheme {
-        PatientHistoryScreen(
+        PatientHistoryScreenContent(
+            uiState = previewUiState("#00142"),
             patientId = "#00142",
             onBack = {},
-            viewModel = PatientHistoryViewModel(PreviewPatientRepository(previewPatients)),
         )
     }
 }
@@ -102,10 +86,10 @@ private fun PatientHistoryScreenPreview() {
 @Composable
 private fun PatientHistoryScreenEmptyPreview() {
     HirshTheme {
-        PatientHistoryScreen(
+        PatientHistoryScreenContent(
+            uiState = previewUiState("#00135"),
             patientId = "#00135",
             onBack = {},
-            viewModel = PatientHistoryViewModel(PreviewPatientRepository(previewPatients)),
         )
     }
 }

@@ -74,11 +74,34 @@ fun HospitalizationScreen(
     viewModel: HospitalizationViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    var showDischargeDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(patientId, hospId) {
         viewModel.load(patientId, hospId)
     }
+
+    HospitalizationScreenContent(
+        uiState = uiState,
+        patientId = patientId,
+        hospId = hospId,
+        onNewEvolucion = onNewEvolucion,
+        onOpenHistoriaClinica = onOpenHistoriaClinica,
+        onEvolucionSelected = onEvolucionSelected,
+        onDischarge = viewModel::discharge,
+    )
+}
+
+/** All rendering lives here, taking [uiState] as plain data, so `*Previews.kt` never needs a real ViewModel. */
+@Composable
+internal fun HospitalizationScreenContent(
+    uiState: HospitalizationUiState,
+    patientId: String,
+    hospId: String,
+    onNewEvolucion: () -> Unit,
+    onOpenHistoriaClinica: () -> Unit,
+    onEvolucionSelected: (evoId: String) -> Unit,
+    onDischarge: () -> Unit,
+) {
+    var showDischargeDialog by remember { mutableStateOf(false) }
 
     val patient = uiState.patient
     val hospitalizacion = uiState.hospitalizacion
@@ -126,7 +149,7 @@ fun HospitalizationScreen(
                 TextButton(
                     onClick = {
                         showDischargeDialog = false
-                        viewModel.discharge()
+                        onDischarge()
                     },
                     modifier = Modifier.testTag("hosp_discharge_confirm_button"),
                 ) {

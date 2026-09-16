@@ -49,6 +49,24 @@ fun PatientListScreen(
     viewModel: PatientListViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
+
+    PatientListScreenContent(
+        uiState = uiState,
+        onPatientSelected = onPatientSelected,
+        onRegisterPatient = onRegisterPatient,
+        onQueryChange = viewModel::onQueryChange,
+    )
+}
+
+/** All rendering lives here, taking [uiState] as plain data, so `*Previews.kt` never needs a real ViewModel. */
+@OptIn(ExperimentalTime::class)
+@Composable
+internal fun PatientListScreenContent(
+    uiState: PatientListUiState,
+    onPatientSelected: (patientId: String) -> Unit,
+    onRegisterPatient: () -> Unit,
+    onQueryChange: (String) -> Unit,
+) {
     val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
 
     Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
@@ -67,7 +85,7 @@ fun PatientListScreen(
             }
             OutlinedTextField(
                 value = uiState.query,
-                onValueChange = viewModel::onQueryChange,
+                onValueChange = onQueryChange,
                 placeholder = {
                     Text(
                         "Buscar paciente por nombre o DNI...",

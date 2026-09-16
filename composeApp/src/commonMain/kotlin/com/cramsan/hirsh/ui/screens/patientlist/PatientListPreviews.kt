@@ -2,16 +2,9 @@ package com.cramsan.hirsh.ui.screens.patientlist
 
 import androidx.compose.runtime.Composable
 import com.cramsan.hirsh.model.Patient
-import com.cramsan.hirsh.model.PatientChangeLogEntry
 import com.cramsan.hirsh.model.Sex
-import com.cramsan.hirsh.repository.PatientRepository
 import com.cramsan.hirsh.ui.preview.Preview
 import com.cramsan.hirsh.ui.theme.HirshTheme
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.map
 
 private val previewPatients = listOf(
     Patient(
@@ -40,52 +33,15 @@ private val previewPatients = listOf(
     ),
 )
 
-private class PreviewPatientRepository(patients: List<Patient>) : PatientRepository {
-    private val _patients = MutableStateFlow(patients)
-    override val patients: StateFlow<List<Patient>> = _patients.asStateFlow()
-    override fun getPatient(id: String): Flow<Patient?> = patients.map { list -> list.find { it.id == id } }
-    override fun getChangeLog(patientId: String): Flow<List<PatientChangeLogEntry>> =
-        MutableStateFlow(emptyList<PatientChangeLogEntry>())
-
-    override suspend fun updatePatient(
-        id: String,
-        newValues: Patient,
-        changedBy: String,
-        fecha: String,
-        hora: String,
-    ) = Unit
-
-    override suspend fun addPatient(
-        name: String,
-        nationalId: String,
-        dateOfBirth: String,
-        phone: String,
-        sex: Sex,
-        bloodType: String,
-        allergies: String,
-        assignedDoctor: String,
-    ): Patient = Patient(
-        id = "#00000",
-        name = name,
-        dateOfBirth = dateOfBirth,
-        phone = phone,
-        assignedDoctor = assignedDoctor,
-        lastVisit = "—",
-        bloodType = bloodType,
-        allergies = allergies,
-        nationalId = nationalId,
-        sex = sex,
-    )
-}
-
 @Preview
 @Composable
 private fun PatientListScreenPreview() {
     HirshTheme {
-        PatientListScreen(
+        PatientListScreenContent(
+            uiState = PatientListUiState(isLoading = false, patients = previewPatients),
             onPatientSelected = {},
             onRegisterPatient = {},
-            viewModel = PatientListViewModel(PreviewPatientRepository(previewPatients)),
+            onQueryChange = {},
         )
     }
 }
@@ -94,10 +50,11 @@ private fun PatientListScreenPreview() {
 @Composable
 private fun PatientListScreenEmptyPreview() {
     HirshTheme {
-        PatientListScreen(
+        PatientListScreenContent(
+            uiState = PatientListUiState(isLoading = false, patients = emptyList()),
             onPatientSelected = {},
             onRegisterPatient = {},
-            viewModel = PatientListViewModel(PreviewPatientRepository(emptyList())),
+            onQueryChange = {},
         )
     }
 }

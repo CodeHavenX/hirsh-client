@@ -59,7 +59,6 @@ import org.koin.compose.viewmodel.koinViewModel
 
 private val ButtonShape = RoundedCornerShape(HissRadiusDefault)
 
-@OptIn(ExperimentalTime::class)
 @Composable
 fun PatientRecordScreen(
     patientId: String,
@@ -70,12 +69,33 @@ fun PatientRecordScreen(
     viewModel: PatientRecordViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
 
     LaunchedEffect(patientId) {
         viewModel.load(patientId)
     }
 
+    PatientRecordScreenContent(
+        uiState = uiState,
+        patientId = patientId,
+        onEditProfile = onEditProfile,
+        onNewHospitalization = onNewHospitalization,
+        onHospitalizationSelected = onHospitalizationSelected,
+        onViewHistory = onViewHistory,
+    )
+}
+
+/** All rendering lives here, taking [uiState] as plain data, so `*Previews.kt` never needs a real ViewModel. */
+@OptIn(ExperimentalTime::class)
+@Composable
+internal fun PatientRecordScreenContent(
+    uiState: PatientRecordUiState,
+    patientId: String,
+    onEditProfile: () -> Unit,
+    onNewHospitalization: () -> Unit,
+    onHospitalizationSelected: (hospId: String) -> Unit,
+    onViewHistory: () -> Unit,
+) {
+    val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
     val patient = uiState.patient
     Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
         when {

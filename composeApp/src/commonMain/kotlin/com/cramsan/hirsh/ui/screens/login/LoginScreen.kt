@@ -36,6 +36,26 @@ fun LoginScreen(
         if (uiState.loggedIn) onLoggedIn()
     }
 
+    LoginScreenContent(
+        uiState = uiState,
+        username = username,
+        onUsernameChange = { username = it },
+        password = password,
+        onPasswordChange = { password = it },
+        onSubmit = { viewModel.login(username, password) },
+    )
+}
+
+/** All rendering lives here, taking [uiState] as plain data, so `*Previews.kt` never needs a real ViewModel. */
+@Composable
+internal fun LoginScreenContent(
+    uiState: LoginUiState,
+    username: String,
+    onUsernameChange: (String) -> Unit,
+    password: String,
+    onPasswordChange: (String) -> Unit,
+    onSubmit: () -> Unit,
+) {
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -46,13 +66,13 @@ fun LoginScreen(
         Column(modifier = Modifier.width(320.dp).padding(top = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             OutlinedTextField(
                 value = username,
-                onValueChange = { username = it },
+                onValueChange = onUsernameChange,
                 label = { Text("Usuario") },
                 modifier = Modifier.fillMaxWidth().testTag("login_username_field"),
             )
             OutlinedTextField(
                 value = password,
-                onValueChange = { password = it },
+                onValueChange = onPasswordChange,
                 label = { Text("Contrasena") },
                 modifier = Modifier.fillMaxWidth().testTag("login_password_field"),
             )
@@ -60,7 +80,7 @@ fun LoginScreen(
                 Text(uiState.error.orEmpty(), color = MaterialTheme.colorScheme.error)
             }
             Button(
-                onClick = { viewModel.login(username, password) },
+                onClick = onSubmit,
                 enabled = !uiState.isLoading,
                 modifier = Modifier.fillMaxWidth().testTag("login_submit_button"),
             ) {

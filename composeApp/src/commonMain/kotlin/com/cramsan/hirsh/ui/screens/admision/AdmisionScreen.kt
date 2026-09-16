@@ -59,12 +59,45 @@ fun AdmisionScreen(
         uiState.createdHospitalizationId?.let(onAdmitted)
     }
 
+    AdmisionScreenContent(
+        uiState = uiState,
+        patientId = patientId,
+        onCancel = onCancel,
+        onServicioChange = viewModel::onServicioChange,
+        onCamaChange = viewModel::onCamaChange,
+        onMedicoResponsableChange = viewModel::onMedicoResponsableChange,
+        onMotivoChange = viewModel::onMotivoChange,
+        onRegister = viewModel::register,
+    )
+}
+
+/** All rendering lives here, taking [uiState] as plain data, so `*Previews.kt` never needs a real ViewModel. */
+@Composable
+internal fun AdmisionScreenContent(
+    uiState: AdmisionUiState,
+    patientId: String,
+    onCancel: () -> Unit,
+    onServicioChange: (String) -> Unit,
+    onCamaChange: (String) -> Unit,
+    onMedicoResponsableChange: (String) -> Unit,
+    onMotivoChange: (String) -> Unit,
+    onRegister: () -> Unit,
+) {
     val patient = uiState.patient
     Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp).testTag("screen_scroll_container")) {
         when {
             uiState.isLoading -> Text("Cargando...", style = MaterialTheme.typography.bodyMedium)
             patient == null -> Text("Paciente no encontrado: $patientId", style = MaterialTheme.typography.bodyMedium)
-            else -> AdmisionForm(uiState = uiState, patientName = patient.name, viewModel = viewModel, onCancel = onCancel)
+            else -> AdmisionForm(
+                uiState = uiState,
+                patientName = patient.name,
+                onCancel = onCancel,
+                onServicioChange = onServicioChange,
+                onCamaChange = onCamaChange,
+                onMedicoResponsableChange = onMedicoResponsableChange,
+                onMotivoChange = onMotivoChange,
+                onRegister = onRegister,
+            )
         }
     }
 }
@@ -73,8 +106,12 @@ fun AdmisionScreen(
 private fun AdmisionForm(
     uiState: AdmisionUiState,
     patientName: String,
-    viewModel: AdmisionViewModel,
     onCancel: () -> Unit,
+    onServicioChange: (String) -> Unit,
+    onCamaChange: (String) -> Unit,
+    onMedicoResponsableChange: (String) -> Unit,
+    onMotivoChange: (String) -> Unit,
+    onRegister: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
         Column {
@@ -97,12 +134,12 @@ private fun AdmisionForm(
                     label = { RequiredFieldLabel("Servicio") },
                     options = servicioOptions,
                     selected = uiState.servicio,
-                    onSelect = viewModel::onServicioChange,
+                    onSelect = onServicioChange,
                     testTag = "admision_servicio_field",
                 )
                 OutlinedTextField(
                     value = uiState.cama,
-                    onValueChange = viewModel::onCamaChange,
+                    onValueChange = onCamaChange,
                     label = { RequiredFieldLabel("Cama") },
                     placeholder = { Text("Ej: 12", fontSize = FieldFontSize) },
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
@@ -113,7 +150,7 @@ private fun AdmisionForm(
                     label = { RequiredFieldLabel("Medico responsable") },
                     options = medicoOptions,
                     selected = uiState.medicoResponsable,
-                    onSelect = viewModel::onMedicoResponsableChange,
+                    onSelect = onMedicoResponsableChange,
                     testTag = "admision_medico_field",
                 )
             }
@@ -121,7 +158,7 @@ private fun AdmisionForm(
                 FormSectionCaption("Motivo de ingreso")
                 OutlinedTextField(
                     value = uiState.motivo,
-                    onValueChange = viewModel::onMotivoChange,
+                    onValueChange = onMotivoChange,
                     label = { RequiredFieldLabel("Motivo") },
                     placeholder = {
                         Text(
@@ -160,7 +197,7 @@ private fun AdmisionForm(
                 Text("Cancelar", fontSize = FieldFontSize, fontWeight = FontWeight.Medium, color = HissInk)
             }
             Button(
-                onClick = viewModel::register,
+                onClick = onRegister,
                 enabled = !uiState.isSaving,
                 shape = fieldShape,
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
