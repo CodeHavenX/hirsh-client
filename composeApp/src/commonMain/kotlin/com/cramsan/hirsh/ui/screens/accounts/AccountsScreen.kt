@@ -58,6 +58,44 @@ fun AccountsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
+    AccountsScreenContent(
+        uiState = uiState,
+        onOpenAddDialog = viewModel::openAddDialog,
+        onOpenEditDialog = viewModel::openEditDialog,
+        onOpenResetDialog = viewModel::openResetDialog,
+        onOpenDeactivateDialog = viewModel::openDeactivateDialog,
+        onReactivate = viewModel::reactivate,
+        onCloseDialog = viewModel::closeDialog,
+        onAddNameChange = viewModel::onAddNameChange,
+        onAddUsernameChange = viewModel::onAddUsernameChange,
+        onEditNameChange = viewModel::onEditNameChange,
+        onEditUsernameChange = viewModel::onEditUsernameChange,
+        onConfirmAdd = viewModel::confirmAdd,
+        onConfirmEdit = viewModel::confirmEdit,
+        onConfirmReset = viewModel::confirmReset,
+        onConfirmDeactivate = viewModel::confirmDeactivate,
+    )
+}
+
+/** All rendering lives here, taking [uiState] as plain data, so `*Previews.kt` never needs a real ViewModel. */
+@Composable
+internal fun AccountsScreenContent(
+    uiState: AccountsUiState,
+    onOpenAddDialog: () -> Unit,
+    onOpenEditDialog: (Account) -> Unit,
+    onOpenResetDialog: (Account) -> Unit,
+    onOpenDeactivateDialog: (Account) -> Unit,
+    onReactivate: (Account) -> Unit,
+    onCloseDialog: () -> Unit,
+    onAddNameChange: (String) -> Unit,
+    onAddUsernameChange: (String) -> Unit,
+    onEditNameChange: (String) -> Unit,
+    onEditUsernameChange: (String) -> Unit,
+    onConfirmAdd: () -> Unit,
+    onConfirmEdit: () -> Unit,
+    onConfirmReset: () -> Unit,
+    onConfirmDeactivate: () -> Unit,
+) {
     Column(
         modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp).testTag("screen_scroll_container"),
     ) {
@@ -68,7 +106,7 @@ fun AccountsScreen(
                 modifier = Modifier.weight(1f),
             )
             Button(
-                onClick = viewModel::openAddDialog,
+                onClick = onOpenAddDialog,
                 shape = RoundedCornerShape(HissRadiusDefault),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
                 modifier = Modifier.testTag("accounts_add_button"),
@@ -103,10 +141,10 @@ fun AccountsScreen(
         Column(modifier = Modifier.padding(top = 12.dp)) {
             DataTable(
                 columns = accountColumns(
-                    onEdit = viewModel::openEditDialog,
-                    onReset = viewModel::openResetDialog,
-                    onDeactivate = viewModel::openDeactivateDialog,
-                    onReactivate = viewModel::reactivate,
+                    onEdit = onOpenEditDialog,
+                    onReset = onOpenResetDialog,
+                    onDeactivate = onOpenDeactivateDialog,
+                    onReactivate = onReactivate,
                 ),
                 rows = uiState.accounts,
                 rowAlpha = { account -> if (account.status == AccountStatus.INACTIVE) 0.5f else 1f },
@@ -117,10 +155,10 @@ fun AccountsScreen(
 
     when (val dialog = uiState.dialog) {
         is AccountDialog.None -> Unit
-        is AccountDialog.Add -> AddAccountDialog(dialog, viewModel)
-        is AccountDialog.Edit -> EditAccountDialog(dialog, viewModel)
-        is AccountDialog.Reset -> ResetPasswordDialog(dialog, viewModel)
-        is AccountDialog.Deactivate -> DeactivateAccountDialog(dialog, viewModel)
+        is AccountDialog.Add -> AddAccountDialog(dialog, onCloseDialog, onAddNameChange, onAddUsernameChange, onConfirmAdd)
+        is AccountDialog.Edit -> EditAccountDialog(dialog, onCloseDialog, onEditNameChange, onEditUsernameChange, onConfirmEdit)
+        is AccountDialog.Reset -> ResetPasswordDialog(dialog, onCloseDialog, onConfirmReset)
+        is AccountDialog.Deactivate -> DeactivateAccountDialog(dialog, onCloseDialog, onConfirmDeactivate)
     }
 }
 
@@ -187,15 +225,21 @@ private fun ActionLink(text: String, color: Color, testTag: String, onClick: () 
 }
 
 @Composable
-private fun AddAccountDialog(dialog: AccountDialog.Add, viewModel: AccountsViewModel) {
+private fun AddAccountDialog(
+    dialog: AccountDialog.Add,
+    onCloseDialog: () -> Unit,
+    onAddNameChange: (String) -> Unit,
+    onAddUsernameChange: (String) -> Unit,
+    onConfirmAdd: () -> Unit,
+) {
     AlertDialog(
-        onDismissRequest = viewModel::closeDialog,
+        onDismissRequest = onCloseDialog,
         title = { Text("Agregar medico", fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedTextField(
                     value = dialog.name,
-                    onValueChange = viewModel::onAddNameChange,
+                    onValueChange = onAddNameChange,
                     label = { RequiredFieldLabel("Nombre completo") },
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
                     shape = fieldShape,
@@ -204,7 +248,7 @@ private fun AddAccountDialog(dialog: AccountDialog.Add, viewModel: AccountsViewM
                 )
                 OutlinedTextField(
                     value = dialog.username,
-                    onValueChange = viewModel::onAddUsernameChange,
+                    onValueChange = onAddUsernameChange,
                     label = { RequiredFieldLabel("Usuario") },
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
                     shape = fieldShape,
@@ -233,24 +277,30 @@ private fun AddAccountDialog(dialog: AccountDialog.Add, viewModel: AccountsViewM
             }
         },
         confirmButton = {
-            Button(onClick = viewModel::confirmAdd, modifier = Modifier.testTag("account_add_confirm_button")) { Text("Crear cuenta") }
+            Button(onClick = onConfirmAdd, modifier = Modifier.testTag("account_add_confirm_button")) { Text("Crear cuenta") }
         },
         dismissButton = {
-            TextButton(onClick = viewModel::closeDialog, modifier = Modifier.testTag("account_add_cancel_button")) { Text("Cancelar") }
+            TextButton(onClick = onCloseDialog, modifier = Modifier.testTag("account_add_cancel_button")) { Text("Cancelar") }
         },
     )
 }
 
 @Composable
-private fun EditAccountDialog(dialog: AccountDialog.Edit, viewModel: AccountsViewModel) {
+private fun EditAccountDialog(
+    dialog: AccountDialog.Edit,
+    onCloseDialog: () -> Unit,
+    onEditNameChange: (String) -> Unit,
+    onEditUsernameChange: (String) -> Unit,
+    onConfirmEdit: () -> Unit,
+) {
     AlertDialog(
-        onDismissRequest = viewModel::closeDialog,
+        onDismissRequest = onCloseDialog,
         title = { Text("Editar medico · ${dialog.name}", fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedTextField(
                     value = dialog.name,
-                    onValueChange = viewModel::onEditNameChange,
+                    onValueChange = onEditNameChange,
                     label = { RequiredFieldLabel("Nombre completo") },
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
                     shape = fieldShape,
@@ -259,7 +309,7 @@ private fun EditAccountDialog(dialog: AccountDialog.Edit, viewModel: AccountsVie
                 )
                 OutlinedTextField(
                     value = dialog.username,
-                    onValueChange = viewModel::onEditUsernameChange,
+                    onValueChange = onEditUsernameChange,
                     label = { RequiredFieldLabel("Usuario") },
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
                     shape = fieldShape,
@@ -272,18 +322,22 @@ private fun EditAccountDialog(dialog: AccountDialog.Edit, viewModel: AccountsVie
             }
         },
         confirmButton = {
-            Button(onClick = viewModel::confirmEdit, modifier = Modifier.testTag("account_edit_confirm_button")) { Text("Guardar cambios") }
+            Button(onClick = onConfirmEdit, modifier = Modifier.testTag("account_edit_confirm_button")) { Text("Guardar cambios") }
         },
         dismissButton = {
-            TextButton(onClick = viewModel::closeDialog, modifier = Modifier.testTag("account_edit_cancel_button")) { Text("Cancelar") }
+            TextButton(onClick = onCloseDialog, modifier = Modifier.testTag("account_edit_cancel_button")) { Text("Cancelar") }
         },
     )
 }
 
 @Composable
-private fun ResetPasswordDialog(dialog: AccountDialog.Reset, viewModel: AccountsViewModel) {
+private fun ResetPasswordDialog(
+    dialog: AccountDialog.Reset,
+    onCloseDialog: () -> Unit,
+    onConfirmReset: () -> Unit,
+) {
     AlertDialog(
-        onDismissRequest = viewModel::closeDialog,
+        onDismissRequest = onCloseDialog,
         title = { Text("Reset contraseña · ${dialog.account.name}", fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -306,18 +360,22 @@ private fun ResetPasswordDialog(dialog: AccountDialog.Reset, viewModel: Accounts
             }
         },
         confirmButton = {
-            Button(onClick = viewModel::confirmReset, modifier = Modifier.testTag("account_reset_confirm_button")) { Text("Confirmar reset") }
+            Button(onClick = onConfirmReset, modifier = Modifier.testTag("account_reset_confirm_button")) { Text("Confirmar reset") }
         },
         dismissButton = {
-            TextButton(onClick = viewModel::closeDialog, modifier = Modifier.testTag("account_reset_cancel_button")) { Text("Cancelar") }
+            TextButton(onClick = onCloseDialog, modifier = Modifier.testTag("account_reset_cancel_button")) { Text("Cancelar") }
         },
     )
 }
 
 @Composable
-private fun DeactivateAccountDialog(dialog: AccountDialog.Deactivate, viewModel: AccountsViewModel) {
+private fun DeactivateAccountDialog(
+    dialog: AccountDialog.Deactivate,
+    onCloseDialog: () -> Unit,
+    onConfirmDeactivate: () -> Unit,
+) {
     AlertDialog(
-        onDismissRequest = viewModel::closeDialog,
+        onDismissRequest = onCloseDialog,
         title = { Text("Desactivar cuenta", fontWeight = FontWeight.Bold) },
         text = {
             Text(
@@ -330,13 +388,13 @@ private fun DeactivateAccountDialog(dialog: AccountDialog.Deactivate, viewModel:
         },
         confirmButton = {
             OutlinedButton(
-                onClick = viewModel::confirmDeactivate,
+                onClick = onConfirmDeactivate,
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = HissWarn),
                 modifier = Modifier.testTag("account_deactivate_confirm_button"),
             ) { Text("Desactivar") }
         },
         dismissButton = {
-            TextButton(onClick = viewModel::closeDialog, modifier = Modifier.testTag("account_deactivate_cancel_button")) { Text("Cancelar") }
+            TextButton(onClick = onCloseDialog, modifier = Modifier.testTag("account_deactivate_cancel_button")) { Text("Cancelar") }
         },
     )
 }

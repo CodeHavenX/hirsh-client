@@ -11,7 +11,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.cramsan.hirsh.ui.preview.Preview
+import com.cramsan.hirsh.ui.preview.PreviewComponent
+import com.cramsan.hirsh.ui.preview.PreviewResponsive
 import com.cramsan.hirsh.ui.theme.HirshTheme
 
 private data class SamplePatientRow(
@@ -25,7 +26,7 @@ private val sampleRows = listOf(
     SamplePatientRow("HCL-2202", "Jesus Mendoza", "Dr. R. Salas"),
 )
 
-@Preview
+@PreviewComponent
 @Composable
 private fun DataTablePreview() {
     HirshTheme {
@@ -42,7 +43,7 @@ private fun DataTablePreview() {
     }
 }
 
-@Preview
+@PreviewComponent
 @Composable
 private fun StatusBadgePreview() {
     HirshTheme {
@@ -58,7 +59,7 @@ private fun StatusBadgePreview() {
     }
 }
 
-@Preview
+@PreviewComponent
 @Composable
 private fun ChipPreview() {
     HirshTheme {
@@ -66,7 +67,7 @@ private fun ChipPreview() {
     }
 }
 
-@Preview
+@PreviewComponent
 @Composable
 private fun KeyValueRowPreview() {
     HirshTheme {
@@ -74,7 +75,7 @@ private fun KeyValueRowPreview() {
     }
 }
 
-@Preview
+@PreviewComponent
 @Composable
 private fun ReadOnlyFieldPreview() {
     HirshTheme {
@@ -82,7 +83,7 @@ private fun ReadOnlyFieldPreview() {
     }
 }
 
-@Preview
+@PreviewComponent
 @Composable
 private fun VisitCardPreview() {
     HirshTheme {
@@ -97,7 +98,7 @@ private fun VisitCardPreview() {
     }
 }
 
-@Preview
+@PreviewComponent
 @Composable
 private fun PrintableSummaryPreview() {
     HirshTheme {
@@ -126,7 +127,7 @@ private fun PrintableSummaryPreview() {
     }
 }
 
-@Preview
+@PreviewResponsive
 @Composable
 private fun AppScaffoldPreview() {
     HirshTheme {
@@ -145,7 +146,7 @@ private fun AppScaffoldPreview() {
     }
 }
 
-@Preview
+@PreviewComponent
 @Composable
 private fun EncounterTopBarPreview() {
     HirshTheme {

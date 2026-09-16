@@ -66,6 +66,30 @@ fun EvolucionViewScreen(
         viewModel.load(patientId, hospId, evoId)
     }
 
+    EvolucionViewScreenContent(
+        uiState = uiState,
+        patientId = patientId,
+        hospId = hospId,
+        evoId = evoId,
+        onClose = onClose,
+        onOpenPrintPreview = viewModel::openPrintPreview,
+        onClosePrintPreview = viewModel::closePrintPreview,
+        onSelectTab = viewModel::selectTab,
+    )
+}
+
+/** All rendering lives here, taking [uiState] as plain data, so `*Previews.kt` never needs a real ViewModel. */
+@Composable
+internal fun EvolucionViewScreenContent(
+    uiState: EvolucionViewUiState,
+    patientId: String,
+    hospId: String,
+    evoId: String,
+    onClose: () -> Unit,
+    onOpenPrintPreview: () -> Unit,
+    onClosePrintPreview: () -> Unit,
+    onSelectTab: (EvolucionViewTab) -> Unit,
+) {
     val patient = uiState.patient
     val hospitalizacion = uiState.hospitalizacion
     val evolucion = uiState.evolucion
@@ -103,7 +127,7 @@ fun EvolucionViewScreen(
                     },
                     actions = {
                         Button(
-                            onClick = viewModel::openPrintPreview,
+                            onClick = onOpenPrintPreview,
                             shape = fieldShape,
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
                             modifier = Modifier.testTag("evo_view_print_button"),
@@ -114,18 +138,18 @@ fun EvolucionViewScreen(
                 )
                 if (uiState.showPrintPreview) {
                     Dialog(
-                        onDismissRequest = viewModel::closePrintPreview,
+                        onDismissRequest = onClosePrintPreview,
                         properties = DialogProperties(usePlatformDefaultWidth = false),
                     ) {
                         EvolucionPrintable(
                             patient = patient,
                             hospitalizacion = hospitalizacion,
                             evolucion = evolucion,
-                            onBack = viewModel::closePrintPreview,
+                            onBack = onClosePrintPreview,
                         )
                     }
                 }
-                EvoTabBar(selectedTab = uiState.selectedTab, examCount = evolucion.examenes.size, onSelectTab = viewModel::selectTab)
+                EvoTabBar(selectedTab = uiState.selectedTab, examCount = evolucion.examenes.size, onSelectTab = onSelectTab)
                 Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp).testTag("screen_scroll_container")) {
                     when (uiState.selectedTab) {
                         EvolucionViewTab.EVOLUCION -> EvolucionReadOnlyPanel(evolucion)

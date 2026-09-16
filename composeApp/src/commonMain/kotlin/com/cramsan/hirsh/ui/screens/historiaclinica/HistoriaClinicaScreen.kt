@@ -73,6 +73,36 @@ fun HistoriaClinicaScreen(
         viewModel.load(patientId, hospId)
     }
 
+    HistoriaClinicaScreenContent(
+        uiState = uiState,
+        patientId = patientId,
+        hospId = hospId,
+        onClose = onClose,
+        onOpenPrintPreview = viewModel::openPrintPreview,
+        onClosePrintPreview = viewModel::closePrintPreview,
+        onSelectSection = viewModel::selectSection,
+        onMotivoOptionChange = viewModel::onMotivoOptionChange,
+        onMotivoOtrosDetalleChange = viewModel::onMotivoOtrosDetalleChange,
+        onFieldChange = viewModel::onFieldChange,
+        onSave = viewModel::save,
+    )
+}
+
+/** All rendering lives here, taking [uiState] as plain data, so `*Previews.kt` never needs a real ViewModel. */
+@Composable
+internal fun HistoriaClinicaScreenContent(
+    uiState: HistoriaClinicaUiState,
+    patientId: String,
+    hospId: String,
+    onClose: () -> Unit,
+    onOpenPrintPreview: () -> Unit,
+    onClosePrintPreview: () -> Unit,
+    onSelectSection: (HcSectionKey) -> Unit,
+    onMotivoOptionChange: (MotivoIngreso, String, Boolean) -> Unit,
+    onMotivoOtrosDetalleChange: (MotivoIngreso, String) -> Unit,
+    onFieldChange: (String, String) -> Unit,
+    onSave: () -> Unit,
+) {
     val patient = uiState.patient
     val hospitalizacion = uiState.hospitalizacion
 
@@ -105,7 +135,7 @@ fun HistoriaClinicaScreen(
                     },
                     actions = {
                         Button(
-                            onClick = viewModel::openPrintPreview,
+                            onClick = onOpenPrintPreview,
                             shape = fieldShape,
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
                             modifier = Modifier.testTag("hc_print_button"),
@@ -116,13 +146,13 @@ fun HistoriaClinicaScreen(
                 )
                 if (uiState.showPrintPreview) {
                     Dialog(
-                        onDismissRequest = viewModel::closePrintPreview,
+                        onDismissRequest = onClosePrintPreview,
                         properties = DialogProperties(usePlatformDefaultWidth = false),
                     ) {
                         HistoriaClinicaPrintable(
                             patient = patient,
                             hospitalizacion = hospitalizacion,
-                            onBack = viewModel::closePrintPreview,
+                            onBack = onClosePrintPreview,
                         )
                     }
                 }
@@ -130,7 +160,7 @@ fun HistoriaClinicaScreen(
                     HcSectionNav(
                         historiaClinica = historiaClinica,
                         activeSection = uiState.activeSection,
-                        onSelectSection = viewModel::selectSection,
+                        onSelectSection = onSelectSection,
                     )
                     val sectionScrollState = rememberScrollState()
                     LaunchedEffect(uiState.activeSection) { sectionScrollState.scrollTo(0) }
@@ -140,20 +170,20 @@ fun HistoriaClinicaScreen(
                             if (uiState.activeSection == HcSectionKey.MOTIVO_INGRESO) {
                                 MotivoIngresoForm(
                                     draft = uiState.motivoIngresoDraft,
-                                    onOptionChange = viewModel::onMotivoOptionChange,
-                                    onOtrosDetalleChange = viewModel::onMotivoOtrosDetalleChange,
+                                    onOptionChange = onMotivoOptionChange,
+                                    onOtrosDetalleChange = onMotivoOtrosDetalleChange,
                                 )
                             } else {
                                 SectionForm(
                                     specs = HC_SECTION_FIELDS[uiState.activeSection].orEmpty(),
                                     values = uiState.fieldValues,
-                                    onFieldChange = viewModel::onFieldChange,
+                                    onFieldChange = onFieldChange,
                                 )
                             }
                         }
                         Row(modifier = Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.End) {
                             Button(
-                                onClick = viewModel::save,
+                                onClick = onSave,
                                 enabled = !uiState.isSaving,
                                 shape = fieldShape,
                                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),

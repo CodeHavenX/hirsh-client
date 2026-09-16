@@ -45,6 +45,20 @@ fun PatientHistoryScreen(
         viewModel.load(patientId)
     }
 
+    PatientHistoryScreenContent(
+        uiState = uiState,
+        patientId = patientId,
+        onBack = onBack,
+    )
+}
+
+/** All rendering lives here, taking [uiState] as plain data, so `*Previews.kt` never needs a real ViewModel. */
+@Composable
+internal fun PatientHistoryScreenContent(
+    uiState: PatientHistoryUiState,
+    patientId: String,
+    onBack: () -> Unit,
+) {
     val patient = uiState.patient
     Column(modifier = Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
         when {

@@ -86,6 +86,92 @@ fun NuevaEvolucionScreen(
         uiState.createdEvolucionId?.let(onSaved)
     }
 
+    NuevaEvolucionScreenContent(
+        uiState = uiState,
+        patientId = patientId,
+        hospId = hospId,
+        sessionDisplayName = session?.displayName.orEmpty(),
+        showDiscardDialog = showDiscardDialog,
+        onClose = onClose,
+        onRequestDiscard = { showDiscardDialog = true },
+        onDismissDiscardDialog = { showDiscardDialog = false },
+        onConfirmDiscard = {
+            showDiscardDialog = false
+            onDiscarded()
+        },
+        onSave = viewModel::save,
+        onSelectTab = viewModel::selectTab,
+        onSubjectiveChange = viewModel::onSubjectiveChange,
+        onObjectiveChange = viewModel::onObjectiveChange,
+        onAssessmentChange = viewModel::onAssessmentChange,
+        onPlanChange = viewModel::onPlanChange,
+        onRxChange = viewModel::onRxChange,
+        onPaChange = viewModel::onPaChange,
+        onFcChange = viewModel::onFcChange,
+        onFrChange = viewModel::onFrChange,
+        onTempChange = viewModel::onTempChange,
+        onSatO2Change = viewModel::onSatO2Change,
+        onFio2Change = viewModel::onFio2Change,
+        onPronosticoChange = viewModel::onPronosticoChange,
+        onResultadoEvolucionChange = viewModel::onResultadoEvolucionChange,
+        onDxCodigoChange = viewModel::onDxCodigoChange,
+        onDxDescripcionChange = viewModel::onDxDescripcionChange,
+        onRemoveDxRow = viewModel::removeDxRow,
+        onAddDxRow = viewModel::addDxRow,
+        onExamTipoChange = viewModel::onExamTipoChange,
+        onExamNombreChange = viewModel::onExamNombreChange,
+        onExamResultadoChange = viewModel::onExamResultadoChange,
+        onExamUnidadChange = viewModel::onExamUnidadChange,
+        onExamReferenciaChange = viewModel::onExamReferenciaChange,
+        onExamFechaChange = viewModel::onExamFechaChange,
+        onRemoveExamRow = viewModel::removeExamRow,
+        onAddExamRow = viewModel::addExamRow,
+        onExamenesObsChange = viewModel::onExamenesObsChange,
+    )
+}
+
+/** All rendering lives here, taking [uiState] as plain data, so `*Previews.kt` never needs a real ViewModel. */
+@Composable
+@Suppress("LongParameterList")
+internal fun NuevaEvolucionScreenContent(
+    uiState: NuevaEvolucionUiState,
+    patientId: String,
+    hospId: String,
+    sessionDisplayName: String,
+    showDiscardDialog: Boolean,
+    onClose: () -> Unit,
+    onRequestDiscard: () -> Unit,
+    onDismissDiscardDialog: () -> Unit,
+    onConfirmDiscard: () -> Unit,
+    onSave: () -> Unit,
+    onSelectTab: (EvolucionTab) -> Unit,
+    onSubjectiveChange: (String) -> Unit,
+    onObjectiveChange: (String) -> Unit,
+    onAssessmentChange: (String) -> Unit,
+    onPlanChange: (String) -> Unit,
+    onRxChange: (String) -> Unit,
+    onPaChange: (String) -> Unit,
+    onFcChange: (String) -> Unit,
+    onFrChange: (String) -> Unit,
+    onTempChange: (String) -> Unit,
+    onSatO2Change: (String) -> Unit,
+    onFio2Change: (String) -> Unit,
+    onPronosticoChange: (String) -> Unit,
+    onResultadoEvolucionChange: (String) -> Unit,
+    onDxCodigoChange: (Int, String) -> Unit,
+    onDxDescripcionChange: (Int, String) -> Unit,
+    onRemoveDxRow: (Int) -> Unit,
+    onAddDxRow: () -> Unit,
+    onExamTipoChange: (Int, String) -> Unit,
+    onExamNombreChange: (Int, String) -> Unit,
+    onExamResultadoChange: (Int, String) -> Unit,
+    onExamUnidadChange: (Int, String) -> Unit,
+    onExamReferenciaChange: (Int, String) -> Unit,
+    onExamFechaChange: (Int, String) -> Unit,
+    onRemoveExamRow: (Int) -> Unit,
+    onAddExamRow: () -> Unit,
+    onExamenesObsChange: (String) -> Unit,
+) {
     val patient = uiState.patient
     val hospitalizacion = uiState.hospitalizacion
 
@@ -113,12 +199,12 @@ fun NuevaEvolucionScreen(
                     meta = {
                         Chip("${uiState.openedFecha} · ${uiState.openedHora}")
                         Chip(hospitalizacion.servicio)
-                        Chip(session?.displayName.orEmpty())
+                        Chip(sessionDisplayName)
                         StatusBadge(text = "En progreso", tone = BadgeTone.Progress)
                     },
                     actions = {
                         OutlinedButton(
-                            onClick = { showDiscardDialog = true },
+                            onClick = onRequestDiscard,
                             enabled = !uiState.isSaving,
                             shape = fieldShape,
                             border = BorderStroke(1.5.dp, HissWarn),
@@ -128,7 +214,7 @@ fun NuevaEvolucionScreen(
                             Text("Descartar", fontSize = FieldFontSize, fontWeight = FontWeight.Medium, color = HissWarn)
                         }
                         Button(
-                            onClick = viewModel::save,
+                            onClick = onSave,
                             enabled = !uiState.isSaving,
                             shape = fieldShape,
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
@@ -141,7 +227,7 @@ fun NuevaEvolucionScreen(
                 EvoTabBar(
                     selectedTab = uiState.selectedTab,
                     examCount = uiState.examenes.count { it.nombre.isNotBlank() },
-                    onSelectTab = viewModel::selectTab,
+                    onSelectTab = onSelectTab,
                 )
                 uiState.error?.let { error ->
                     Text(
@@ -152,8 +238,38 @@ fun NuevaEvolucionScreen(
                 }
                 Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp).testTag("screen_scroll_container")) {
                     when (uiState.selectedTab) {
-                        EvolucionTab.EVOLUCION -> EvolucionPanel(uiState, viewModel)
-                        EvolucionTab.EXAMENES -> ExamenesPanel(uiState, viewModel)
+                        EvolucionTab.EVOLUCION -> EvolucionPanel(
+                            uiState = uiState,
+                            onSubjectiveChange = onSubjectiveChange,
+                            onObjectiveChange = onObjectiveChange,
+                            onAssessmentChange = onAssessmentChange,
+                            onPlanChange = onPlanChange,
+                            onRxChange = onRxChange,
+                            onPaChange = onPaChange,
+                            onFcChange = onFcChange,
+                            onFrChange = onFrChange,
+                            onTempChange = onTempChange,
+                            onSatO2Change = onSatO2Change,
+                            onFio2Change = onFio2Change,
+                            onDxCodigoChange = onDxCodigoChange,
+                            onDxDescripcionChange = onDxDescripcionChange,
+                            onRemoveDxRow = onRemoveDxRow,
+                            onAddDxRow = onAddDxRow,
+                            onPronosticoChange = onPronosticoChange,
+                            onResultadoEvolucionChange = onResultadoEvolucionChange,
+                        )
+                        EvolucionTab.EXAMENES -> ExamenesPanel(
+                            uiState = uiState,
+                            onExamTipoChange = onExamTipoChange,
+                            onExamNombreChange = onExamNombreChange,
+                            onExamResultadoChange = onExamResultadoChange,
+                            onExamUnidadChange = onExamUnidadChange,
+                            onExamReferenciaChange = onExamReferenciaChange,
+                            onExamFechaChange = onExamFechaChange,
+                            onRemoveExamRow = onRemoveExamRow,
+                            onAddExamRow = onAddExamRow,
+                            onExamenesObsChange = onExamenesObsChange,
+                        )
                     }
                 }
             }
@@ -162,15 +278,12 @@ fun NuevaEvolucionScreen(
 
     if (showDiscardDialog) {
         AlertDialog(
-            onDismissRequest = { showDiscardDialog = false },
+            onDismissRequest = onDismissDiscardDialog,
             title = { Text("Descartar evolucion") },
             text = { Text("¿Descartar esta evolucion? Se perderan todos los datos ingresados.") },
             confirmButton = {
                 TextButton(
-                    onClick = {
-                        showDiscardDialog = false
-                        onDiscarded()
-                    },
+                    onClick = onConfirmDiscard,
                     modifier = Modifier.testTag("evo_new_discard_confirm_button"),
                 ) {
                     Text("Descartar")
@@ -178,7 +291,7 @@ fun NuevaEvolucionScreen(
             },
             dismissButton = {
                 TextButton(
-                    onClick = { showDiscardDialog = false },
+                    onClick = onDismissDiscardDialog,
                     modifier = Modifier.testTag("evo_new_discard_cancel_button"),
                 ) {
                     Text("Cancelar")
@@ -260,7 +373,27 @@ private fun EvoTab(
 }
 
 @Composable
-private fun EvolucionPanel(uiState: NuevaEvolucionUiState, viewModel: NuevaEvolucionViewModel) {
+@Suppress("LongParameterList")
+private fun EvolucionPanel(
+    uiState: NuevaEvolucionUiState,
+    onSubjectiveChange: (String) -> Unit,
+    onObjectiveChange: (String) -> Unit,
+    onAssessmentChange: (String) -> Unit,
+    onPlanChange: (String) -> Unit,
+    onRxChange: (String) -> Unit,
+    onPaChange: (String) -> Unit,
+    onFcChange: (String) -> Unit,
+    onFrChange: (String) -> Unit,
+    onTempChange: (String) -> Unit,
+    onSatO2Change: (String) -> Unit,
+    onFio2Change: (String) -> Unit,
+    onDxCodigoChange: (Int, String) -> Unit,
+    onDxDescripcionChange: (Int, String) -> Unit,
+    onRemoveDxRow: (Int) -> Unit,
+    onAddDxRow: () -> Unit,
+    onPronosticoChange: (String) -> Unit,
+    onResultadoEvolucionChange: (String) -> Unit,
+) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
         Column(modifier = Modifier.weight(1.3f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             FormSectionCaption("Notas SOAP")
@@ -268,7 +401,7 @@ private fun EvolucionPanel(uiState: NuevaEvolucionUiState, viewModel: NuevaEvolu
                 "Subjetivo",
                 required = true,
                 value = uiState.subjective,
-                onValueChange = viewModel::onSubjectiveChange,
+                onValueChange = onSubjectiveChange,
                 minLines = 4,
                 testTag = "evo_new_subjective_field",
             )
@@ -276,7 +409,7 @@ private fun EvolucionPanel(uiState: NuevaEvolucionUiState, viewModel: NuevaEvolu
                 "Objetivo",
                 required = true,
                 value = uiState.objective,
-                onValueChange = viewModel::onObjectiveChange,
+                onValueChange = onObjectiveChange,
                 minLines = 4,
                 testTag = "evo_new_objective_field",
             )
@@ -284,7 +417,7 @@ private fun EvolucionPanel(uiState: NuevaEvolucionUiState, viewModel: NuevaEvolu
                 "Analisis",
                 required = false,
                 value = uiState.assessment,
-                onValueChange = viewModel::onAssessmentChange,
+                onValueChange = onAssessmentChange,
                 minLines = 3,
                 testTag = "evo_new_assessment_field",
             )
@@ -292,7 +425,7 @@ private fun EvolucionPanel(uiState: NuevaEvolucionUiState, viewModel: NuevaEvolu
                 "Plan",
                 required = false,
                 value = uiState.plan,
-                onValueChange = viewModel::onPlanChange,
+                onValueChange = onPlanChange,
                 minLines = 3,
                 testTag = "evo_new_plan_field",
             )
@@ -300,7 +433,7 @@ private fun EvolucionPanel(uiState: NuevaEvolucionUiState, viewModel: NuevaEvolu
                 "Prescripcion",
                 required = false,
                 value = uiState.rx,
-                onValueChange = viewModel::onRxChange,
+                onValueChange = onRxChange,
                 minLines = 4,
                 testTag = "evo_new_rx_field",
             )
@@ -317,23 +450,37 @@ private fun EvolucionPanel(uiState: NuevaEvolucionUiState, viewModel: NuevaEvolu
         ) {
             FormSectionCaption("Resultado")
             FormSectionCaption("Signos Vitales")
-            VitalsGrid(uiState, viewModel)
+            VitalsGrid(
+                uiState = uiState,
+                onPaChange = onPaChange,
+                onFcChange = onFcChange,
+                onFrChange = onFrChange,
+                onTempChange = onTempChange,
+                onSatO2Change = onSatO2Change,
+                onFio2Change = onFio2Change,
+            )
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 RequiredFieldLabel("Diagnosticos")
-                DiagnosisRows(uiState.diagnosticos, viewModel)
+                DiagnosisRows(
+                    rows = uiState.diagnosticos,
+                    onCodigoChange = onDxCodigoChange,
+                    onDescripcionChange = onDxDescripcionChange,
+                    onRemoveRow = onRemoveDxRow,
+                    onAddRow = onAddDxRow,
+                )
             }
             SelectField(
                 label = { RequiredFieldLabel("Pronostico") },
                 options = Pronostico.entries.map { it.toDisplayLabel() },
                 selected = uiState.pronostico,
-                onSelect = viewModel::onPronosticoChange,
+                onSelect = onPronosticoChange,
                 testTag = "evo_new_pronostico_field",
             )
             SelectField(
                 label = { RequiredFieldLabel("Evolucion") },
                 options = EvolucionResultado.entries.map { it.toDisplayLabel() },
                 selected = uiState.resultadoEvolucion,
-                onSelect = viewModel::onResultadoEvolucionChange,
+                onSelect = onResultadoEvolucionChange,
                 testTag = "evo_new_resultado_field",
             )
         }
@@ -367,19 +514,28 @@ private fun FieldLabel(text: String) {
 }
 
 @Composable
-private fun VitalsGrid(uiState: NuevaEvolucionUiState, viewModel: NuevaEvolucionViewModel) {
+@Suppress("LongParameterList")
+private fun VitalsGrid(
+    uiState: NuevaEvolucionUiState,
+    onPaChange: (String) -> Unit,
+    onFcChange: (String) -> Unit,
+    onFrChange: (String) -> Unit,
+    onTempChange: (String) -> Unit,
+    onSatO2Change: (String) -> Unit,
+    onFio2Change: (String) -> Unit,
+) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            VitalField("PA (mmHg)", uiState.pa, viewModel::onPaChange, Modifier.weight(1f).testTag("evo_new_vital_pa_field"))
-            VitalField("FC (lpm)", uiState.fc, viewModel::onFcChange, Modifier.weight(1f).testTag("evo_new_vital_fc_field"))
+            VitalField("PA (mmHg)", uiState.pa, onPaChange, Modifier.weight(1f).testTag("evo_new_vital_pa_field"))
+            VitalField("FC (lpm)", uiState.fc, onFcChange, Modifier.weight(1f).testTag("evo_new_vital_fc_field"))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            VitalField("FR (rpm)", uiState.fr, viewModel::onFrChange, Modifier.weight(1f).testTag("evo_new_vital_fr_field"))
-            VitalField("T° (°C)", uiState.temp, viewModel::onTempChange, Modifier.weight(1f).testTag("evo_new_vital_temp_field"))
+            VitalField("FR (rpm)", uiState.fr, onFrChange, Modifier.weight(1f).testTag("evo_new_vital_fr_field"))
+            VitalField("T° (°C)", uiState.temp, onTempChange, Modifier.weight(1f).testTag("evo_new_vital_temp_field"))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            VitalField("SatO2 (%)", uiState.satO2, viewModel::onSatO2Change, Modifier.weight(1f).testTag("evo_new_vital_sato2_field"))
-            VitalField("FiO2 (%)", uiState.fio2, viewModel::onFio2Change, Modifier.weight(1f).testTag("evo_new_vital_fio2_field"))
+            VitalField("SatO2 (%)", uiState.satO2, onSatO2Change, Modifier.weight(1f).testTag("evo_new_vital_sato2_field"))
+            VitalField("FiO2 (%)", uiState.fio2, onFio2Change, Modifier.weight(1f).testTag("evo_new_vital_fio2_field"))
         }
     }
 }
@@ -398,13 +554,19 @@ private fun VitalField(label: String, value: String, onValueChange: (String) -> 
 }
 
 @Composable
-private fun DiagnosisRows(rows: List<DxRow>, viewModel: NuevaEvolucionViewModel) {
+private fun DiagnosisRows(
+    rows: List<DxRow>,
+    onCodigoChange: (Int, String) -> Unit,
+    onDescripcionChange: (Int, String) -> Unit,
+    onRemoveRow: (Int) -> Unit,
+    onAddRow: () -> Unit,
+) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         rows.forEachIndexed { index, row ->
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(
                     value = row.codigoCie10,
-                    onValueChange = { viewModel.onDxCodigoChange(index, it) },
+                    onValueChange = { onCodigoChange(index, it) },
                     placeholder = { Text("CIE-10", fontSize = FieldFontSize) },
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
                     shape = fieldShape,
@@ -413,28 +575,50 @@ private fun DiagnosisRows(rows: List<DxRow>, viewModel: NuevaEvolucionViewModel)
                 )
                 OutlinedTextField(
                     value = row.descripcion,
-                    onValueChange = { viewModel.onDxDescripcionChange(index, it) },
+                    onValueChange = { onDescripcionChange(index, it) },
                     placeholder = { Text("Descripcion del diagnostico", fontSize = FieldFontSize) },
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
                     shape = fieldShape,
                     singleLine = true,
                     modifier = Modifier.weight(1f).testTag("evo_new_dx_descripcion_$index"),
                 )
-                RemoveRowButton(onClick = { viewModel.removeDxRow(index) }, testTag = "evo_new_dx_remove_$index")
+                RemoveRowButton(onClick = { onRemoveRow(index) }, testTag = "evo_new_dx_remove_$index")
             }
         }
-        GhostSmallButton("+ Agregar diagnostico", onClick = viewModel::addDxRow, testTag = "evo_new_dx_add_button")
+        GhostSmallButton("+ Agregar diagnostico", onClick = onAddRow, testTag = "evo_new_dx_add_button")
     }
 }
 
 @Composable
-private fun ExamenesPanel(uiState: NuevaEvolucionUiState, viewModel: NuevaEvolucionViewModel) {
+@Suppress("LongParameterList")
+private fun ExamenesPanel(
+    uiState: NuevaEvolucionUiState,
+    onExamTipoChange: (Int, String) -> Unit,
+    onExamNombreChange: (Int, String) -> Unit,
+    onExamResultadoChange: (Int, String) -> Unit,
+    onExamUnidadChange: (Int, String) -> Unit,
+    onExamReferenciaChange: (Int, String) -> Unit,
+    onExamFechaChange: (Int, String) -> Unit,
+    onRemoveExamRow: (Int) -> Unit,
+    onAddExamRow: () -> Unit,
+    onExamenesObsChange: (String) -> Unit,
+) {
     Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
         FormSectionCaption("Examenes y resultados")
-        ExamRows(uiState.examenes, viewModel)
+        ExamRows(
+            rows = uiState.examenes,
+            onTipoChange = onExamTipoChange,
+            onNombreChange = onExamNombreChange,
+            onResultadoChange = onExamResultadoChange,
+            onUnidadChange = onExamUnidadChange,
+            onReferenciaChange = onExamReferenciaChange,
+            onFechaChange = onExamFechaChange,
+            onRemoveRow = onRemoveExamRow,
+            onAddRow = onAddExamRow,
+        )
         OutlinedTextField(
             value = uiState.examenesObs,
-            onValueChange = viewModel::onExamenesObsChange,
+            onValueChange = onExamenesObsChange,
             label = { FieldLabel("Observaciones / informe") },
             textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
             shape = fieldShape,
@@ -445,7 +629,18 @@ private fun ExamenesPanel(uiState: NuevaEvolucionUiState, viewModel: NuevaEvoluc
 }
 
 @Composable
-private fun ExamRows(rows: List<ExamRow>, viewModel: NuevaEvolucionViewModel) {
+@Suppress("LongParameterList")
+private fun ExamRows(
+    rows: List<ExamRow>,
+    onTipoChange: (Int, String) -> Unit,
+    onNombreChange: (Int, String) -> Unit,
+    onResultadoChange: (Int, String) -> Unit,
+    onUnidadChange: (Int, String) -> Unit,
+    onReferenciaChange: (Int, String) -> Unit,
+    onFechaChange: (Int, String) -> Unit,
+    onRemoveRow: (Int) -> Unit,
+    onAddRow: () -> Unit,
+) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf("Tipo", "Examen", "Resultado", "Unidad", "Valor referencial", "Fecha").forEach { label ->
@@ -466,7 +661,7 @@ private fun ExamRows(rows: List<ExamRow>, viewModel: NuevaEvolucionViewModel) {
                     label = {},
                     options = examTipoOptions,
                     selected = row.tipo,
-                    onSelect = { viewModel.onExamTipoChange(index, it) },
+                    onSelect = { onTipoChange(index, it) },
                     modifier = Modifier.weight(1f),
                     testTag = "evo_new_exam_tipo_$index",
                 )
@@ -474,35 +669,35 @@ private fun ExamRows(rows: List<ExamRow>, viewModel: NuevaEvolucionViewModel) {
                     row.nombre,
                     "Ej: Hemoglobina",
                     Modifier.weight(1f).testTag("evo_new_exam_nombre_$index"),
-                ) { viewModel.onExamNombreChange(index, it) }
+                ) { onNombreChange(index, it) }
                 ExamTextField(
                     row.resultado,
                     "Ej: 11.2",
                     Modifier.weight(1f).testTag("evo_new_exam_resultado_$index"),
-                ) { viewModel.onExamResultadoChange(index, it) }
+                ) { onResultadoChange(index, it) }
                 ExamTextField(
                     row.unidad,
                     "g/dL",
                     Modifier.weight(1f).testTag("evo_new_exam_unidad_$index"),
-                ) { viewModel.onExamUnidadChange(index, it) }
+                ) { onUnidadChange(index, it) }
                 ExamTextField(
                     row.referencia,
                     "12.0 - 15.5",
                     Modifier.weight(1f).testTag("evo_new_exam_referencia_$index"),
-                ) { viewModel.onExamReferenciaChange(index, it) }
+                ) { onReferenciaChange(index, it) }
                 ExamTextField(
                     row.fecha,
                     "DD/MM/AAAA",
                     Modifier.weight(1f).testTag("evo_new_exam_fecha_$index"),
-                ) { viewModel.onExamFechaChange(index, it) }
+                ) { onFechaChange(index, it) }
                 RemoveRowButton(
-                    onClick = { viewModel.removeExamRow(index) },
+                    onClick = { onRemoveRow(index) },
                     modifier = Modifier.width(36.dp),
                     testTag = "evo_new_exam_remove_$index",
                 )
             }
         }
-        GhostSmallButton("+ Agregar examen", onClick = viewModel::addExamRow, testTag = "evo_new_exam_add_button")
+        GhostSmallButton("+ Agregar examen", onClick = onAddRow, testTag = "evo_new_exam_add_button")
     }
 }
 

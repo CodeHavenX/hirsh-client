@@ -54,12 +54,57 @@ fun EditPatientScreen(
         if (uiState.saved) onSaved()
     }
 
+    EditPatientScreenContent(
+        uiState = uiState,
+        patientId = patientId,
+        onCancel = onCancel,
+        onNameChange = viewModel::onNameChange,
+        onNationalIdChange = viewModel::onNationalIdChange,
+        onDateOfBirthChange = viewModel::onDateOfBirthChange,
+        onPhoneChange = viewModel::onPhoneChange,
+        onSexChange = viewModel::onSexChange,
+        onBloodTypeChange = viewModel::onBloodTypeChange,
+        onAllergiesChange = viewModel::onAllergiesChange,
+        onAssignedDoctorChange = viewModel::onAssignedDoctorChange,
+        onSave = viewModel::save,
+    )
+}
+
+/** All rendering lives here, taking [uiState] as plain data, so `*Previews.kt` never needs a real ViewModel. */
+@Composable
+internal fun EditPatientScreenContent(
+    uiState: EditPatientUiState,
+    patientId: String,
+    onCancel: () -> Unit,
+    onNameChange: (String) -> Unit,
+    onNationalIdChange: (String) -> Unit,
+    onDateOfBirthChange: (String) -> Unit,
+    onPhoneChange: (String) -> Unit,
+    onSexChange: (Sex) -> Unit,
+    onBloodTypeChange: (String) -> Unit,
+    onAllergiesChange: (String) -> Unit,
+    onAssignedDoctorChange: (String) -> Unit,
+    onSave: () -> Unit,
+) {
     val patient = uiState.patient
     Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp).testTag("screen_scroll_container")) {
         when {
             uiState.isLoading -> Text("Cargando...", style = MaterialTheme.typography.bodyMedium)
             patient == null -> Text("Paciente no encontrado: $patientId", style = MaterialTheme.typography.bodyMedium)
-            else -> EditPatientForm(uiState = uiState, patientName = patient.name, viewModel = viewModel, onCancel = onCancel)
+            else -> EditPatientForm(
+                uiState = uiState,
+                patientName = patient.name,
+                onCancel = onCancel,
+                onNameChange = onNameChange,
+                onNationalIdChange = onNationalIdChange,
+                onDateOfBirthChange = onDateOfBirthChange,
+                onPhoneChange = onPhoneChange,
+                onSexChange = onSexChange,
+                onBloodTypeChange = onBloodTypeChange,
+                onAllergiesChange = onAllergiesChange,
+                onAssignedDoctorChange = onAssignedDoctorChange,
+                onSave = onSave,
+            )
         }
     }
 }
@@ -68,8 +113,16 @@ fun EditPatientScreen(
 private fun EditPatientForm(
     uiState: EditPatientUiState,
     patientName: String,
-    viewModel: EditPatientViewModel,
     onCancel: () -> Unit,
+    onNameChange: (String) -> Unit,
+    onNationalIdChange: (String) -> Unit,
+    onDateOfBirthChange: (String) -> Unit,
+    onPhoneChange: (String) -> Unit,
+    onSexChange: (Sex) -> Unit,
+    onBloodTypeChange: (String) -> Unit,
+    onAllergiesChange: (String) -> Unit,
+    onAssignedDoctorChange: (String) -> Unit,
+    onSave: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
         Column {
@@ -90,7 +143,7 @@ private fun EditPatientForm(
                 FormSectionCaption("Datos personales")
                 OutlinedTextField(
                     value = uiState.name,
-                    onValueChange = viewModel::onNameChange,
+                    onValueChange = onNameChange,
                     label = { RequiredFieldLabel("Nombre completo") },
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
                     shape = fieldShape,
@@ -98,7 +151,7 @@ private fun EditPatientForm(
                 )
                 OutlinedTextField(
                     value = uiState.nationalId,
-                    onValueChange = viewModel::onNationalIdChange,
+                    onValueChange = onNationalIdChange,
                     label = { RequiredFieldLabel("DNI") },
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
                     shape = fieldShape,
@@ -106,7 +159,7 @@ private fun EditPatientForm(
                 )
                 OutlinedTextField(
                     value = uiState.dateOfBirth,
-                    onValueChange = viewModel::onDateOfBirthChange,
+                    onValueChange = onDateOfBirthChange,
                     label = { RequiredFieldLabel("Fecha de nacimiento") },
                     placeholder = { Text("DD/MM/AAAA", fontSize = FieldFontSize) },
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
@@ -115,7 +168,7 @@ private fun EditPatientForm(
                 )
                 OutlinedTextField(
                     value = uiState.phone,
-                    onValueChange = viewModel::onPhoneChange,
+                    onValueChange = onPhoneChange,
                     label = { RequiredFieldLabel("Telefono de contacto") },
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
                     shape = fieldShape,
@@ -125,7 +178,7 @@ private fun EditPatientForm(
                     label = { RequiredFieldLabel("Sexo") },
                     options = listOf("Masculino", "Femenino"),
                     selected = uiState.sex?.toDisplayLabel().orEmpty(),
-                    onSelect = { label -> viewModel.onSexChange(if (label == "Masculino") Sex.MALE else Sex.FEMALE) },
+                    onSelect = { label -> onSexChange(if (label == "Masculino") Sex.MALE else Sex.FEMALE) },
                     testTag = "edit_sex_field",
                 )
             }
@@ -135,11 +188,11 @@ private fun EditPatientForm(
                     label = { Text("Grupo sanguineo", fontSize = 12.sp, color = HissInk2) },
                     options = bloodTypeOptions,
                     selected = uiState.bloodType,
-                    onSelect = viewModel::onBloodTypeChange,
+                    onSelect = onBloodTypeChange,
                 )
                 OutlinedTextField(
                     value = uiState.allergies,
-                    onValueChange = viewModel::onAllergiesChange,
+                    onValueChange = onAllergiesChange,
                     label = { Text("Alergias conocidas", fontSize = 12.sp, color = HissInk2) },
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
                     shape = fieldShape,
@@ -150,7 +203,7 @@ private fun EditPatientForm(
                     label = { Text("Medico asignado", fontSize = 12.sp, color = HissInk2) },
                     options = doctorOptions,
                     selected = uiState.assignedDoctor,
-                    onSelect = viewModel::onAssignedDoctorChange,
+                    onSelect = onAssignedDoctorChange,
                 )
             }
         }
@@ -171,7 +224,7 @@ private fun EditPatientForm(
                 Text("Cancelar", fontSize = FieldFontSize, fontWeight = FontWeight.Medium, color = HissInk)
             }
             Button(
-                onClick = viewModel::save,
+                onClick = onSave,
                 enabled = !uiState.isSaving,
                 shape = fieldShape,
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),

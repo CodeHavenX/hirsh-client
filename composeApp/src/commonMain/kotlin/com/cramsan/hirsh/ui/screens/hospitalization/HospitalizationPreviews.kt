@@ -7,24 +7,15 @@ import com.cramsan.hirsh.model.EstadoHospitalizacion
 import com.cramsan.hirsh.model.Evolucion
 import com.cramsan.hirsh.model.EvolucionResultado
 import com.cramsan.hirsh.model.HcSection
-import com.cramsan.hirsh.model.HcSectionKey
 import com.cramsan.hirsh.model.HistoriaClinica
 import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.Patient
-import com.cramsan.hirsh.model.PatientChangeLogEntry
 import com.cramsan.hirsh.model.Plan
 import com.cramsan.hirsh.model.Pronostico
 import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.model.Vitals
-import com.cramsan.hirsh.repository.HospitalizationRepository
-import com.cramsan.hirsh.repository.PatientRepository
-import com.cramsan.hirsh.ui.preview.Preview
+import com.cramsan.hirsh.ui.preview.PreviewResponsive
 import com.cramsan.hirsh.ui.theme.HirshTheme
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.map
 
 private val previewPatient = Patient(
     id = "#00135",
@@ -91,60 +82,13 @@ private fun previewHospitalizacion(
     evoluciones = evoluciones,
 )
 
-private class PreviewPatientRepository(patients: List<Patient>) : PatientRepository {
-    private val _patients = MutableStateFlow(patients)
-    override val patients: StateFlow<List<Patient>> = _patients.asStateFlow()
-    override fun getPatient(id: String): Flow<Patient?> = patients.map { list -> list.find { it.id == id } }
-    override fun getChangeLog(patientId: String): Flow<List<PatientChangeLogEntry>> = MutableStateFlow(emptyList())
+private fun previewUiState(hospitalizacion: Hospitalizacion) = HospitalizationUiState(
+    isLoading = false,
+    patient = previewPatient,
+    hospitalizacion = hospitalizacion,
+)
 
-    override suspend fun updatePatient(
-        id: String,
-        newValues: Patient,
-        changedBy: String,
-        fecha: String,
-        hora: String,
-    ) = Unit
-
-    override suspend fun addPatient(
-        name: String,
-        nationalId: String,
-        dateOfBirth: String,
-        phone: String,
-        sex: Sex,
-        bloodType: String,
-        allergies: String,
-        assignedDoctor: String,
-    ): Patient = error("not used by this preview")
-}
-
-private class PreviewHospitalizationRepository(hospitalizaciones: List<Hospitalizacion>) : HospitalizationRepository {
-    private val _hospitalizaciones = MutableStateFlow(hospitalizaciones)
-
-    override fun getHospitalizations(patientId: String): Flow<List<Hospitalizacion>> =
-        _hospitalizaciones.map { list -> list.filter { it.patientId == patientId } }
-
-    override fun getHospitalization(patientId: String, hospId: String): Flow<Hospitalizacion?> =
-        _hospitalizaciones.map { list -> list.find { it.patientId == patientId && it.id == hospId } }
-
-    override fun getEvolucion(hospId: String, evoId: String): Flow<Evolucion?> =
-        _hospitalizaciones.map { list -> list.find { it.id == hospId }?.evoluciones?.find { it.id == evoId } }
-
-    override suspend fun addHospitalization(
-        patientId: String,
-        servicio: String,
-        cama: String,
-        medicoResponsable: String,
-        motivoIngreso: String,
-    ): Hospitalizacion = error("not used by this preview")
-
-    override suspend fun discharge(hospId: String) = Unit
-
-    override suspend fun saveHistoriaClinicaSection(hospId: String, key: HcSectionKey, data: Any) = Unit
-
-    override suspend fun addEvolucion(hospId: String, evolucion: Evolucion): Evolucion = evolucion
-}
-
-@Preview
+@PreviewResponsive
 @Composable
 private fun HospitalizationScreenActivaPreview() {
     val hospitalizacion = previewHospitalizacion(
@@ -156,22 +100,20 @@ private fun HospitalizationScreenActivaPreview() {
         ),
     )
     HirshTheme {
-        HospitalizationScreen(
+        HospitalizationScreenContent(
+            uiState = previewUiState(hospitalizacion),
             patientId = previewPatient.id,
             hospId = hospitalizacion.id,
             onNewEvolucion = {},
             onOpenHistoriaClinica = {},
             onEvolucionSelected = {},
-            viewModel = HospitalizationViewModel(
-                PreviewPatientRepository(listOf(previewPatient)),
-                PreviewHospitalizationRepository(listOf(hospitalizacion)),
-            ),
+            onDischarge = {},
         )
     }
 }
 
 /** estado = Alta -- exercises the "Dar de alta" button being hidden and the "Fecha alta" KV row. */
-@Preview
+@PreviewResponsive
 @Composable
 private fun HospitalizationScreenAltaPreview() {
     val hospitalizacion = previewHospitalizacion(
@@ -180,22 +122,20 @@ private fun HospitalizationScreenAltaPreview() {
         evoluciones = listOf(previewEvolucion("v5c", EvolucionResultado.FAVORABLE)),
     )
     HirshTheme {
-        HospitalizationScreen(
+        HospitalizationScreenContent(
+            uiState = previewUiState(hospitalizacion),
             patientId = previewPatient.id,
             hospId = hospitalizacion.id,
             onNewEvolucion = {},
             onOpenHistoriaClinica = {},
             onEvolucionSelected = {},
-            viewModel = HospitalizationViewModel(
-                PreviewPatientRepository(listOf(previewPatient)),
-                PreviewHospitalizationRepository(listOf(hospitalizacion)),
-            ),
+            onDischarge = {},
         )
     }
 }
 
 /** No evoluciones yet -- exercises the empty-state copy. */
-@Preview
+@PreviewResponsive
 @Composable
 private fun HospitalizationScreenNoEvolucionesPreview() {
     val hospitalizacion = previewHospitalizacion(
@@ -204,16 +144,14 @@ private fun HospitalizationScreenNoEvolucionesPreview() {
         evoluciones = emptyList(),
     )
     HirshTheme {
-        HospitalizationScreen(
+        HospitalizationScreenContent(
+            uiState = previewUiState(hospitalizacion),
             patientId = previewPatient.id,
             hospId = hospitalizacion.id,
             onNewEvolucion = {},
             onOpenHistoriaClinica = {},
             onEvolucionSelected = {},
-            viewModel = HospitalizationViewModel(
-                PreviewPatientRepository(listOf(previewPatient)),
-                PreviewHospitalizationRepository(listOf(hospitalizacion)),
-            ),
+            onDischarge = {},
         )
     }
 }

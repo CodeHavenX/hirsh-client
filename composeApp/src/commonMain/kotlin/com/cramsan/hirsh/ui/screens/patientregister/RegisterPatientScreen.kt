@@ -62,6 +62,40 @@ fun RegisterPatientScreen(
         uiState.registeredPatientId?.let(onRegistered)
     }
 
+    RegisterPatientScreenContent(
+        uiState = uiState,
+        onCancel = onCancel,
+        onViewExistingPatient = onViewExistingPatient,
+        onNameChange = viewModel::onNameChange,
+        onNationalIdChange = viewModel::onNationalIdChange,
+        onDateOfBirthChange = viewModel::onDateOfBirthChange,
+        onPhoneChange = viewModel::onPhoneChange,
+        onSexChange = viewModel::onSexChange,
+        onCheckDuplicate = viewModel::checkDuplicate,
+        onBloodTypeChange = viewModel::onBloodTypeChange,
+        onAllergiesChange = viewModel::onAllergiesChange,
+        onAssignedDoctorChange = viewModel::onAssignedDoctorChange,
+        onRegister = viewModel::register,
+    )
+}
+
+/** All rendering lives here, taking [uiState] as plain data, so `*Previews.kt` never needs a real ViewModel. */
+@Composable
+internal fun RegisterPatientScreenContent(
+    uiState: RegisterPatientUiState,
+    onCancel: () -> Unit,
+    onViewExistingPatient: (patientId: String) -> Unit,
+    onNameChange: (String) -> Unit,
+    onNationalIdChange: (String) -> Unit,
+    onDateOfBirthChange: (String) -> Unit,
+    onPhoneChange: (String) -> Unit,
+    onSexChange: (Sex) -> Unit,
+    onCheckDuplicate: () -> Unit,
+    onBloodTypeChange: (String) -> Unit,
+    onAllergiesChange: (String) -> Unit,
+    onAssignedDoctorChange: (String) -> Unit,
+    onRegister: () -> Unit,
+) {
     Column(
         modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp).testTag("screen_scroll_container"),
         verticalArrangement = Arrangement.spacedBy(18.dp),
@@ -88,27 +122,27 @@ fun RegisterPatientScreen(
                 FormSectionCaption("Datos personales")
                 OutlinedTextField(
                     value = uiState.name,
-                    onValueChange = viewModel::onNameChange,
+                    onValueChange = onNameChange,
                     label = { RequiredFieldLabel("Nombre completo") },
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
                     shape = fieldShape,
                     modifier = Modifier.fillMaxWidth()
-                        .onFocusChanged { if (!it.isFocused) viewModel.checkDuplicate() }
+                        .onFocusChanged { if (!it.isFocused) onCheckDuplicate() }
                         .testTag("register_name_field"),
                 )
                 OutlinedTextField(
                     value = uiState.nationalId,
-                    onValueChange = viewModel::onNationalIdChange,
+                    onValueChange = onNationalIdChange,
                     label = { RequiredFieldLabel("DNI") },
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
                     shape = fieldShape,
                     modifier = Modifier.fillMaxWidth()
-                        .onFocusChanged { if (!it.isFocused) viewModel.checkDuplicate() }
+                        .onFocusChanged { if (!it.isFocused) onCheckDuplicate() }
                         .testTag("register_dni_field"),
                 )
                 OutlinedTextField(
                     value = uiState.dateOfBirth,
-                    onValueChange = viewModel::onDateOfBirthChange,
+                    onValueChange = onDateOfBirthChange,
                     label = { RequiredFieldLabel("Fecha de nacimiento") },
                     placeholder = { Text("DD/MM/AAAA", fontSize = FieldFontSize) },
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
@@ -117,7 +151,7 @@ fun RegisterPatientScreen(
                 )
                 OutlinedTextField(
                     value = uiState.phone,
-                    onValueChange = viewModel::onPhoneChange,
+                    onValueChange = onPhoneChange,
                     label = { RequiredFieldLabel("Telefono de contacto") },
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
                     shape = fieldShape,
@@ -127,7 +161,7 @@ fun RegisterPatientScreen(
                     label = { RequiredFieldLabel("Sexo") },
                     options = listOf("Masculino", "Femenino"),
                     selected = uiState.sex?.toDisplayLabel().orEmpty(),
-                    onSelect = { label -> viewModel.onSexChange(if (label == "Masculino") Sex.MALE else Sex.FEMALE) },
+                    onSelect = { label -> onSexChange(if (label == "Masculino") Sex.MALE else Sex.FEMALE) },
                     testTag = "register_sex_field",
                 )
             }
@@ -137,11 +171,11 @@ fun RegisterPatientScreen(
                     label = { Text("Grupo sanguineo", fontSize = 12.sp, color = HissInk2) },
                     options = bloodTypeOptions,
                     selected = uiState.bloodType,
-                    onSelect = viewModel::onBloodTypeChange,
+                    onSelect = onBloodTypeChange,
                 )
                 OutlinedTextField(
                     value = uiState.allergies,
-                    onValueChange = viewModel::onAllergiesChange,
+                    onValueChange = onAllergiesChange,
                     label = { Text("Alergias conocidas", fontSize = 12.sp, color = HissInk2) },
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
                     shape = fieldShape,
@@ -152,7 +186,7 @@ fun RegisterPatientScreen(
                     label = { Text("Medico asignado", fontSize = 12.sp, color = HissInk2) },
                     options = doctorOptions,
                     selected = uiState.assignedDoctor,
-                    onSelect = viewModel::onAssignedDoctorChange,
+                    onSelect = onAssignedDoctorChange,
                 )
             }
         }
@@ -173,7 +207,7 @@ fun RegisterPatientScreen(
                 Text("Cancelar", fontSize = FieldFontSize, fontWeight = FontWeight.Medium, color = HissInk)
             }
             Button(
-                onClick = viewModel::register,
+                onClick = onRegister,
                 enabled = !uiState.isSaving,
                 shape = fieldShape,
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),

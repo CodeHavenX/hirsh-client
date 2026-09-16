@@ -58,6 +58,30 @@ fun ProfileScreen(
     viewModel: ProfileViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
+
+    ProfileScreenContent(
+        uiState = uiState,
+        onCurrentPasswordChange = viewModel::onCurrentPasswordChange,
+        onNewPasswordChange = viewModel::onNewPasswordChange,
+        onConfirmPasswordChange = viewModel::onConfirmPasswordChange,
+        onUpdatePassword = viewModel::updatePassword,
+        onSignOut = {
+            viewModel.signOut()
+            onSignedOut()
+        },
+    )
+}
+
+/** All rendering lives here, taking [uiState] as plain data, so `*Previews.kt` never needs a real ViewModel. */
+@Composable
+internal fun ProfileScreenContent(
+    uiState: ProfileUiState,
+    onCurrentPasswordChange: (String) -> Unit,
+    onNewPasswordChange: (String) -> Unit,
+    onConfirmPasswordChange: (String) -> Unit,
+    onUpdatePassword: () -> Unit,
+    onSignOut: () -> Unit,
+) {
     val session = uiState.session
 
     Column(
@@ -81,10 +105,16 @@ fun ProfileScreen(
             AccountCard(displayName = session.displayName, username = session.username, role = session.role.toDisplayLabel())
         }
 
-        PasswordCard(uiState = uiState, viewModel = viewModel)
+        PasswordCard(
+            uiState = uiState,
+            onCurrentPasswordChange = onCurrentPasswordChange,
+            onNewPasswordChange = onNewPasswordChange,
+            onConfirmPasswordChange = onConfirmPasswordChange,
+            onUpdatePassword = onUpdatePassword,
+        )
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { viewModel.signOut(); onSignedOut() }, modifier = Modifier.testTag("profile_sign_out_button")) {
+            Button(onClick = onSignOut, modifier = Modifier.testTag("profile_sign_out_button")) {
                 Text("Cerrar sesion")
             }
         }
@@ -138,7 +168,13 @@ private fun AccountCard(displayName: String, username: String, role: String) {
 }
 
 @Composable
-private fun PasswordCard(uiState: ProfileUiState, viewModel: ProfileViewModel) {
+private fun PasswordCard(
+    uiState: ProfileUiState,
+    onCurrentPasswordChange: (String) -> Unit,
+    onNewPasswordChange: (String) -> Unit,
+    onConfirmPasswordChange: (String) -> Unit,
+    onUpdatePassword: () -> Unit,
+) {
     Surface(
         shape = RoundedCornerShape(HissRadiusDefault),
         color = MaterialTheme.colorScheme.surface,
@@ -149,7 +185,7 @@ private fun PasswordCard(uiState: ProfileUiState, viewModel: ProfileViewModel) {
             FormSectionCaption("Cambiar contrasena")
             OutlinedTextField(
                 value = uiState.currentPassword,
-                onValueChange = viewModel::onCurrentPasswordChange,
+                onValueChange = onCurrentPasswordChange,
                 label = { RequiredFieldLabel("Contrasena actual") },
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -159,7 +195,7 @@ private fun PasswordCard(uiState: ProfileUiState, viewModel: ProfileViewModel) {
             )
             OutlinedTextField(
                 value = uiState.newPassword,
-                onValueChange = viewModel::onNewPasswordChange,
+                onValueChange = onNewPasswordChange,
                 label = { RequiredFieldLabel("Nueva contrasena") },
                 placeholder = { Text("minimo 8 caracteres", fontSize = FieldFontSize) },
                 visualTransformation = PasswordVisualTransformation(),
@@ -170,7 +206,7 @@ private fun PasswordCard(uiState: ProfileUiState, viewModel: ProfileViewModel) {
             )
             OutlinedTextField(
                 value = uiState.confirmPassword,
-                onValueChange = viewModel::onConfirmPasswordChange,
+                onValueChange = onConfirmPasswordChange,
                 label = { RequiredFieldLabel("Confirmar nueva contrasena") },
                 placeholder = { Text("repetir nueva contrasena", fontSize = FieldFontSize) },
                 visualTransformation = PasswordVisualTransformation(),
@@ -187,7 +223,7 @@ private fun PasswordCard(uiState: ProfileUiState, viewModel: ProfileViewModel) {
             }
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 Button(
-                    onClick = viewModel::updatePassword,
+                    onClick = onUpdatePassword,
                     shape = fieldShape,
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
                     modifier = Modifier.testTag("profile_update_password_button"),
