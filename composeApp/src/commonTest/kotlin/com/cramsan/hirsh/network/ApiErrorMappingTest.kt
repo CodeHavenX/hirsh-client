@@ -51,6 +51,24 @@ class ApiErrorMappingTest {
     }
 
     @Test
+    fun unauthorizedWithNoBodyAtAllStillInvokesOnUnauthorized() = runTest {
+        // Matches this project's real backend: Spring Security's default auth entry point sends
+        // a bare 401 with Content-Length: 0 and no Content-Type at all, not an empty `{}` -- found
+        // by testing against the actual running backend, not just ktor-client-mock fixtures.
+        var onUnauthorizedCalls = 0
+        val engine = MockEngine { respond("", HttpStatusCode.Unauthorized) }
+        val client = HttpClient(engine) {
+            install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
+            installApiErrorValidator(onUnauthorized = { onUnauthorizedCalls++ })
+        }
+
+        val exception = assertFailsWith<ApiException> { client.get("http://localhost/x") }
+
+        assertEquals(ApiError.Unauthorized, exception.error)
+        assertEquals(1, onUnauthorizedCalls)
+    }
+
+    @Test
     fun conflictMapsToConflictWithResourceIdAndDoesNotInvokeOnUnauthorized() = runTest {
         var onUnauthorizedCalls = 0
         val client = buildClient(

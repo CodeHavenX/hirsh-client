@@ -22,15 +22,20 @@ fun HttpClientConfig<*>.installApiErrorValidator(onUnauthorized: suspend () -> U
     HttpResponseValidator {
         validateResponse { response ->
             if (!response.status.isSuccess()) {
+                // A real 401 from this backend's default Spring Security entry point has no body
+                // at all (Content-Length: 0, not even `{}`) -- response.body<ProblemDetails>()
+                // throws on that, not just on malformed JSON. Falling back to an empty
+                // ProblemDetails() rather than null keeps toApiError's status-code-first mapping
+                // in charge either way, so a bodyless 401 still maps to Unauthorized instead of
+                // silently falling through to Unknown and never triggering onUnauthorized.
                 val problemDetails = try {
                     response.body<ProblemDetails>()
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    null
+                    ProblemDetails()
                 }
-                val apiError = problemDetails?.toApiError(response.status)
-                    ?: ApiError.Unknown(response.status.description)
+                val apiError = problemDetails.toApiError(response.status)
                 if (apiError is ApiError.Unauthorized) {
                     onUnauthorized()
                 }
