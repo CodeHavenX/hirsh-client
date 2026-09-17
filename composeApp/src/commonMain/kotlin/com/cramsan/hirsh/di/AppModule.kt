@@ -2,6 +2,7 @@ package com.cramsan.hirsh.di
 
 import com.cramsan.hirsh.network.ApiConfig
 import com.cramsan.hirsh.network.XsrfHeaderPlugin
+import com.cramsan.hirsh.network.installApiErrorValidator
 import com.cramsan.hirsh.preferences.AppPreferences
 import com.cramsan.hirsh.repository.AccountRepository
 import com.cramsan.hirsh.repository.AuthRepository
@@ -60,6 +61,7 @@ private val sharedModule = module {
             install(Logging) { level = LogLevel.INFO }
             install(HttpCookies)
             install(XsrfHeaderPlugin)
+            installApiErrorValidator()
             defaultRequest { url(ApiConfig.BASE_URL) }
             engine(engineTuning)
         }
