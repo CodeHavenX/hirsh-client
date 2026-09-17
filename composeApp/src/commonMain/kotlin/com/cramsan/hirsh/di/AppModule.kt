@@ -56,12 +56,18 @@ private val sharedModule = module {
     single {
         val engineFactory = get<HttpClientEngineFactory<*>>()
         val engineTuning = get<HttpClientEngineTuning>()
+        // Deferred, not `val sessionRepository = get<SessionRepository>()`, so this HttpClient
+        // single's own construction never forces SessionRepository (and so AuthRepository) to
+        // exist first -- once HISS-611 gives AuthRepository a real HttpClient dependency of its
+        // own, an eager get() here would be a genuine constructor-injection cycle. This lambda
+        // only actually resolves SessionRepository when a 401 happens, well after both exist.
+        val sessionRepositoryProvider = { get<SessionRepository>() }
         HttpClient(engineFactory) {
             install(ContentNegotiation) { json(get()) }
             install(Logging) { level = LogLevel.INFO }
             install(HttpCookies)
             install(XsrfHeaderPlugin)
-            installApiErrorValidator()
+            installApiErrorValidator(onUnauthorized = { sessionRepositoryProvider().forceLogout() })
             defaultRequest { url(ApiConfig.BASE_URL) }
             engine(engineTuning)
         }

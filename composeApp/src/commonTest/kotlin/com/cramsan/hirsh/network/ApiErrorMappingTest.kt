@@ -21,7 +21,11 @@ import kotlin.test.assertTrue
 
 class ApiErrorMappingTest {
 
-    private fun buildClient(status: HttpStatusCode, body: String): HttpClient {
+    private fun buildClient(
+        status: HttpStatusCode,
+        body: String,
+        onUnauthorized: suspend () -> Unit = {},
+    ): HttpClient {
         val engine = MockEngine {
             respond(
                 body,
@@ -31,29 +35,34 @@ class ApiErrorMappingTest {
         }
         return HttpClient(engine) {
             install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
-            installApiErrorValidator()
+            installApiErrorValidator(onUnauthorized)
         }
     }
 
     @Test
-    fun unauthorizedMapsToUnauthorizedRegardlessOfBody() = runTest {
-        val client = buildClient(HttpStatusCode.Unauthorized, "{}")
+    fun unauthorizedMapsToUnauthorizedRegardlessOfBodyAndInvokesOnUnauthorized() = runTest {
+        var onUnauthorizedCalls = 0
+        val client = buildClient(HttpStatusCode.Unauthorized, "{}", onUnauthorized = { onUnauthorizedCalls++ })
 
         val exception = assertFailsWith<ApiException> { client.get("http://localhost/x") }
 
         assertEquals(ApiError.Unauthorized, exception.error)
+        assertEquals(1, onUnauthorizedCalls)
     }
 
     @Test
-    fun conflictMapsToConflictWithResourceId() = runTest {
+    fun conflictMapsToConflictWithResourceIdAndDoesNotInvokeOnUnauthorized() = runTest {
+        var onUnauthorizedCalls = 0
         val client = buildClient(
             HttpStatusCode.Conflict,
             """{"conflictingResourceId": "patient-123"}""",
+            onUnauthorized = { onUnauthorizedCalls++ },
         )
 
         val exception = assertFailsWith<ApiException> { client.get("http://localhost/x") }
 
         assertEquals(ApiError.Conflict("patient-123"), exception.error)
+        assertEquals(0, onUnauthorizedCalls)
     }
 
     @Test
@@ -92,7 +101,7 @@ class ApiErrorMappingTest {
         val engine = MockEngine { respondOk("{}") }
         val client = HttpClient(engine) {
             install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
-            installApiErrorValidator()
+            installApiErrorValidator(onUnauthorized = {})
         }
 
         val response = client.get("http://localhost/x")

@@ -37,6 +37,10 @@ private class FakeSessionRepository(
         logoutCalls++
         _session.value = null
     }
+
+    override fun forceLogout() {
+        _session.value = null
+    }
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)

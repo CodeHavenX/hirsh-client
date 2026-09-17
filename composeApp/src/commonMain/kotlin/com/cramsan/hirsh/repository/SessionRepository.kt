@@ -21,6 +21,13 @@ interface SessionRepository {
     val session: StateFlow<Session?>
     suspend fun login(username: String, password: String): Result<Session>
     fun logout()
+
+    /**
+     * Clears local session state only, without calling through to [AuthRepository.logout] --
+     * for when the *server* already considers the session dead (a 401), so there's no point
+     * making a network call of our own to tell it something it just told us.
+     */
+    fun forceLogout()
 }
 
 /**
@@ -40,6 +47,10 @@ class DefaultSessionRepository(
 
     override fun logout() {
         authRepository.logout()
+        _session.value = null
+    }
+
+    override fun forceLogout() {
         _session.value = null
     }
 }

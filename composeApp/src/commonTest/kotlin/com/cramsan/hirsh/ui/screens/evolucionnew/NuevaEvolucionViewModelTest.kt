@@ -140,6 +140,7 @@ private class FakeSessionRepository(session: Session?) : SessionRepository {
     override val session: StateFlow<Session?> = _session.asStateFlow()
     override suspend fun login(username: String, password: String): Result<Session> = error("not used by this test")
     override fun logout() = Unit
+    override fun forceLogout() = Unit
 }
 
 private class FakeClock(private val instant: Instant) : Clock {

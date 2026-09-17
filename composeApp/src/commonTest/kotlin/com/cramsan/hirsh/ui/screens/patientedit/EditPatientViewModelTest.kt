@@ -86,6 +86,7 @@ private class FakeSessionRepository(username: String? = "apatel") : SessionRepos
 
     override suspend fun login(username: String, password: String): Result<Session> = error("not used")
     override fun logout() = Unit
+    override fun forceLogout() = Unit
 }
 
 private val FIXED_NOW: Instant = LocalDateTime(2027, 1, 15, 10, 30).toInstant(TimeZone.currentSystemDefault())
