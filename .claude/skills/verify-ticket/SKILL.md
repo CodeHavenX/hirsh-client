@@ -97,7 +97,25 @@ call it out, don't drop it silently.
 
 ---
 
-## Step 4 — Mock fidelity (report-only)
+## Step 4 — Real-backend integration coverage
+
+For every ticket, not just diffs touching `network/` — run
+`.claude/skills/_shared/real-backend-check.md` in full. Its Step 0 determines
+which tier actually applies to this ticket's feature (network-layer only,
+full UI E2E, or not applicable yet because the feature's repository is still
+Fake/InMemory) by checking that repository's binding in `di/AppModule.kt`.
+Don't accept a clean `verifyCi` (Step 2) as covering this regardless of tier —
+every mock-based test and the existing fake-backed `desktopTest` E2E suite
+only verify against *assumptions*, which is exactly the gap this check exists
+to close (see that fragment's own rationale — HISS-604's bodyless-401 bug
+shipped past 100% green mock-based tests).
+
+If Step 0 resolves to "not applicable," say so in the report along with which
+repository is still Fake/InMemory — don't skip this step silently.
+
+---
+
+## Step 5 — Mock fidelity (report-only)
 
 For any diff touching a `*Screen.kt`, `*Previews.kt`, or a shared component
 under `ui/components/`: read `.claude/skills/_shared/mock-fidelity-check.md` and
@@ -118,7 +136,7 @@ without drifting from its own prior golden while still not matching
 
 ---
 
-## Step 5 — Handoff-notes cross-check
+## Step 6 — Handoff-notes cross-check
 
 If `implement-ticket` reported specific claims in its own handoff (files
 touched, tests added, scope addressed), spot-check at least the test list
@@ -128,7 +146,7 @@ shouldn't be taken at face value.
 
 ---
 
-## Step 6 — Produce the Verification Report
+## Step 7 — Produce the Verification Report
 
 ```markdown
 # Verification Report — HISS-NNN <title>
@@ -142,8 +160,12 @@ shouldn't be taken at face value.
 - [ ] <bullet> — NEEDS MANUAL VERIFICATION: <what to check and how>
 - [~] <bullet> — NOT APPLICABLE (cross-cutting rule this ticket doesn't touch)
 
+## Real-Backend Verification
+<pass-through from Step 4's `.claude/skills/_shared/real-backend-check.md`
+report — its Tier/Not-applicable line, backend reachability, and result.>
+
 ## Mock Fidelity
-<pass-through from Step 4, or "No screen/preview changes in this diff.">
+<pass-through from Step 5, or "No screen/preview changes in this diff.">
 
 ## Manual Verification Needed
 - <item> — repro steps: <...>
@@ -152,13 +174,15 @@ shouldn't be taken at face value.
 READY FOR REVIEW | NOT READY — <reason>
 ```
 
-**Verdict rule:** never mark READY FOR REVIEW if the build is red, or if any
+**Verdict rule:** never mark READY FOR REVIEW if the build is red, if any
 non-NA bullet is unresolved without an explicit manual-verification note the
-user has had a chance to act on.
+user has had a chance to act on, or if Step 4 was applicable and came back
+NEEDS MANUAL VERIFICATION (no backend reachable) without the user having had a
+chance to act on that note either.
 
 ---
 
-## Step 7 — Move the ticket, handoff
+## Step 8 — Move the ticket, handoff
 
 If READY FOR REVIEW:
 

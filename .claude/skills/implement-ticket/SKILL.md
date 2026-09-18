@@ -70,6 +70,14 @@ green layer (Step 4) — never accumulate a red layer under a later one.
    one-shot `suspend fun` repository even if HISS-112 itself isn't done yet —
    check its current state first (Step 1 dependency check in `plan-ticket`)
    and raise it rather than silently building on the old shape.
+
+   Check `.claude/skills/_shared/real-backend-check.md`'s Step 0 for this
+   repository now, the same way `match-mock-fidelity` gets run proactively on
+   a new Screen below — `verify-ticket` will check it regardless, but knowing
+   now whether this repository is Fake/InMemory (network-layer test only, if
+   this layer touches `network/` at all) or genuinely backend-backed (a full
+   UI E2E scenario is expected, not just a network-layer test) shapes Step 3's
+   test plan instead of surprising it later.
 3. **DI wiring** (`di/AppModule.kt`) — `singleOf(::X) bind Y::class` for a new
    repository, `viewModelOf(::XViewModel)` for a new ViewModel.
 4. **Navigation** (`ui/navigation/Routes.kt` / `AppNavHost.kt`) — new route
@@ -120,6 +128,13 @@ layer, not deferred to the end:
   exercise (a mapping function, a derived value). A pure data-class-only ticket
   (like HISS-101) has nothing to unit test — a green compile is the signal, note
   that explicitly rather than writing a placeholder test for its own sake.
+- **Real-backend integration** (`desktopIntegrationTest/`): per the tier
+  identified in Step 2 via `.claude/skills/_shared/real-backend-check.md` —
+  add/extend a network-layer test if this ticket touches `network/` against a
+  Fake/InMemory-backed feature, or a full UI E2E scenario if the feature's
+  repository is genuinely backend-backed. Neither is part of `verifyLocal`/
+  `verifyCi`, but `verify-ticket` checks for them regardless — don't defer
+  this to that skill catching the gap.
 
 Run the full suite before moving on:
 

@@ -118,6 +118,17 @@ needs an entry here.
 - Anything the mock shows that the ticket's Plane description doesn't mention —
   flag it, don't silently expand scope without calling it out.
 - Anything genuinely ambiguous that needs a human decision before coding starts.
+- For whichever repository this ticket's feature actually uses, check
+  `.claude/skills/_shared/real-backend-check.md`'s Step 0 (its binding in
+  `di/AppModule.kt`: Fake/InMemory vs. real) and note in the plan which tier
+  applies — a network-layer test (only if this ticket also touches
+  `network/`), a full UI E2E scenario (if the repository is genuinely
+  backend-backed), or neither yet (still Fake/InMemory, no `network/`
+  changes). `implement-ticket`/`verify-ticket` will actually run it, but
+  flagging it here means it's not a surprise mid-implementation — especially
+  for a ticket that's the first to migrate a repository off Fake/InMemory
+  (e.g. HISS-611), which per that fragment's Tier 2 section should stand up
+  the UI E2E infrastructure as part of the same ticket, not defer it.
 
 ---
 
