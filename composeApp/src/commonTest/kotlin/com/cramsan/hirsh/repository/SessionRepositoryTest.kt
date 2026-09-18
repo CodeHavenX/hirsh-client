@@ -1,7 +1,6 @@
 package com.cramsan.hirsh.repository
 
 import app.cash.turbine.test
-import com.cramsan.hirsh.model.Role
 import com.cramsan.hirsh.model.Session
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -37,7 +36,7 @@ class SessionRepositoryTest {
 
     @Test
     fun `restore populates session from what auth repository restores`() = runTest {
-        val session = Session(username = "drpatel", displayName = "Dr. A. Patel", role = Role.DOCTOR)
+        val session = Session(username = "drpatel", displayName = "Dr. A. Patel", roles = listOf("PSYCHIATRIST"))
         val repository = DefaultSessionRepository(StubAuthRepository(restoredSession = session))
 
         repository.restore()
@@ -56,7 +55,7 @@ class SessionRepositoryTest {
 
     @Test
     fun `session is null before restore is ever called`() {
-        val session = Session(username = "drpatel", displayName = "Dr. A. Patel", role = Role.DOCTOR)
+        val session = Session(username = "drpatel", displayName = "Dr. A. Patel", roles = listOf("PSYCHIATRIST"))
         val repository = DefaultSessionRepository(StubAuthRepository(restoredSession = session))
 
         assertNull(repository.session.value)
@@ -64,7 +63,7 @@ class SessionRepositoryTest {
 
     @Test
     fun `login success updates the shared session`() = runTest {
-        val session = Session(username = "drpatel", displayName = "Dr. A. Patel", role = Role.DOCTOR)
+        val session = Session(username = "drpatel", displayName = "Dr. A. Patel", roles = listOf("PSYCHIATRIST"))
         val repository = DefaultSessionRepository(StubAuthRepository(loginResult = Result.success(session)))
 
         repository.session.test {
@@ -90,7 +89,7 @@ class SessionRepositoryTest {
 
     @Test
     fun `logout delegates to auth repository and clears the shared session`() = runTest {
-        val session = Session(username = "drpatel", displayName = "Dr. A. Patel", role = Role.DOCTOR)
+        val session = Session(username = "drpatel", displayName = "Dr. A. Patel", roles = listOf("PSYCHIATRIST"))
         val authRepository = StubAuthRepository(restoredSession = session)
         val repository = DefaultSessionRepository(authRepository)
         repository.restore()
@@ -107,7 +106,7 @@ class SessionRepositoryTest {
         // treats as success) must not leave the caller stuck logged in client-side, nor propagate
         // uncaught -- ProfileViewModel.signOut() calls this from a plain viewModelScope.launch
         // with no catch of its own.
-        val session = Session(username = "drpatel", displayName = "Dr. A. Patel", role = Role.DOCTOR)
+        val session = Session(username = "drpatel", displayName = "Dr. A. Patel", roles = listOf("PSYCHIATRIST"))
         val authRepository = StubAuthRepository(restoredSession = session, logoutFailure = RuntimeException("network down"))
         val repository = DefaultSessionRepository(authRepository)
         repository.restore()
@@ -120,7 +119,7 @@ class SessionRepositoryTest {
 
     @Test
     fun `forceLogout clears the shared session without calling auth repository`() {
-        val session = Session(username = "drpatel", displayName = "Dr. A. Patel", role = Role.DOCTOR)
+        val session = Session(username = "drpatel", displayName = "Dr. A. Patel", roles = listOf("PSYCHIATRIST"))
         val authRepository = StubAuthRepository(restoredSession = session)
         val repository = DefaultSessionRepository(authRepository)
 

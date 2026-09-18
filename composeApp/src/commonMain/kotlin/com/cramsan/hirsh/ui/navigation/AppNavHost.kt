@@ -18,8 +18,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.savedstate.read
-import com.cramsan.hirsh.model.Role
+import com.cramsan.hirsh.model.Permission
 import com.cramsan.hirsh.model.Session
+import com.cramsan.hirsh.model.can
 import com.cramsan.hirsh.repository.SessionRepository
 import com.cramsan.hirsh.ui.components.AppScaffold
 import com.cramsan.hirsh.ui.components.NavItem
@@ -41,7 +42,7 @@ import org.koin.compose.koinInject
 private fun sidebarItems(session: Session?): List<NavItem> = buildList {
     add(NavItem(label = "Pacientes", destination = Routes.PATIENTS))
     add(NavItem(label = "Perfil", destination = Routes.PROFILE))
-    if (session?.role == Role.ADMIN) {
+    if (session?.can(Permission.USER_MANAGE) == true) {
         add(NavItem(label = "Cuentas", destination = Routes.ACCOUNTS))
     }
 }
@@ -301,7 +302,7 @@ fun AppNavHost(
         }
         composable(Routes.ACCOUNTS) {
             RequireSession(session, navController) {
-                if (session?.role != Role.ADMIN) {
+                if (session?.can(Permission.USER_MANAGE) != true) {
                     LaunchedEffect(Unit) {
                         navController.navigate(Routes.PATIENTS) {
                             popUpTo(0)

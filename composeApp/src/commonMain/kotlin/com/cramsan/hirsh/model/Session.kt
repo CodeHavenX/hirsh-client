@@ -1,15 +1,18 @@
 package com.cramsan.hirsh.model
 
+/**
+ * [roles] is display-only (the backend's own `UserProfile`/`MeResponse` doc comments: "roles is
+ * only there for display... prefer permissions in client code") -- [permissions] is what every
+ * gating decision must use, via [can]. Neither is typed as [Permission] directly: the raw string
+ * form is what the API actually returns, and a code this client doesn't yet know about (a future
+ * addition to the backend's catalog) should fail closed (no matching [Permission] entry) rather
+ * than fail to parse the whole session.
+ */
 data class Session(
     val username: String,
     val displayName: String,
-    val role: Role,
+    val roles: List<String> = emptyList(),
+    val permissions: Set<String> = emptySet(),
 )
 
-enum class Role { DOCTOR, ADMIN }
-
-/** Mirrors the prototype's raw role strings (`ACCOUNTS[].role`, `accounts.html`'s role column) -- not "Administrador", which is the seed admin account's name, not its role label. */
-fun Role.toDisplayLabel(): String = when (this) {
-    Role.DOCTOR -> "Medico"
-    Role.ADMIN -> "Admin"
-}
+fun Session.can(permission: Permission): Boolean = permissions.contains(permission.name)

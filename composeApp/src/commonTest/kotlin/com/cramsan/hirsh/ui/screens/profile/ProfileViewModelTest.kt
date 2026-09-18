@@ -1,7 +1,6 @@
 package com.cramsan.hirsh.ui.screens.profile
 
 import app.cash.turbine.test
-import com.cramsan.hirsh.model.Role
 import com.cramsan.hirsh.model.Session
 import com.cramsan.hirsh.repository.SessionRepository
 import kotlinx.coroutines.Dispatchers
@@ -19,7 +18,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
-private val sampleSession = Session(username = "drpatel", displayName = "Dr. A. Patel", role = Role.DOCTOR)
+private val sampleSession = Session(username = "drpatel", displayName = "Dr. A. Patel", roles = listOf("PSYCHIATRIST"))
 
 private class FakeSessionRepository(
     initialSession: Session? = null,

@@ -102,7 +102,7 @@ internal fun ProfileScreenContent(
         }
 
         if (session != null) {
-            AccountCard(displayName = session.displayName, username = session.username, role = session.role.toDisplayLabel())
+            AccountCard(displayName = session.displayName, username = session.username, role = session.roles.joinToString(", "))
         }
 
         PasswordCard(
