@@ -7,11 +7,11 @@ import com.cramsan.hirsh.preferences.AppPreferences
 import com.cramsan.hirsh.repository.AccountRepository
 import com.cramsan.hirsh.repository.AuthRepository
 import com.cramsan.hirsh.repository.DefaultSessionRepository
-import com.cramsan.hirsh.repository.FakeAuthRepository
 import com.cramsan.hirsh.repository.HospitalizationRepository
 import com.cramsan.hirsh.repository.InMemoryAccountRepository
 import com.cramsan.hirsh.repository.InMemoryHospitalizationRepository
 import com.cramsan.hirsh.repository.InMemoryPatientRepository
+import com.cramsan.hirsh.repository.KtorAuthRepository
 import com.cramsan.hirsh.repository.PatientRepository
 import com.cramsan.hirsh.repository.SessionRepository
 import com.cramsan.hirsh.ui.screens.accounts.AccountsViewModel
@@ -73,7 +73,7 @@ private val sharedModule = module {
         }
     }
     singleOf(::AppPreferences)
-    singleOf(::FakeAuthRepository) bind AuthRepository::class
+    singleOf(::KtorAuthRepository) bind AuthRepository::class
     singleOf(::DefaultSessionRepository) bind SessionRepository::class
     singleOf(::InMemoryPatientRepository) bind PatientRepository::class
     singleOf(::InMemoryAccountRepository) bind AccountRepository::class

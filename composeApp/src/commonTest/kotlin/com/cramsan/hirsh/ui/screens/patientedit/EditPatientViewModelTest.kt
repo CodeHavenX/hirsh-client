@@ -94,9 +94,11 @@ private data class Quad(val id: String, val newValues: Patient, val changedBy: S
 private class FakeSessionRepository(username: String? = "apatel") : SessionRepository {
     override val session: StateFlow<Session?> =
         MutableStateFlow(username?.let { Session(username = it, displayName = it, role = Role.DOCTOR) })
+    override val isRestoring: StateFlow<Boolean> = MutableStateFlow(false).asStateFlow()
 
     override suspend fun login(username: String, password: String): Result<Session> = error("not used")
-    override fun logout() = Unit
+    override suspend fun restore() = Unit
+    override suspend fun logout() = Unit
     override fun forceLogout() = Unit
 }
 

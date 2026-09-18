@@ -1,6 +1,7 @@
 package com.cramsan.hirsh.repository
 
 import com.cramsan.hirsh.model.Session
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,8 +20,25 @@ import kotlinx.coroutines.flow.asStateFlow
  */
 interface SessionRepository {
     val session: StateFlow<Session?>
+
+    /**
+     * True until [restore] has resolved once. [com.cramsan.hirsh.ui.navigation.AppNavHost] holds
+     * off choosing a start destination until this flips to `false`, so a cold start doesn't
+     * flash the login screen before a still-valid session has had a chance to restore (HISS-611).
+     */
+    val isRestoring: StateFlow<Boolean>
+
     suspend fun login(username: String, password: String): Result<Session>
-    fun logout()
+    suspend fun logout()
+
+    /**
+     * Calls [AuthRepository.restoreSession] once and publishes the result -- a real session
+     * restore is a network round-trip (`GET /api/v1/auth/me`), unlike the old
+     * `AppPreferences.sessionUsername`-based check, so this can't run synchronously in the
+     * constructor the way it used to. Call exactly once, from [com.cramsan.hirsh.ui.navigation.AppNavHost]'s
+     * initial composition.
+     */
+    suspend fun restore()
 
     /**
      * Clears local session state only, without calling through to [AuthRepository.logout] --
@@ -39,14 +57,33 @@ class DefaultSessionRepository(
     private val authRepository: AuthRepository,
 ) : SessionRepository {
 
-    private val _session = MutableStateFlow(authRepository.restoreSession())
+    private val _session = MutableStateFlow<Session?>(null)
     override val session: StateFlow<Session?> = _session.asStateFlow()
+
+    private val _isRestoring = MutableStateFlow(true)
+    override val isRestoring: StateFlow<Boolean> = _isRestoring.asStateFlow()
 
     override suspend fun login(username: String, password: String): Result<Session> =
         authRepository.login(username, password).onSuccess { _session.value = it }
 
-    override fun logout() {
-        authRepository.logout()
+    override suspend fun restore() {
+        _session.value = authRepository.restoreSession()
+        _isRestoring.value = false
+    }
+
+    override suspend fun logout() {
+        try {
+            authRepository.logout()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Best-effort: the local intent to sign out wins even if the network call to tell
+            // the server failed outright (not just "already had no session," which
+            // KtorAuthRepository already treats as success) -- otherwise a network failure here
+            // would both leave the session stuck non-null and, worse, crash the caller (this is
+            // usually reached from a plain `viewModelScope.launch { }` with no catch of its own,
+            // e.g. ProfileViewModel.signOut()).
+        }
         _session.value = null
     }
 

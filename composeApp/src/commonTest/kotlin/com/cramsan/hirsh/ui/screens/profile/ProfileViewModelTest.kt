@@ -26,6 +26,7 @@ private class FakeSessionRepository(
 ) : SessionRepository {
     private val _session = MutableStateFlow(initialSession)
     override val session: StateFlow<Session?> = _session.asStateFlow()
+    override val isRestoring: StateFlow<Boolean> = MutableStateFlow(false).asStateFlow()
 
     var logoutCalls = 0
         private set
@@ -33,7 +34,9 @@ private class FakeSessionRepository(
     override suspend fun login(username: String, password: String): Result<Session> =
         error("not used by ProfileViewModel")
 
-    override fun logout() {
+    override suspend fun restore() = Unit
+
+    override suspend fun logout() {
         logoutCalls++
         _session.value = null
     }
@@ -59,11 +62,12 @@ class ProfileViewModelTest {
     }
 
     @Test
-    fun `signOut delegates to the session repository and clears the shared session`() {
+    fun `signOut delegates to the session repository and clears the shared session`() = runTest(dispatcher) {
         val repository = FakeSessionRepository(initialSession = sampleSession)
         val viewModel = ProfileViewModel(repository)
 
         viewModel.signOut()
+        dispatcher.scheduler.advanceUntilIdle()
 
         assertEquals(1, repository.logoutCalls)
         assertNull(repository.session.value)

@@ -138,8 +138,10 @@ private class FakeHospitalizationRepository(hospitalizations: List<Hospitalizaci
 private class FakeSessionRepository(session: Session?) : SessionRepository {
     private val _session = MutableStateFlow(session)
     override val session: StateFlow<Session?> = _session.asStateFlow()
+    override val isRestoring: StateFlow<Boolean> = MutableStateFlow(false).asStateFlow()
     override suspend fun login(username: String, password: String): Result<Session> = error("not used by this test")
-    override fun logout() = Unit
+    override suspend fun restore() = Unit
+    override suspend fun logout() = Unit
     override fun forceLogout() = Unit
 }
 
