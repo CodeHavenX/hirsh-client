@@ -107,9 +107,9 @@ private fun BridgeDriver.ensureSignedOut() {
  * rather than relying on an earlier test's login -- see [ensureSignedOut]'s doc comment for why
  * that's a no-op on desktop but not on web.
  *
- * Credentials come from [HIRSH_ADMIN_USERNAME]/[HIRSH_ADMIN_PASSWORD] (the same env vars the
- * backend itself reads to bootstrap that account -- see its README), not a literal here: this
- * suite runs against a real, separately-running backend as of HISS-611, not
+ * Credentials come from the `HIRSH_ADMIN_USERNAME`/`HIRSH_ADMIN_PASSWORD` env vars (the same
+ * ones the backend itself reads to bootstrap that account -- see its README), not a literal
+ * here: this suite runs against a real, separately-running backend as of HISS-611, not
  * `FakeAuthRepository`'s in-process fixtures, so there's no fixed password to hardcode.
  */
 fun BridgeDriver.loginAsAdmin() {

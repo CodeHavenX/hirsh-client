@@ -1,6 +1,7 @@
 package com.cramsan.hirsh.repository
 
 import com.cramsan.hirsh.model.Session
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -71,7 +72,18 @@ class DefaultSessionRepository(
     }
 
     override suspend fun logout() {
-        authRepository.logout()
+        try {
+            authRepository.logout()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Best-effort: the local intent to sign out wins even if the network call to tell
+            // the server failed outright (not just "already had no session," which
+            // KtorAuthRepository already treats as success) -- otherwise a network failure here
+            // would both leave the session stuck non-null and, worse, crash the caller (this is
+            // usually reached from a plain `viewModelScope.launch { }` with no catch of its own,
+            // e.g. ProfileViewModel.signOut()).
+        }
         _session.value = null
     }
 

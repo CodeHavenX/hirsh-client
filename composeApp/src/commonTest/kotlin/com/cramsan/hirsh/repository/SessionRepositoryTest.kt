@@ -11,6 +11,7 @@ import kotlin.test.assertNull
 private class StubAuthRepository(
     private val restoredSession: Session? = null,
     private val loginResult: Result<Session> = Result.failure(IllegalStateException("not stubbed")),
+    private val logoutFailure: Exception? = null,
 ) : AuthRepository {
     var logoutCalls = 0
         private set
@@ -19,6 +20,7 @@ private class StubAuthRepository(
     override suspend fun restoreSession(): Session? = restoredSession
     override suspend fun logout() {
         logoutCalls++
+        logoutFailure?.let { throw it }
     }
 }
 
@@ -90,6 +92,23 @@ class SessionRepositoryTest {
     fun `logout delegates to auth repository and clears the shared session`() = runTest {
         val session = Session(username = "drpatel", displayName = "Dr. A. Patel", role = Role.DOCTOR)
         val authRepository = StubAuthRepository(restoredSession = session)
+        val repository = DefaultSessionRepository(authRepository)
+        repository.restore()
+
+        repository.logout()
+
+        assertEquals(1, authRepository.logoutCalls)
+        assertNull(repository.session.value)
+    }
+
+    @Test
+    fun `logout still clears the shared session when the network call fails`() = runTest {
+        // A network failure (not the "already had no session" case KtorAuthRepository itself
+        // treats as success) must not leave the caller stuck logged in client-side, nor propagate
+        // uncaught -- ProfileViewModel.signOut() calls this from a plain viewModelScope.launch
+        // with no catch of its own.
+        val session = Session(username = "drpatel", displayName = "Dr. A. Patel", role = Role.DOCTOR)
+        val authRepository = StubAuthRepository(restoredSession = session, logoutFailure = RuntimeException("network down"))
         val repository = DefaultSessionRepository(authRepository)
         repository.restore()
 
