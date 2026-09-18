@@ -18,6 +18,8 @@ import com.cramsan.hirsh.model.MotivoIngreso
 import com.cramsan.hirsh.model.Plan
 import com.cramsan.hirsh.model.Pronostico
 import com.cramsan.hirsh.model.Vitals
+import com.cramsan.hirsh.network.ApiError
+import com.cramsan.hirsh.network.ApiException
 import com.cramsan.hirsh.util.Clock
 import com.cramsan.hirsh.util.formatDate
 import com.cramsan.hirsh.util.formatTime
@@ -52,8 +54,14 @@ interface HospitalizationRepository {
      * fechaAlta/horaAlta to now -- a deliberate fix over the prototype, whose own
      * dischargeHospitalization() never actually mutates the record. No-op for an
      * unknown [hospId].
+     *
+     * [jpaVersion] is the version the caller last read (the real backend's
+     * `DischargeEpisodeRequest` carries the same field) -- a mismatch against the currently
+     * stored version throws [com.cramsan.hirsh.network.ApiException] wrapping
+     * [com.cramsan.hirsh.network.ApiError.Conflict] instead of discharging over a concurrent
+     * edit (HISS-604).
      */
-    suspend fun discharge(hospId: String)
+    suspend fun discharge(hospId: String, jpaVersion: Long)
 
     /**
      * Marks the [key] section complete with [data]. [data]'s runtime type must match
@@ -123,7 +131,11 @@ class InMemoryHospitalizationRepository(
         return newHospitalization
     }
 
-    override suspend fun discharge(hospId: String) {
+    override suspend fun discharge(hospId: String, jpaVersion: Long) {
+        val current = _hospitalizations.value.find { it.id == hospId } ?: return
+        if (current.jpaVersion != jpaVersion) {
+            throw ApiException(ApiError.Conflict(hospId))
+        }
         val (fecha, hora) = nowFechaHora()
         _hospitalizations.update { list ->
             list.map { hospitalization ->
@@ -134,6 +146,7 @@ class InMemoryHospitalizationRepository(
                         estado = EstadoHospitalizacion.ALTA,
                         fechaAlta = fecha,
                         horaAlta = hora,
+                        jpaVersion = hospitalization.jpaVersion + 1,
                     )
                 }
             }

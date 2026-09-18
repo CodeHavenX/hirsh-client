@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.Sex
+import com.cramsan.hirsh.network.ApiError
+import com.cramsan.hirsh.network.ApiException
 import com.cramsan.hirsh.repository.PatientRepository
 import com.cramsan.hirsh.repository.SessionRepository
 import com.cramsan.hirsh.util.Clock
@@ -118,6 +120,13 @@ class EditPatientViewModel(
                 _uiState.update { it.copy(isSaving = false, saved = true) }
             } catch (e: CancellationException) {
                 throw e
+            } catch (e: ApiException) {
+                val message = if (e.error is ApiError.Conflict) {
+                    "Otro usuario actualizo este paciente mientras editabas. Recarga la pagina para ver los cambios recientes."
+                } else {
+                    "No se pudo guardar los cambios"
+                }
+                _uiState.update { it.copy(isSaving = false, error = message) }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isSaving = false, error = "No se pudo guardar los cambios") }
             }

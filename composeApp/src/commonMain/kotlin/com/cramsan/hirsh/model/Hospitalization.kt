@@ -19,6 +19,14 @@ data class Hospitalizacion(
     val estado: EstadoHospitalizacion,
     val historiaClinica: HistoriaClinica,
     val evoluciones: List<Evolucion>,
+    /**
+     * The real backend's optimistic-lock version on this row (HISS-604) -- a write against a
+     * stale version (e.g. [com.cramsan.hirsh.repository.HospitalizationRepository.discharge]'s
+     * `DischargeEpisodeRequest` equivalent) is rejected with
+     * [com.cramsan.hirsh.network.ApiError.Conflict] rather than silently overwriting a
+     * concurrent edit. See [Patient.jpaVersion]'s doc comment.
+     */
+    val jpaVersion: Long = 0L,
 )
 
 enum class EstadoHospitalizacion { ACTIVA, ALTA }

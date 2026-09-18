@@ -3,9 +3,12 @@ package com.cramsan.hirsh.repository
 import app.cash.turbine.test
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.Sex
+import com.cramsan.hirsh.network.ApiError
+import com.cramsan.hirsh.network.ApiException
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 private const val PATIENT_ID = "#00142"
@@ -91,9 +94,14 @@ class PatientRepositoryTest {
             fecha = "01 Ene 2027",
             hora = "09:00",
         )
+        // Re-reads after the first update, not the original current -- a real caller reloads
+        // between edits too, and reusing the pre-update snapshot's jpaVersion here would trip
+        // the same stale-version conflict this ticket's `updatePatient throws ApiException...`
+        // test below covers on purpose.
+        val afterFirstUpdate = repository.patients.value.first { it.id == PATIENT_ID }
         repository.updatePatient(
             id = PATIENT_ID,
-            newValues = current.copy(phone = "222-222-222"),
+            newValues = afterFirstUpdate.copy(phone = "222-222-222"),
             changedBy = "mreyes",
             fecha = "02 Ene 2027",
             hora = "10:00",
@@ -136,6 +144,42 @@ class PatientRepositoryTest {
             assertEquals(1, entries.size)
             assertEquals("nationalId", entries.single().fields.single().field)
         }
+    }
+
+    @Test
+    fun `updatePatient bumps jpaVersion on a successful save`() = runTest {
+        val repository = InMemoryPatientRepository()
+        val current = repository.patients.value.first { it.id == PATIENT_ID }
+        assertEquals(0L, current.jpaVersion)
+
+        repository.updatePatient(
+            id = PATIENT_ID,
+            newValues = current.copy(phone = "999-999-999"),
+            changedBy = "apatel",
+            fecha = "01 Ene 2027",
+            hora = "10:00",
+        )
+
+        assertEquals(1L, repository.patients.value.first { it.id == PATIENT_ID }.jpaVersion)
+    }
+
+    @Test
+    fun `updatePatient against a stale jpaVersion throws ApiException wrapping Conflict, without saving`() = runTest {
+        val repository = InMemoryPatientRepository()
+        val current = repository.patients.value.first { it.id == PATIENT_ID }
+
+        val exception = assertFailsWith<ApiException> {
+            repository.updatePatient(
+                id = PATIENT_ID,
+                newValues = current.copy(phone = "999-999-999", jpaVersion = current.jpaVersion + 1),
+                changedBy = "apatel",
+                fecha = "01 Ene 2027",
+                hora = "10:00",
+            )
+        }
+
+        assertEquals(ApiError.Conflict(PATIENT_ID), exception.error)
+        assertEquals(current.phone, repository.patients.value.first { it.id == PATIENT_ID }.phone)
     }
 
     @Test

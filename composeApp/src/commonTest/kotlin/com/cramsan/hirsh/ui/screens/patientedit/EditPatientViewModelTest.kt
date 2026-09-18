@@ -6,6 +6,8 @@ import com.cramsan.hirsh.model.PatientChangeLogEntry
 import com.cramsan.hirsh.model.Role
 import com.cramsan.hirsh.model.Session
 import com.cramsan.hirsh.model.Sex
+import com.cramsan.hirsh.network.ApiError
+import com.cramsan.hirsh.network.ApiException
 import com.cramsan.hirsh.repository.PatientRepository
 import com.cramsan.hirsh.repository.SessionRepository
 import com.cramsan.hirsh.util.Clock
@@ -55,6 +57,11 @@ private class FakePatientRepository(patients: List<Patient> = listOf(existingPat
     var lastUpdate: Quad? = null
         private set
 
+    /** Simulates a concurrent edit landing between this test's `load()` and `save()`. */
+    fun bumpJpaVersion(id: String) {
+        _patients.update { list -> list.map { if (it.id == id) it.copy(jpaVersion = it.jpaVersion + 1) else it } }
+    }
+
     override suspend fun updatePatient(
         id: String,
         newValues: Patient,
@@ -62,6 +69,10 @@ private class FakePatientRepository(patients: List<Patient> = listOf(existingPat
         fecha: String,
         hora: String,
     ) {
+        val current = _patients.value.find { it.id == id }
+        if (current != null && current.jpaVersion != newValues.jpaVersion) {
+            throw ApiException(ApiError.Conflict(id))
+        }
         lastUpdate = Quad(id, newValues, changedBy, fecha, hora)
         _patients.update { list -> list.map { if (it.id == id) newValues else it } }
     }
@@ -215,6 +226,36 @@ class EditPatientViewModelTest {
         assertEquals(existingPatient.lastVisit, update?.newValues?.lastVisit)
         assertEquals("Ninguna", update?.newValues?.allergies)
     }
+
+    @Test
+    fun `save against a stale jpaVersion surfaces a distinct conflict message, not the generic one`() =
+        runTest(dispatcher) {
+            val repository = FakePatientRepository(listOf(existingPatient))
+            val viewModel = EditPatientViewModel(repository, FakeSessionRepository(), FakeClock())
+
+            viewModel.uiState.test {
+                awaitItem()
+                viewModel.load(existingPatient.id)
+                awaitItem()
+                viewModel.onPhoneChange("999-999-999")
+                awaitItem()
+
+                // Someone else's edit lands between this load and this save, bumping the stored
+                // version out from under the form's in-flight copy of it.
+                repository.bumpJpaVersion(existingPatient.id)
+
+                viewModel.save()
+                awaitItem() // isSaving = true
+                val done = awaitItem()
+                assertEquals(false, done.saved)
+                assertEquals(
+                    "Otro usuario actualizo este paciente mientras editabas. Recarga la pagina para ver los " +
+                        "cambios recientes.",
+                    done.error,
+                )
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
 
     @Test
     fun `save ignores a second call while one is already in flight`() = runTest(dispatcher) {

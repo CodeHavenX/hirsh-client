@@ -5,6 +5,8 @@ import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.PatientChangeLogEntry
 import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.model.toDisplayLabel
+import com.cramsan.hirsh.network.ApiError
+import com.cramsan.hirsh.network.ApiException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,6 +28,13 @@ interface PatientRepository {
      * session/clock state here -- this repository stays session- and
      * clock-agnostic (see HISS-108's explicit-parameter rule; HISS-110's Clock
      * abstraction doesn't exist yet, and isn't this ticket's dependency).
+     *
+     * [newValues.jpaVersion][Patient.jpaVersion] carries the version the caller last read (see
+     * [EditPatientViewModel][com.cramsan.hirsh.ui.screens.patientedit.EditPatientViewModel]'s
+     * `original.copy(...)`), not a value the caller edits itself -- a mismatch against the
+     * currently stored version throws [com.cramsan.hirsh.network.ApiException] wrapping
+     * [com.cramsan.hirsh.network.ApiError.Conflict] instead of silently overwriting a concurrent
+     * edit (HISS-604).
      */
     suspend fun updatePatient(id: String, newValues: Patient, changedBy: String, fecha: String, hora: String)
 
@@ -224,6 +233,9 @@ class InMemoryPatientRepository : PatientRepository {
         hora: String,
     ) {
         val current = _patients.value.find { it.id == id } ?: return
+        if (current.jpaVersion != newValues.jpaVersion) {
+            throw ApiException(ApiError.Conflict(id))
+        }
         val changedFields = buildList {
             diff(current.name, newValues.name, "name", "Nombre completo")?.let(::add)
             diff(current.nationalId, newValues.nationalId, "nationalId", "DNI")?.let(::add)
@@ -236,7 +248,7 @@ class InMemoryPatientRepository : PatientRepository {
         }
         if (changedFields.isEmpty()) return
 
-        _patients.update { list -> list.map { if (it.id == id) newValues else it } }
+        _patients.update { list -> list.map { if (it.id == id) newValues.copy(jpaVersion = current.jpaVersion + 1) else it } }
         _changeLog.update { log ->
             val entry = PatientChangeLogEntry(changedBy = changedBy, fecha = fecha, hora = hora, fields = changedFields)
             log + (id to (listOf(entry) + log[id].orEmpty()))

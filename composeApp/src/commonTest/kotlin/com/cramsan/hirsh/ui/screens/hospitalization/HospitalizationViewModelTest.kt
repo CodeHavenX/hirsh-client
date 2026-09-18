@@ -9,6 +9,8 @@ import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.PatientChangeLogEntry
 import com.cramsan.hirsh.model.Sex
+import com.cramsan.hirsh.network.ApiError
+import com.cramsan.hirsh.network.ApiException
 import com.cramsan.hirsh.repository.HospitalizationRepository
 import com.cramsan.hirsh.repository.PatientRepository
 import kotlinx.coroutines.Dispatchers
@@ -89,6 +91,7 @@ private class FakeHospitalizationRepository(hospitalizations: List<Hospitalizaci
     private val _hospitalizations = MutableStateFlow(hospitalizations)
     var dischargeCallCount = 0
         private set
+    var throwOnDischarge: Exception? = null
 
     override fun getHospitalizations(patientId: String): Flow<List<Hospitalizacion>> =
         _hospitalizations.map { list -> list.filter { it.patientId == patientId } }
@@ -107,8 +110,9 @@ private class FakeHospitalizationRepository(hospitalizations: List<Hospitalizaci
         motivoIngreso: String,
     ): Hospitalizacion = error("not used by this test")
 
-    override suspend fun discharge(hospId: String) {
+    override suspend fun discharge(hospId: String, jpaVersion: Long) {
         dischargeCallCount++
+        throwOnDischarge?.let { throw it }
         _hospitalizations.update { list ->
             list.map { if (it.id == hospId) it.copy(estado = EstadoHospitalizacion.ALTA) else it }
         }
@@ -229,4 +233,58 @@ class HospitalizationViewModelTest {
         assertEquals(1, hospitalizationRepository.dischargeCallCount)
         assertEquals(false, viewModel.uiState.value.isDischarging)
     }
+
+    @Test
+    fun `discharge against a stale jpaVersion surfaces a distinct conflict message`() = runTest(dispatcher) {
+        val hospitalization = sampleHospitalization("h1", samplePatient.id)
+        val hospitalizationRepository = FakeHospitalizationRepository(listOf(hospitalization)).apply {
+            throwOnDischarge = ApiException(ApiError.Conflict(hospitalization.id))
+        }
+        val viewModel = HospitalizationViewModel(FakePatientRepository(listOf(samplePatient)), hospitalizationRepository)
+
+        viewModel.uiState.test {
+            awaitItem()
+            viewModel.load(samplePatient.id, hospitalization.id)
+            awaitItem()
+
+            viewModel.discharge()
+
+            var settled = awaitItem()
+            while (settled.isDischarging) {
+                settled = awaitItem()
+            }
+            assertEquals(EstadoHospitalizacion.ACTIVA, settled.hospitalizacion?.estado)
+            assertEquals(
+                "Esta hospitalizacion fue modificada por otro usuario. Recarga la pagina para ver los cambios recientes.",
+                settled.error,
+            )
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `discharge against a generic failure surfaces a generic message, not the conflict one`() =
+        runTest(dispatcher) {
+            val hospitalization = sampleHospitalization("h1", samplePatient.id)
+            val hospitalizationRepository = FakeHospitalizationRepository(listOf(hospitalization)).apply {
+                throwOnDischarge = IllegalStateException("boom")
+            }
+            val viewModel =
+                HospitalizationViewModel(FakePatientRepository(listOf(samplePatient)), hospitalizationRepository)
+
+            viewModel.uiState.test {
+                awaitItem()
+                viewModel.load(samplePatient.id, hospitalization.id)
+                awaitItem()
+
+                viewModel.discharge()
+
+                var settled = awaitItem()
+                while (settled.isDischarging) {
+                    settled = awaitItem()
+                }
+                assertEquals("No se pudo dar de alta al paciente", settled.error)
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
 }
