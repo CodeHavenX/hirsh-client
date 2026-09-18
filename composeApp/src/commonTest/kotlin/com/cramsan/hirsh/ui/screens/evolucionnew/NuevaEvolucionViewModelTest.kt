@@ -10,7 +10,6 @@ import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.PatientChangeLogEntry
 import com.cramsan.hirsh.model.Pronostico
-import com.cramsan.hirsh.model.Role
 import com.cramsan.hirsh.model.Session
 import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.model.toDisplayLabel
@@ -149,7 +148,7 @@ private class FakeClock(private val instant: Instant) : Clock {
     override fun now(): Instant = instant
 }
 
-private val sampleSession = Session(username = "drpatel", displayName = "Dr. A. Patel", role = Role.DOCTOR)
+private val sampleSession = Session(username = "drpatel", displayName = "Dr. A. Patel", roles = listOf("PSYCHIATRIST"))
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NuevaEvolucionViewModelTest {

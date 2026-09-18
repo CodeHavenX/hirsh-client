@@ -1,7 +1,6 @@
 package com.cramsan.hirsh.ui.screens.login
 
 import app.cash.turbine.test
-import com.cramsan.hirsh.model.Role
 import com.cramsan.hirsh.model.Session
 import com.cramsan.hirsh.repository.SessionRepository
 import kotlinx.coroutines.Dispatchers
@@ -58,7 +57,7 @@ class LoginViewModelTest {
 
     @Test
     fun `initial state reflects an already-restored session`() {
-        val session = Session(username = "drpatel", displayName = "drpatel", role = Role.DOCTOR)
+        val session = Session(username = "drpatel", displayName = "drpatel", roles = listOf("PSYCHIATRIST"))
         val viewModel = LoginViewModel(FakeSessionRepository(Result.success(session), initialSession = session))
 
         assertTrue(viewModel.uiState.value.loggedIn)
@@ -66,7 +65,7 @@ class LoginViewModelTest {
 
     @Test
     fun `login success marks the user as logged in`() = runTest(dispatcher) {
-        val session = Session(username = "drpatel", displayName = "drpatel", role = Role.DOCTOR)
+        val session = Session(username = "drpatel", displayName = "drpatel", roles = listOf("PSYCHIATRIST"))
         val viewModel = LoginViewModel(FakeSessionRepository(Result.success(session)))
 
         viewModel.uiState.test {

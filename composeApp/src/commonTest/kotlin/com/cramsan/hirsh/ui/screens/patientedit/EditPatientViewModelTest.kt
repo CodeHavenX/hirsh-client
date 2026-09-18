@@ -3,7 +3,6 @@ package com.cramsan.hirsh.ui.screens.patientedit
 import app.cash.turbine.test
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.PatientChangeLogEntry
-import com.cramsan.hirsh.model.Role
 import com.cramsan.hirsh.model.Session
 import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.network.ApiError
@@ -93,7 +92,7 @@ private data class Quad(val id: String, val newValues: Patient, val changedBy: S
 
 private class FakeSessionRepository(username: String? = "apatel") : SessionRepository {
     override val session: StateFlow<Session?> =
-        MutableStateFlow(username?.let { Session(username = it, displayName = it, role = Role.DOCTOR) })
+        MutableStateFlow(username?.let { Session(username = it, displayName = it, roles = listOf("PSYCHIATRIST")) })
     override val isRestoring: StateFlow<Boolean> = MutableStateFlow(false).asStateFlow()
 
     override suspend fun login(username: String, password: String): Result<Session> = error("not used")

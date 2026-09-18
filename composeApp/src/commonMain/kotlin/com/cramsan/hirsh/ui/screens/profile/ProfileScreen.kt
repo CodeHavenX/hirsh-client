@@ -37,7 +37,6 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.cramsan.hirsh.model.toDisplayLabel
 import com.cramsan.hirsh.ui.components.BadgeTone
 import com.cramsan.hirsh.ui.components.KeyValueRow
 import com.cramsan.hirsh.ui.components.StatusBadge
@@ -102,7 +101,7 @@ internal fun ProfileScreenContent(
         }
 
         if (session != null) {
-            AccountCard(displayName = session.displayName, username = session.username, role = session.role.toDisplayLabel())
+            AccountCard(displayName = session.displayName, username = session.username, role = session.roles.joinToString(", "))
         }
 
         PasswordCard(

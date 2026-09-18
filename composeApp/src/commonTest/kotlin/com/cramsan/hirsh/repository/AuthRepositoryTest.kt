@@ -1,7 +1,8 @@
 package com.cramsan.hirsh.repository
 
 import app.cash.turbine.test
-import com.cramsan.hirsh.model.Role
+import com.cramsan.hirsh.model.Permission
+import com.cramsan.hirsh.model.can
 import com.cramsan.hirsh.preferences.AppPreferences
 import com.cramsan.hirsh.util.Clock
 import com.russhwolf.settings.Settings
@@ -11,6 +12,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Instant
@@ -77,23 +79,26 @@ private fun newRepository(): FakeAuthRepository = FakeAuthRepository(
 class AuthRepositoryTest {
 
     @Test
-    fun `login with a matched active account resolves displayName and role`() = runTest {
+    fun `login with a matched active account resolves displayName and a doctor's permissions`() = runTest {
         val repository = newRepository()
 
         val session = repository.login("apatel", "hunter2").getOrThrow()
 
         assertEquals("Dr. Anita Patel", session.displayName)
-        assertEquals(Role.DOCTOR, session.role)
+        assertEquals(listOf("PSYCHIATRIST"), session.roles)
+        assertTrue(session.can(Permission.PATIENT_READ))
+        assertFalse(session.can(Permission.USER_MANAGE))
     }
 
     @Test
-    fun `login with the admin account resolves the Admin role`() = runTest {
+    fun `login with the admin account resolves every permission`() = runTest {
         val repository = newRepository()
 
         val session = repository.login("admin", "hunter2").getOrThrow()
 
         assertEquals("Administrador", session.displayName)
-        assertEquals(Role.ADMIN, session.role)
+        assertEquals(listOf("SYSTEM_ADMIN"), session.roles)
+        assertTrue(session.can(Permission.USER_MANAGE))
     }
 
     @Test
@@ -107,13 +112,13 @@ class AuthRepositoryTest {
     }
 
     @Test
-    fun `login with an unmatched username still succeeds with the default role`() = runTest {
+    fun `login with an unmatched username still succeeds with the default doctor permissions`() = runTest {
         val repository = newRepository()
 
         val session = repository.login("nobody", "hunter2").getOrThrow()
 
         assertEquals("nobody", session.displayName)
-        assertEquals(Role.DOCTOR, session.role)
+        assertEquals(listOf("PSYCHIATRIST"), session.roles)
     }
 
     @Test
@@ -156,7 +161,7 @@ class AuthRepositoryTest {
     }
 
     @Test
-    fun `restoreSession resolves the same displayName and role as a fresh login would`() = runTest {
+    fun `restoreSession resolves the same displayName and roles as a fresh login would`() = runTest {
         val settings = FakeSettings()
         val accountRepository = InMemoryAccountRepository()
         val repository = FakeAuthRepository(
@@ -169,7 +174,7 @@ class AuthRepositoryTest {
         val restored = repository.restoreSession()
 
         assertEquals("Dr. Marco Reyes", restored?.displayName)
-        assertEquals(Role.DOCTOR, restored?.role)
+        assertEquals(listOf("PSYCHIATRIST"), restored?.roles)
     }
 
     @Test

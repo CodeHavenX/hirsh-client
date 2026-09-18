@@ -1,6 +1,7 @@
 package com.cramsan.hirsh.repository
 
-import com.cramsan.hirsh.model.Role
+import com.cramsan.hirsh.model.Permission
+import com.cramsan.hirsh.model.can
 import com.cramsan.hirsh.network.installApiErrorValidator
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
@@ -14,6 +15,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -35,7 +37,7 @@ private fun clientRespondingWith(status: HttpStatusCode, body: String, contentTy
 class KtorAuthRepositoryTest {
 
     @Test
-    fun `login success maps LoginResponse user into a Session`() = runTest {
+    fun `login success maps LoginResponse user's roles and permissions straight through`() = runTest {
         val body = """
             {"sessionId":"s1","userId":"u1","username":"atorres","sessionCreatedAt":"2026-01-01T00:00:00Z",
              "user":{"id":"u1","username":"atorres","fullName":"Ana Torres","roles":["PSYCHIATRIST"],"permissions":["PATIENT_READ"]}}
@@ -46,33 +48,23 @@ class KtorAuthRepositoryTest {
 
         assertEquals("atorres", session.username)
         assertEquals("Ana Torres", session.displayName)
-        assertEquals(Role.DOCTOR, session.role)
+        assertEquals(listOf("PSYCHIATRIST"), session.roles)
+        assertTrue(session.can(Permission.PATIENT_READ))
+        assertFalse(session.can(Permission.USER_MANAGE))
     }
 
     @Test
-    fun `login maps a role code containing ADMIN to Role Admin`() = runTest {
+    fun `login does not invent a permission the response didn't actually grant`() = runTest {
         val body = """
             {"sessionId":"s1","userId":"u1","username":"admin","sessionCreatedAt":"2026-01-01T00:00:00Z",
-             "user":{"id":"u1","username":"admin","fullName":"Admin","roles":["SYSTEM_ADMIN"],"permissions":[]}}
+             "user":{"id":"u1","username":"admin","fullName":"Admin","roles":["SYSTEM_ADMIN"],"permissions":["USER_MANAGE"]}}
         """.trimIndent()
         val repository = KtorAuthRepository(clientRespondingWith(HttpStatusCode.OK, body))
 
         val session = repository.login("admin", "whatever123").getOrThrow()
 
-        assertEquals(Role.ADMIN, session.role)
-    }
-
-    @Test
-    fun `login maps a role code without ADMIN to the default Role Doctor`() = runTest {
-        val body = """
-            {"sessionId":"s1","userId":"u1","username":"atorres","sessionCreatedAt":"2026-01-01T00:00:00Z",
-             "user":{"id":"u1","username":"atorres","fullName":"Ana Torres","roles":["PSYCHIATRIST"],"permissions":[]}}
-        """.trimIndent()
-        val repository = KtorAuthRepository(clientRespondingWith(HttpStatusCode.OK, body))
-
-        val session = repository.login("atorres", "S3cure-P4ssw0rd").getOrThrow()
-
-        assertEquals(Role.DOCTOR, session.role)
+        assertTrue(session.can(Permission.USER_MANAGE))
+        assertFalse(session.can(Permission.AUDIT_READ))
     }
 
     @Test

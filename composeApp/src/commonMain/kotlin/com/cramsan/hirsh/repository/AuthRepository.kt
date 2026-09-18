@@ -2,6 +2,7 @@ package com.cramsan.hirsh.repository
 
 import com.cramsan.hirsh.model.Account
 import com.cramsan.hirsh.model.AccountStatus
+import com.cramsan.hirsh.model.Permission
 import com.cramsan.hirsh.model.Role
 import com.cramsan.hirsh.model.Session
 import com.cramsan.hirsh.network.ApiError
@@ -92,20 +93,10 @@ class KtorAuthRepository(
 }
 
 private fun UserProfile.toSession(): Session =
-    Session(username = username, displayName = fullName, role = rolesToRole(roles))
+    Session(username = username, displayName = fullName, roles = roles, permissions = permissions.toSet())
 
 private fun MeResponse.toSession(): Session =
-    Session(username = username, displayName = fullName, role = rolesToRole(roles))
-
-/**
- * Lossy stopgap, not a real fix: the backend's role codes (e.g. "PSYCHIATRIST") and effective
- * permissions don't correspond to this client's two-value [Role] enum at all -- HISS-612 replaces
- * [Role] with a real permissions-based model. Until then, only an ADMIN-ish role code maps to
- * [Role.ADMIN] (needed to keep the existing Cuentas nav gate working); everything else defaults
- * to [Role.DOCTOR], matching [FakeAuthRepository]'s own existing default for an unmatched account.
- */
-private fun rolesToRole(roles: List<String>): Role =
-    if (roles.any { it.contains("ADMIN", ignoreCase = true) }) Role.ADMIN else Role.DOCTOR
+    Session(username = username, displayName = fullName, roles = roles, permissions = permissions.toSet())
 
 /**
  * Stand-in until the backend service (separate repo) exposes a real auth endpoint.
@@ -146,14 +137,42 @@ class FakeAuthRepository(
         preferences.clearSession()
     }
 
-    private fun sessionFor(username: String, account: Account?): Session = if (account != null) {
-        Session(username = username, displayName = account.name, role = account.role)
-    } else {
-        Session(username = username, displayName = username, role = Role.DOCTOR)
+    private fun sessionFor(username: String, account: Account?): Session {
+        val role = account?.role ?: Role.DOCTOR
+        return Session(
+            username = username,
+            displayName = account?.name ?: username,
+            roles = listOf(if (role == Role.ADMIN) "SYSTEM_ADMIN" else "PSYCHIATRIST"),
+            permissions = permissionsFor(role),
+        )
     }
 
     private fun nowFormatted(): String {
         val now = clock.now().toLocalDateTime(TimeZone.currentSystemDefault())
         return "${formatDate(now.date)} ${formatTime(now.time)}"
     }
+}
+
+/**
+ * Fabricated, not real: [FakeAuthRepository] only knows [Role], not a real backend account's
+ * actual permission grants. ADMIN gets everything (matches what the real seeded admin account
+ * actually has); DOCTOR gets a representative clinical subset, excluding the admin-only codes
+ * (user/role/catalog/config/template management, audit, reports).
+ */
+private fun permissionsFor(role: Role): Set<String> = when (role) {
+    Role.ADMIN -> Permission.entries.map { it.name }.toSet()
+    Role.DOCTOR -> setOf(
+        Permission.PATIENT_READ,
+        Permission.PATIENT_WRITE,
+        Permission.DOCUMENT_READ,
+        Permission.DOCUMENT_CREATE,
+        Permission.DOCUMENT_SIGN,
+        Permission.EPISODE_WRITE,
+        Permission.EPISODE_DISCHARGE,
+        Permission.TEST_READ,
+        Permission.TEST_WRITE,
+        Permission.INTERCONSULT_READ,
+        Permission.INTERCONSULT_WRITE,
+        Permission.PDF_EXPORT,
+    ).map { it.name }.toSet()
 }
