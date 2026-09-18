@@ -17,6 +17,12 @@ jobs:
     # sync straight back to the PR branch when CI's own render drifts from what's committed.
     permissions:
       contents: write
+    env:
+      # Bootstraps the backend's first SYSTEM_ADMIN account (see hirsh's own README) and doubles
+      # as what the client's e2e suite logs in with (HISS-611) -- safe to hardcode: this only
+      # ever exists in this job's own throwaway Postgres container, destroyed when it ends.
+      HIRSH_ADMIN_USERNAME: admin
+      HIRSH_ADMIN_PASSWORD: ci-only-not-a-real-secret
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -27,7 +33,63 @@ jobs:
           # commit's own throwaway history.
           ref: ${{ github.head_ref }}
 
-      - name: Set up JDK 21
+      # The backend (hirsh) needs JDK 17 per its own README; the client needs 21. Two separate
+      # setup-java calls each overwrite JAVA_HOME globally for later steps, so this one's value is
+      # saved under its own name and referenced explicitly (JAVA_HOME=$JDK_17) only on the backend
+      # steps below -- the second, client-facing "Set up JDK 21" step further down is deliberately
+      # left as the ambient default for every other (unqualified) ./gradlew call in this job.
+      - name: Set up JDK 17 (backend)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Save JDK 17 path
+        run: echo "JDK_17=$JAVA_HOME" >> "$GITHUB_ENV"
+
+      # hirsh lives in a separate, private repo (EspinozaCarlos/hirsh) -- the default GITHUB_TOKEN
+      # can't check that out, so this needs a PAT with read-only Contents access to it, stored as
+      # this repo's own HIRSH_BACKEND_PAT secret.
+      - name: Checkout hirsh (backend)
+        uses: actions/checkout@v4
+        with:
+          repository: EspinozaCarlos/hirsh
+          token: ${{ secrets.HIRSH_BACKEND_PAT }}
+          path: hirsh
+
+      # hirsh's own docker-compose.yml starts Postgres 15 with the `hirsh` schema pre-created
+      # (docker/postgres-init/01-create-schema.sql) -- reusing it here instead of hand-rolling an
+      # equivalent GitHub Actions `services:` Postgres block means this workflow never drifts from
+      # how the backend itself documents running locally. --wait blocks on its own healthcheck.
+      - name: Start Postgres
+        working-directory: hirsh
+        run: docker compose up -d --wait
+
+      # Backgrounded: a GitHub Actions run: step's child processes outlive that step, so this
+      # stays up for every later step in the job. Logged to a file (not inherited stdout) so a
+      # later failure has something to inspect -- see "Upload backend log" below.
+      - name: Start the backend
+        working-directory: hirsh
+        run: |
+          JAVA_HOME="$JDK_17" nohup ./gradlew bootRun > ../hirsh-bootRun.log 2>&1 &
+
+      # /actuator/health 401s when unauthenticated rather than 200ing (Spring Security sits in
+      # front of it) -- matching .claude/skills/_shared/real-backend-check.md's own convention,
+      # any HTTP response at all (not a connection failure) means the backend is actually up.
+      - name: Wait for the backend to be reachable
+        run: |
+          for i in $(seq 1 120); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/actuator/health 2>/dev/null || echo "000")
+            if [ "$code" != "000" ]; then
+              echo "Backend responded with HTTP $code after ${i}s"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Backend never became reachable within 240s" >&2
+          cat hirsh-bootRun.log || true
+          exit 1
+
+      - name: Set up JDK 21 (client)
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -78,4 +140,12 @@ jobs:
         with:
           name: desktopTest-reports
           path: composeApp/build/reports/tests/desktopTest/
+          if-no-files-found: warn
+
+      - name: Upload backend log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hirsh-bootRun-log
+          path: hirsh-bootRun.log
           if-no-files-found: warn
