@@ -120,6 +120,9 @@ internal fun HospitalizationScreenContent(
                     onNewEvolucion = onNewEvolucion,
                     onRequestDischarge = { showDischargeDialog = true },
                 )
+                uiState.error?.let { error ->
+                    Text(error, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp))
+                }
                 Column(
                     modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())
                         .testTag("screen_scroll_container"),

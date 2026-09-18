@@ -126,7 +126,7 @@ private class FakeHospitalizationRepository(hospitalizations: List<Hospitalizaci
         motivoIngreso: String,
     ): Hospitalizacion = error("not used by this test")
 
-    override suspend fun discharge(hospId: String) = Unit
+    override suspend fun discharge(hospId: String, jpaVersion: Long) = Unit
 
     override suspend fun saveHistoriaClinicaSection(hospId: String, key: HcSectionKey, data: Any) = Unit
 

@@ -76,4 +76,16 @@ class SessionRepositoryTest {
         assertEquals(1, authRepository.logoutCalls)
         assertNull(repository.session.value)
     }
+
+    @Test
+    fun `forceLogout clears the shared session without calling auth repository`() {
+        val session = Session(username = "drpatel", displayName = "Dr. A. Patel", role = Role.DOCTOR)
+        val authRepository = StubAuthRepository(restoredSession = session)
+        val repository = DefaultSessionRepository(authRepository)
+
+        repository.forceLogout()
+
+        assertEquals(0, authRepository.logoutCalls)
+        assertNull(repository.session.value)
+    }
 }

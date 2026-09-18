@@ -9,6 +9,8 @@ import com.cramsan.hirsh.model.Filiacion
 import com.cramsan.hirsh.model.HcSectionKey
 import com.cramsan.hirsh.model.Pronostico
 import com.cramsan.hirsh.model.Vitals
+import com.cramsan.hirsh.network.ApiError
+import com.cramsan.hirsh.network.ApiException
 import com.cramsan.hirsh.util.Clock
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.LocalDateTime
@@ -16,6 +18,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Instant
@@ -145,7 +148,7 @@ class HospitalizationRepositoryTest {
     fun `discharge sets estado to Alta and stamps fechaAlta and horaAlta`() = runTest {
         val repository = InMemoryHospitalizationRepository(FakeClock())
 
-        repository.discharge("h_mendoza_1")
+        repository.discharge("h_mendoza_1", jpaVersion = 0L)
 
         repository.getHospitalization("#00135", "h_mendoza_1").test {
             val hospitalization = awaitItem()
@@ -159,12 +162,40 @@ class HospitalizationRepositoryTest {
     fun `discharge is a no-op for an unknown hospId`() = runTest {
         val repository = InMemoryHospitalizationRepository(FakeClock())
 
-        repository.discharge("does-not-exist")
+        repository.discharge("does-not-exist", jpaVersion = 0L)
 
         repository.getHospitalizations("#00135").test {
             assertEquals(EstadoHospitalizacion.ACTIVA, awaitItem().single().estado)
         }
     }
+
+    @Test
+    fun `discharge bumps jpaVersion on success`() = runTest {
+        val repository = InMemoryHospitalizationRepository(FakeClock())
+
+        repository.discharge("h_mendoza_1", jpaVersion = 0L)
+
+        repository.getHospitalization("#00135", "h_mendoza_1").test {
+            assertEquals(1L, awaitItem()?.jpaVersion)
+        }
+    }
+
+    @Test
+    fun `discharge against a stale jpaVersion throws ApiException wrapping Conflict, without mutating the record`() =
+        runTest {
+            val repository = InMemoryHospitalizationRepository(FakeClock())
+
+            val exception = assertFailsWith<ApiException> {
+                repository.discharge("h_mendoza_1", jpaVersion = 99L)
+            }
+
+            assertEquals(ApiError.Conflict("h_mendoza_1"), exception.error)
+            repository.getHospitalization("#00135", "h_mendoza_1").test {
+                val hospitalization = awaitItem()
+                assertEquals(EstadoHospitalizacion.ACTIVA, hospitalization?.estado)
+                assertEquals(0L, hospitalization?.jpaVersion)
+            }
+        }
 
     @Test
     fun `saveHistoriaClinicaSection marks the section complete and leaves others untouched`() = runTest {

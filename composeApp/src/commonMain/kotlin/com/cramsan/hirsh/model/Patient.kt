@@ -16,6 +16,15 @@ data class Patient(
     val allergies: String,
     val nationalId: String,
     val sex: Sex,
+    /**
+     * The real backend's optimistic-lock version on this row (HISS-604) -- callers editing a
+     * patient must send back the version they read; a save against a stale version is rejected
+     * with [com.cramsan.hirsh.network.ApiError.Conflict] rather than silently overwriting a
+     * concurrent edit. Defaulted so every existing construction site (seed data, test fixtures)
+     * keeps compiling; the fakes bump it themselves on a successful update, same as a real
+     * `jpaVersion` column would.
+     */
+    val jpaVersion: Long = 0L,
 )
 
 enum class Sex { MALE, FEMALE }

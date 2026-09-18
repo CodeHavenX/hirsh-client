@@ -129,7 +129,7 @@ private class FakeHospitalizationRepository(hospitalizations: List<Hospitalizaci
         return created
     }
 
-    override suspend fun discharge(hospId: String) {
+    override suspend fun discharge(hospId: String, jpaVersion: Long) {
         _hospitalizations.update { list ->
             list.map { if (it.id == hospId) it.copy(estado = EstadoHospitalizacion.ALTA) else it }
         }
@@ -258,7 +258,7 @@ class PatientRecordViewModelTest {
             viewModel.load(samplePatient.id)
             assertEquals(EstadoHospitalizacion.ACTIVA, awaitItem().hospitalizations.single().estado)
 
-            hospitalizationRepository.discharge("h1")
+            hospitalizationRepository.discharge("h1", jpaVersion = 0L)
 
             assertEquals(EstadoHospitalizacion.ALTA, awaitItem().hospitalizations.single().estado)
             cancelAndIgnoreRemainingEvents()

@@ -154,6 +154,33 @@ kotlin {
     }
 }
 
+// Real-backend integration tests -- exercise the *actual* production HttpClient (real CIO
+// engine, the exact plugin stack from di/AppModule.kt) against a real, separately-running
+// instance of this project's backend (see network/ApiConfig.kt's doc comment on that repo).
+// Deliberately its own compilation/task, not folded into desktopTest: it depends on that
+// external backend being up, which isn't guaranteed on every machine or in CI, so it's
+// intentionally NOT wired into verifyLocal/verifyCi -- run it by hand when the backend is
+// running locally. See .claude/skills/_shared/real-backend-check.md.
+val desktopTarget = kotlin.targets.getByName("desktop") as org.jetbrains.kotlin.gradle.targets.jvm.KotlinJvmTarget
+val desktopIntegrationTestCompilation = desktopTarget.compilations.create("integrationTest") {
+    associateWith(desktopTarget.compilations.getByName("main"))
+}
+desktopIntegrationTestCompilation.defaultSourceSet.dependencies {
+    implementation(kotlin("test-junit"))
+    implementation(libs.kotlinx.coroutines.test)
+    implementation(libs.ktor.client.cio)
+}
+
+tasks.register<Test>("desktopIntegrationTest") {
+    group = "verification"
+    description = "Runs real-backend integration tests (network/*RealBackendTest.kt) against a " +
+        "live local instance of this project's backend. Not part of verifyLocal/verifyCi -- " +
+        "run manually once the backend is up; see .claude/skills/_shared/real-backend-check.md."
+    testClassesDirs = desktopIntegrationTestCompilation.output.classesDirs
+    classpath = desktopIntegrationTestCompilation.runtimeDependencyFiles!! +
+        desktopIntegrationTestCompilation.output.allOutputs
+}
+
 // cmp-bridge-driver's WasmDevServerProcess shells out to `./gradlew <module>:wasmJsBrowserDevelopmentRun`
 // from a plain JVM test (ui/e2e/WebE2ETest.kt) -- it needs the repo root to find `gradlew` from,
 // which isn't derivable from the test JVM's own working directory once Gradle forks it.

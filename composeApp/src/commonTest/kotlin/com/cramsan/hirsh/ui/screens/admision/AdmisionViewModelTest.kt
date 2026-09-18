@@ -107,7 +107,7 @@ private class FakeHospitalizationRepository : HospitalizationRepository {
         )
     }
 
-    override suspend fun discharge(hospId: String) = Unit
+    override suspend fun discharge(hospId: String, jpaVersion: Long) = Unit
 
     override suspend fun saveHistoriaClinicaSection(hospId: String, key: HcSectionKey, data: Any) = Unit
 
