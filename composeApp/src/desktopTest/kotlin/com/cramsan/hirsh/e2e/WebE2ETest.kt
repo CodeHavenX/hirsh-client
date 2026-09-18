@@ -32,9 +32,9 @@ import java.io.File
  * cmp-bridge-driver's fixed 30s connect timeout on every single test. Under the old
  * one-process-per-class design that cost is paid exactly once for the whole run instead of once
  * per test. Because this class shares one page across every test, [HissE2EScenarios]'s
- * [loginAsAdmin]/[loginAsDoctor]/[createE2eTestDoctorAccount] helpers are written to tolerate
- * that (signing out first if already authenticated, skipping account creation if the row already
- * exists) so the same test bodies work correctly on both targets despite the different lifecycle.
+ * [loginAsAdmin]/[createE2eTestDoctorAccount] helpers are written to tolerate that (signing out
+ * first if already authenticated, skipping account creation if the row already exists) so the
+ * same test bodies work correctly on both targets despite the different lifecycle.
  *
  * Ignored for now: on at least one dev machine, the very first [WebBridgeDriver.connect] in
  * [launchApp] hangs indefinitely -- Compose Web's accessibility root never populates, even though

@@ -102,30 +102,26 @@ private fun BridgeDriver.ensureSignedOut() {
 }
 
 /**
- * Logs in as the seeded ADMIN account (`admin`/`whatever123`) and waits for `nav_accounts`,
- * confirming the ADMIN-only nav item rendered. Every scenario below calls this (or
- * [loginAsDoctor]) itself as its first step rather than relying on an earlier test's login --
- * see [ensureSignedOut]'s doc comment for why that's a no-op on desktop but not on web.
+ * Logs in as the real backend's seeded admin account and waits for `nav_accounts`, confirming
+ * the ADMIN-only nav item rendered. Every scenario below calls this itself as its first step
+ * rather than relying on an earlier test's login -- see [ensureSignedOut]'s doc comment for why
+ * that's a no-op on desktop but not on web.
+ *
+ * Credentials come from [HIRSH_ADMIN_USERNAME]/[HIRSH_ADMIN_PASSWORD] (the same env vars the
+ * backend itself reads to bootstrap that account -- see its README), not a literal here: this
+ * suite runs against a real, separately-running backend as of HISS-611, not
+ * `FakeAuthRepository`'s in-process fixtures, so there's no fixed password to hardcode.
  */
 fun BridgeDriver.loginAsAdmin() {
     ensureSignedOut()
-    type("login_username_field", "admin")
-    type("login_password_field", "whatever123")
+    type("login_username_field", System.getenv("HIRSH_ADMIN_USERNAME") ?: error(
+        "HIRSH_ADMIN_USERNAME is not set -- required to log in against the real backend (HISS-611)",
+    ))
+    type("login_password_field", System.getenv("HIRSH_ADMIN_PASSWORD") ?: error(
+        "HIRSH_ADMIN_PASSWORD is not set -- required to log in against the real backend (HISS-611)",
+    ))
     clickTag("login_submit_button")
     waitForTag("nav_accounts")
-}
-
-/**
- * Logs in as the seeded DOCTOR account (`apatel`/`whatever123`) and waits for `nav_patients`.
- * Used only by the login scenario that specifically asserts on the DOCTOR role's nav --
- * everything else uses [loginAsAdmin] so accounts-management tags stay reachable too.
- */
-fun BridgeDriver.loginAsDoctor() {
-    ensureSignedOut()
-    type("login_username_field", "apatel")
-    type("login_password_field", "whatever123")
-    clickTag("login_submit_button")
-    waitForTag("nav_patients")
 }
 
 /**
