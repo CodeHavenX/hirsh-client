@@ -25,11 +25,14 @@ private class FakeSessionRepository(
 ) : SessionRepository {
     private val _session = MutableStateFlow(initialSession)
     override val session: StateFlow<Session?> = _session.asStateFlow()
+    override val isRestoring: StateFlow<Boolean> = MutableStateFlow(false).asStateFlow()
 
     override suspend fun login(username: String, password: String): Result<Session> =
         loginResult.onSuccess { _session.value = it }
 
-    override fun logout() {
+    override suspend fun restore() = Unit
+
+    override suspend fun logout() {
         _session.value = null
     }
 

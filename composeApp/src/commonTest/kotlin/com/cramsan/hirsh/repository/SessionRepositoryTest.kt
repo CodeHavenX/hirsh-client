@@ -16,8 +16,8 @@ private class StubAuthRepository(
         private set
 
     override suspend fun login(username: String, password: String): Result<Session> = loginResult
-    override fun restoreSession(): Session? = restoredSession
-    override fun logout() {
+    override suspend fun restoreSession(): Session? = restoredSession
+    override suspend fun logout() {
         logoutCalls++
     }
 }
@@ -25,16 +25,37 @@ private class StubAuthRepository(
 class SessionRepositoryTest {
 
     @Test
-    fun `initial session reflects what auth repository restores at startup`() {
+    fun `isRestoring starts true and flips false once restore resolves`() = runTest {
+        val repository = DefaultSessionRepository(StubAuthRepository())
+
+        assertEquals(true, repository.isRestoring.value)
+        repository.restore()
+        assertEquals(false, repository.isRestoring.value)
+    }
+
+    @Test
+    fun `restore populates session from what auth repository restores`() = runTest {
         val session = Session(username = "drpatel", displayName = "Dr. A. Patel", role = Role.DOCTOR)
         val repository = DefaultSessionRepository(StubAuthRepository(restoredSession = session))
+
+        repository.restore()
 
         assertEquals(session, repository.session.value)
     }
 
     @Test
-    fun `initial session is null when nothing was restored`() {
+    fun `session stays null when restore finds nothing`() = runTest {
         val repository = DefaultSessionRepository(StubAuthRepository(restoredSession = null))
+
+        repository.restore()
+
+        assertNull(repository.session.value)
+    }
+
+    @Test
+    fun `session is null before restore is ever called`() {
+        val session = Session(username = "drpatel", displayName = "Dr. A. Patel", role = Role.DOCTOR)
+        val repository = DefaultSessionRepository(StubAuthRepository(restoredSession = session))
 
         assertNull(repository.session.value)
     }
@@ -66,10 +87,11 @@ class SessionRepositoryTest {
     }
 
     @Test
-    fun `logout delegates to auth repository and synchronously clears the shared session`() {
+    fun `logout delegates to auth repository and clears the shared session`() = runTest {
         val session = Session(username = "drpatel", displayName = "Dr. A. Patel", role = Role.DOCTOR)
         val authRepository = StubAuthRepository(restoredSession = session)
         val repository = DefaultSessionRepository(authRepository)
+        repository.restore()
 
         repository.logout()
 

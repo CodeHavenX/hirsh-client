@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 data class ProfileUiState(
     val session: Session? = null,
@@ -73,7 +74,9 @@ class ProfileViewModel(private val sessionRepository: SessionRepository) : ViewM
     }
 
     fun signOut() {
-        sessionRepository.logout()
+        viewModelScope.launch {
+            sessionRepository.logout()
+        }
     }
 
     private companion object {

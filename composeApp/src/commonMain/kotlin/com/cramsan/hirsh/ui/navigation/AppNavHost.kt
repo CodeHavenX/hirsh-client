@@ -1,10 +1,16 @@
 package com.cramsan.hirsh.ui.navigation
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -46,9 +52,24 @@ fun AppNavHost(
     sessionRepository: SessionRepository = koinInject(),
 ) {
     val session by sessionRepository.session.collectAsState()
+    val isRestoring by sessionRepository.isRestoring.collectAsState()
     val items = sidebarItems(session)
 
-    NavHost(navController = navController, startDestination = Routes.LOGIN) {
+    LaunchedEffect(Unit) {
+        sessionRepository.restore()
+    }
+
+    if (isRestoring) {
+        // A real session restore is a network round-trip (GET /api/v1/auth/me) -- holding off
+        // the NavHost's startDestination choice here, rather than always starting at Routes.LOGIN,
+        // is what actually makes restoring a session on a cold start visible (HISS-611).
+        Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
+            Text("Cargando...", style = MaterialTheme.typography.bodyMedium)
+        }
+        return
+    }
+
+    NavHost(navController = navController, startDestination = if (session != null) Routes.PATIENTS else Routes.LOGIN) {
         composable(Routes.LOGIN) {
             LoginScreen(onLoggedIn = {
                 navController.navigate(Routes.PATIENTS) {
