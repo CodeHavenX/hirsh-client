@@ -1,12 +1,14 @@
 # Real-Backend Integration Tests (when applicable)
 
-`ktor-client-mock`-based tests and the existing `desktopTest` E2E suite
-(`composeApp/src/desktopTest/kotlin/com/cramsan/hirsh/e2e/`) only verify against
+`ktor-client-mock`-based tests in `commonTest`/`desktopTest` only verify against
 *assumptions* — the mock's fixtures, or the in-memory fakes wired in
-`di/AppModule.kt`. Neither can catch a gap between what we assumed the real HISS
+`di/AppModule.kt`. They can't catch a gap between what we assumed the real HISS
 backend does and what it actually does. This fragment covers persisted tests
 that talk to a real, separately-running instance of that backend (a separate
-repo — see `network/ApiConfig.kt`'s doc comment).
+repo — see `network/ApiConfig.kt`'s doc comment) — both the network-layer tests
+below and the full UI e2e suite
+(`composeApp/src/desktopIntegrationTest/kotlin/com/cramsan/hirsh/e2e/`), which
+already logs in against that real backend (HISS-611) rather than a fixture.
 
 **Why this exists**: HISS-604's `installApiErrorValidator` had full
 `ktor-client-mock` coverage, including a 401 case — every fixture just happened
@@ -17,7 +19,7 @@ mock-based test passed the whole time. Only pointing the actual production
 `HttpClient` config at the actual running backend surfaced it.
 
 These live under `composeApp/src/desktopIntegrationTest/kotlin/` (its own
-compilation, alongside `desktopTest` — see the comment above
+compilation, separate from `desktopTest` — see the comment above
 `desktopTarget.compilations.create("integrationTest")` in
 `composeApp/build.gradle.kts`) and run via:
 
@@ -26,8 +28,13 @@ compilation, alongside `desktopTest` — see the comment above
 ```
 
 Deliberately **not** part of `verifyLocal`/`verifyCi` — depends on a separately
-running backend that isn't guaranteed to exist on every machine or in CI (see
-root `build.gradle.kts`'s still-open TODO on this).
+running backend that isn't guaranteed to exist on every machine (a real
+display too, for the e2e half), so it stays out of the fast local/CI gate.
+CI runs it as its own dedicated step instead (see `.github/workflows/ci.yml`).
+Only Tier 1 tests (`network/*RealBackendTest.kt`) skip gracefully via a
+reachability guard when the backend isn't up (Step 2 below) — the e2e suite
+does not, and fails loudly instead; keep that in mind when running this task
+without a backend/display handy.
 
 ---
 
@@ -41,22 +48,22 @@ binding in `di/AppModule.kt`:
 grep -n "bind <Feature>Repository::class" composeApp/src/commonMain/kotlin/com/cramsan/hirsh/di/AppModule.kt
 ```
 
-- **Bound to a `Fake*`/`InMemory*` implementation** (this is every repository
-  today except the shared `HttpClient` itself — `FakeAuthRepository`,
-  `InMemoryPatientRepository`, `InMemoryAccountRepository`,
-  `InMemoryHospitalizationRepository`): **Tier 1 only, and only if the diff
-  itself touches `network/`** (HttpClient config, plugins, error/response
-  mapping). A UI E2E test against this feature would drive the UI against the
-  fake and never touch the real backend at all — don't write one and call it a
-  real-backend check. If the diff doesn't touch `network/` either, this
-  fragment doesn't apply — note in the report that the feature's repository is
-  still Fake/InMemory, so real-backend coverage isn't possible yet (name which
-  ticket, if any, is tracked to migrate it — e.g. HISS-611 for
-  `AuthRepository`).
-- **Bound to a real, HTTP-backed implementation**: **Tier 2 applies** — add or
-  extend a UI-driven scenario, not just a network-layer test, since the whole
-  point of that repository existing is that the UI now genuinely depends on
-  the backend.
+- **Bound to a `Fake*`/`InMemory*` implementation** (every repository today
+  except `AuthRepository` — `InMemoryPatientRepository`,
+  `InMemoryAccountRepository`, `InMemoryHospitalizationRepository`): **Tier 1
+  only, and only if the diff itself touches `network/`** (HttpClient config,
+  plugins, error/response mapping). A UI E2E test against this feature would
+  drive the UI against the fake and never touch the real backend at all —
+  don't write one and call it a real-backend check. If the diff doesn't touch
+  `network/` either, this fragment doesn't apply — note in the report that the
+  feature's repository is still Fake/InMemory, so real-backend coverage isn't
+  possible yet (name which ticket, if any, is tracked to migrate it — e.g.
+  HISS-622 for `PatientRepository`).
+- **Bound to a real, HTTP-backed implementation** (today: only `AuthRepository`
+  via `KtorAuthRepository`, since HISS-611): **Tier 2 applies** — add or extend
+  a scenario in the existing e2e suite, not just a network-layer test, since
+  the whole point of that repository existing is that the UI now genuinely
+  depends on the backend.
 
 ---
 
@@ -104,28 +111,22 @@ Follow `network/ApiErrorValidatorRealBackendTest.kt` as the reference shape:
 ## Tier 2 — Full UI E2E tests against the real backend
 
 Applies once the feature's repository is a real, HTTP-backed implementation
-(Step 0). Not buildable yet for anything in this repo — every repository is
-still Fake/InMemory. The ticket that first migrates a repository to a real
-implementation (starting with `AuthRepository`, tracked as HISS-611) should
-also stand this tier up, not defer it further:
+(Step 0) — today, that's `AuthRepository` (`KtorAuthRepository`, HISS-611).
+The suite already exists at
+`composeApp/src/desktopIntegrationTest/kotlin/com/cramsan/hirsh/e2e/`
+(`DesktopE2ETest.kt`/`WebE2ETest.kt`/`HissE2EScenarios.kt`/`E2ESupport.kt`),
+driving the real app via `cmp-bridge-driver`
+(`DesktopAppProcess`/`DesktopBridgeDriver`, `testTag`-only interaction) and
+logging in with real seeded backend accounts (`HIRSH_ADMIN_USERNAME`/
+`HIRSH_ADMIN_PASSWORD`), not a fake's fixture credentials. When a ticket moves
+another repository off Fake/InMemory onto a real HTTP-backed implementation,
+extend this same suite with new scenarios covering that feature rather than
+starting a separate one.
 
-- New scenario files under
-  `composeApp/src/desktopIntegrationTest/kotlin/com/cramsan/hirsh/e2e/`,
-  driving the real app the same way
-  `composeApp/src/desktopTest/kotlin/com/cramsan/hirsh/e2e/DesktopE2ETest.kt`
-  and `HissE2EScenarios.kt` already do — same `cmp-bridge-driver`
-  (`DesktopAppProcess`/`DesktopBridgeDriver`, `testTag`-only interaction, the
-  `E2ESupport.kt` helpers) — reused, not reimplemented, so the
-  `integrationTest` compilation needs `associateWith` the `test` compilation
-  (in addition to `main`) and the `cmp.bridge.driver` dependency, both added
-  in `composeApp/build.gradle.kts` alongside the rest of that suite's own
-  wiring when this lands.
-- The key difference from the existing `desktopTest` E2E suite: log in with
-  real seeded backend accounts (whatever that separate repo's fixtures are),
-  not the fake's `admin`/`whatever123`, and assert on data that actually came
-  back over the wire.
-- Same reachability-skip discipline as Tier 1 — these need the real backend up
-  and running, and should skip rather than fail when it isn't.
+Unlike Tier 1, this suite does **not** currently skip gracefully when the
+backend (or a display) isn't reachable — it fails outright. Match that when
+extending it (no `assumeTrue` guard exists here yet); note the gap rather than
+assuming reachability was checked first.
 
 ---
 

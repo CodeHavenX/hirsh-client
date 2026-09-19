@@ -33,11 +33,12 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().con
 }
 
 afterEvaluate {
-    // 21, not 17: ComposablePreviewScanner (Roborazzi) only publishes JVM 17 metadata and
-    // cmp-bridge-driver (ui/e2e/) only publishes JVM 21+ -- Gradle's TargetJvmVersion
-    // compatibility rule accepts a producer's target <= the consumer's request, so requesting
-    // 21 keeps both resolvable (17 <= 21) rather than requiring an exact match.
-    listOf("desktopTestCompileClasspath", "desktopTestRuntimeClasspath").forEach { name ->
+    // 21, not 17: cmp-bridge-driver (ui/e2e/, now under desktopIntegrationTest -- see below) only
+    // publishes JVM 21+ metadata, while this compilation associates with desktop main's JVM 17
+    // target. Gradle's TargetJvmVersion compatibility rule accepts a producer's target <= the
+    // consumer's request, so requesting 21 keeps both resolvable (17 <= 21) rather than requiring
+    // an exact match.
+    listOf("desktopIntegrationTestCompileClasspath", "desktopIntegrationTestRuntimeClasspath").forEach { name ->
         configurations.named(name) {
             attributes.attribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, 21)
         }
@@ -140,12 +141,6 @@ kotlin {
                 implementation(libs.roborazzi.compose.desktop.preview.scanner.support)
                 implementation(libs.composable.preview.scanner.android)
                 implementation(libs.junit)
-                // JVM-only driver for cmp-bridge e2e tests (ui/e2e/) -- drives the desktop app
-                // via a socket to its embedded DesktopBridgeServer, and the wasmJs app via a
-                // headless Chromium (Playwright) walking Compose Web's own accessibility DOM.
-                // No wasmJs compilation involved on either side; see ui/e2e/README for the
-                // architecture note.
-                implementation(libs.cmp.bridge.driver)
             }
         }
         wasmJsMain.dependencies {
@@ -156,11 +151,13 @@ kotlin {
 
 // Real-backend integration tests -- exercise the *actual* production HttpClient (real CIO
 // engine, the exact plugin stack from di/AppModule.kt) against a real, separately-running
-// instance of this project's backend (see network/ApiConfig.kt's doc comment on that repo).
-// Deliberately its own compilation/task, not folded into desktopTest: it depends on that
-// external backend being up, which isn't guaranteed on every machine or in CI, so it's
-// intentionally NOT wired into verifyLocal/verifyCi -- run it by hand when the backend is
-// running locally. See .claude/skills/_shared/real-backend-check.md.
+// instance of this project's backend (see network/ApiConfig.kt's doc comment on that repo),
+// plus the full UI e2e suite (ui/e2e/), which drives the real app/backend the same way via
+// cmp-bridge-driver. Deliberately its own compilation/task, not folded into desktopTest: both
+// depend on that external backend being up (and the e2e half needs a real display too), neither
+// guaranteed on every machine, so this is intentionally NOT wired into verifyLocal/verifyCi --
+// run it by hand when the backend is running locally, or via CI's own dedicated step. See
+// .claude/skills/_shared/real-backend-check.md.
 val desktopTarget = kotlin.targets.getByName("desktop") as org.jetbrains.kotlin.gradle.targets.jvm.KotlinJvmTarget
 val desktopIntegrationTestCompilation = desktopTarget.compilations.create("integrationTest") {
     associateWith(desktopTarget.compilations.getByName("main"))
@@ -169,39 +166,44 @@ desktopIntegrationTestCompilation.defaultSourceSet.dependencies {
     implementation(kotlin("test-junit"))
     implementation(libs.kotlinx.coroutines.test)
     implementation(libs.ktor.client.cio)
+    implementation(libs.junit)
+    // JVM-only driver for cmp-bridge e2e tests (ui/e2e/) -- drives the desktop app via a socket
+    // to its embedded DesktopBridgeServer, and the wasmJs app via a headless Chromium
+    // (Playwright) walking Compose Web's own accessibility DOM. No wasmJs compilation involved
+    // on either side; see ui/e2e/README for the architecture note.
+    implementation(libs.cmp.bridge.driver)
 }
 
 tasks.register<Test>("desktopIntegrationTest") {
     group = "verification"
-    description = "Runs real-backend integration tests (network/*RealBackendTest.kt) against a " +
-        "live local instance of this project's backend. Not part of verifyLocal/verifyCi -- " +
-        "run manually once the backend is up; see .claude/skills/_shared/real-backend-check.md."
+    description = "Runs real-backend integration tests (network/*RealBackendTest.kt) and the " +
+        "full UI e2e suite (ui/e2e/) against a live local instance of this project's backend. " +
+        "Not part of verifyLocal/verifyCi -- run manually once the backend is up, or via CI's " +
+        "own dedicated step; see .claude/skills/_shared/real-backend-check.md."
     testClassesDirs = desktopIntegrationTestCompilation.output.classesDirs
     classpath = desktopIntegrationTestCompilation.runtimeDependencyFiles!! +
         desktopIntegrationTestCompilation.output.allOutputs
-}
-
-// cmp-bridge-driver's WasmDevServerProcess shells out to `./gradlew <module>:wasmJsBrowserDevelopmentRun`
-// from a plain JVM test (ui/e2e/WebE2ETest.kt) -- it needs the repo root to find `gradlew` from,
-// which isn't derivable from the test JVM's own working directory once Gradle forks it.
-tasks.named<Test>("desktopTest") {
+    // cmp-bridge-driver's WasmDevServerProcess shells out to
+    // `./gradlew <module>:wasmJsBrowserDevelopmentRun` from a plain JVM test (ui/e2e/WebE2ETest.kt)
+    // -- it needs the repo root to find `gradlew` from, which isn't derivable from the test JVM's
+    // own working directory once Gradle forks it.
     systemProperty("e2e.repoRoot", rootProject.projectDir.absolutePath)
 }
 
 // CI has no OS-level Playwright dependencies preinstalled (WebE2ETest's headless browser
 // otherwise fails/times out launching), and Playwright itself knows exactly which apt packages
 // its bundled browsers need per-OS -- rather than hand-maintain that list, this prints
-// desktopTest's actual runtime classpath (which already carries com.microsoft.playwright:playwright
+// desktopIntegrationTest's actual runtime classpath (which carries com.microsoft.playwright:playwright
 // transitively via cmp-bridge-driver) so CI can invoke Playwright's own `install-deps` CLI
 // directly with `sudo java -cp <output> com.microsoft.playwright.CLI install-deps` -- installing
 // OS packages needs root, and running all of Gradle itself as root is worth avoiding (it leaves
 // root-owned files in ~/.gradle that break later non-root invocations).
-tasks.register("printDesktopTestRuntimeClasspath") {
+tasks.register("printDesktopIntegrationTestRuntimeClasspath") {
     group = "verification"
-    description = "Prints :composeApp:desktopTest's runtime classpath, one absolute jar path per " +
-        "line, so CI can run Playwright's install-deps CLI outside Gradle."
+    description = "Prints :composeApp:desktopIntegrationTest's runtime classpath, one absolute " +
+        "jar path per line, so CI can run Playwright's install-deps CLI outside Gradle."
     doLast {
-        val testTask = tasks.named<Test>("desktopTest").get()
+        val testTask = tasks.named<Test>("desktopIntegrationTest").get()
         println(testTask.classpath.files.joinToString(File.pathSeparator) { it.absolutePath })
     }
 }
