@@ -111,7 +111,7 @@ private fun PrintableSummaryPreview() {
                 "DNI" to "70083906",
                 "Fecha de ingreso" to "20 May 2026 · 14:30",
                 "Medico responsable" to "Dr. Reyes",
-                "N° Historia" to "#00129",
+                "N° Historia" to "HC-00129",
                 "Cama" to "01",
             ),
             sections = listOf(

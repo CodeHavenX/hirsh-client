@@ -78,7 +78,7 @@ internal fun PatientHistoryScreenContent(
                             color = HissInk2,
                         )
                         Text(
-                            "Historial de cambios · ${patient.name}",
+                            "Historial de cambios · ${patient.fullName}",
                             style = MaterialTheme.typography.headlineSmall.copy(fontSize = 20.sp, fontWeight = FontWeight.Bold),
                         )
                     }

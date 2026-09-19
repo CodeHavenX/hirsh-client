@@ -2,41 +2,43 @@ package com.cramsan.hirsh.ui.screens.patienthistory
 
 import androidx.compose.runtime.Composable
 import com.cramsan.hirsh.model.FieldChange
+import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.PatientChangeLogEntry
 import com.cramsan.hirsh.model.Sex
+import com.cramsan.hirsh.model.singleAllergyFromText
 import com.cramsan.hirsh.ui.preview.PreviewResponsive
 import com.cramsan.hirsh.ui.theme.HirshTheme
 
 private val previewPatients = listOf(
     Patient(
-        id = "#00142",
-        name = "Maria Gonzalez Huerta",
-        dateOfBirth = "14/03/1989",
+        id = "07c98942-3654-4034-b960-f3265814e214",
+        medicalRecordNumber = "HC-00142",
+        documentType = DocumentType.NID,
+        documentNumber = "45678901",
+        fullName = "Maria Gonzalez Huerta",
+        birthDate = "14/03/1989",
         phone = "987-654-321",
-        assignedDoctor = "Dr. Patel",
-        lastVisit = "12 Abr 2026",
         bloodType = "O+",
-        allergies = "Penicilina",
-        nationalId = "45678901",
+        allergies = singleAllergyFromText("Penicilina"),
         sex = Sex.FEMALE,
     ),
     Patient(
-        id = "#00135",
-        name = "Jesus Alberto Mendoza Aguilar",
-        dateOfBirth = "10/08/1990",
+        id = "1e0697d0-f3e4-4755-85ad-d888d2b15f9d",
+        medicalRecordNumber = "HC-00135",
+        documentType = DocumentType.NID,
+        documentNumber = "70567572",
+        fullName = "Jesus Alberto Mendoza Aguilar",
+        birthDate = "10/08/1990",
         phone = "955-123-456",
-        assignedDoctor = "Dr. Patel",
-        lastVisit = "18 Jun 2026",
         bloodType = "B+",
-        allergies = "Ninguna",
-        nationalId = "70567572",
+        allergies = emptyList(),
         sex = Sex.MALE,
     ),
 )
 
 private val previewChangeLog = mapOf(
-    "#00142" to listOf(
+    "07c98942-3654-4034-b960-f3265814e214" to listOf(
         PatientChangeLogEntry(
             changedBy = "apatel",
             fecha = "05 May 2026",
@@ -74,21 +76,21 @@ private fun previewUiState(patientId: String) = PatientHistoryUiState(
 private fun PatientHistoryScreenPreview() {
     HirshTheme {
         PatientHistoryScreenContent(
-            uiState = previewUiState("#00142"),
-            patientId = "#00142",
+            uiState = previewUiState("07c98942-3654-4034-b960-f3265814e214"),
+            patientId = "07c98942-3654-4034-b960-f3265814e214",
             onBack = {},
         )
     }
 }
 
-/** #00135 has no change-log entries in this preview's fixtures -- exercises the empty state. */
+/** 1e0697d0-f3e4-4755-85ad-d888d2b15f9d has no change-log entries in this preview's fixtures -- exercises the empty state. */
 @PreviewResponsive
 @Composable
 private fun PatientHistoryScreenEmptyPreview() {
     HirshTheme {
         PatientHistoryScreenContent(
-            uiState = previewUiState("#00135"),
-            patientId = "#00135",
+            uiState = previewUiState("1e0697d0-f3e4-4755-85ad-d888d2b15f9d"),
+            patientId = "1e0697d0-f3e4-4755-85ad-d888d2b15f9d",
             onBack = {},
         )
     }

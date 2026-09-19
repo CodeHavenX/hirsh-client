@@ -1,10 +1,13 @@
 package com.cramsan.hirsh.ui.screens.patientedit
 
 import app.cash.turbine.test
+import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.PatientChangeLogEntry
 import com.cramsan.hirsh.model.Session
 import com.cramsan.hirsh.model.Sex
+import com.cramsan.hirsh.model.singleAllergyFromText
+import com.cramsan.hirsh.model.summary
 import com.cramsan.hirsh.network.ApiError
 import com.cramsan.hirsh.network.ApiException
 import com.cramsan.hirsh.repository.PatientRepository
@@ -34,15 +37,15 @@ import kotlin.test.assertTrue
 import kotlin.time.Instant
 
 private val existingPatient = Patient(
-    id = "#00142",
-    name = "Maria Gonzalez Huerta",
-    dateOfBirth = "14/03/1989",
+    id = "07c98942-3654-4034-b960-f3265814e214",
+    medicalRecordNumber = "HC-00142",
+    documentType = DocumentType.NID,
+    documentNumber = "45678901",
+    fullName = "Maria Gonzalez Huerta",
+    birthDate = "14/03/1989",
     phone = "987-654-321",
-    assignedDoctor = "Dr. Patel",
-    lastVisit = "12 Abr 2026",
     bloodType = "O+",
-    allergies = "Penicilina",
-    nationalId = "45678901",
+    allergies = singleAllergyFromText("Penicilina"),
     sex = Sex.FEMALE,
 )
 
@@ -78,13 +81,13 @@ private class FakePatientRepository(patients: List<Patient> = listOf(existingPat
 
     override suspend fun addPatient(
         name: String,
-        nationalId: String,
-        dateOfBirth: String,
+        documentType: DocumentType,
+        documentNumber: String,
+        birthDate: String,
         phone: String,
         sex: Sex,
         bloodType: String,
         allergies: String,
-        assignedDoctor: String,
     ): Patient = error("not used by EditPatientViewModel")
 }
 
@@ -131,14 +134,13 @@ class EditPatientViewModelTest {
             viewModel.load(existingPatient.id)
             val state = awaitItem()
             assertEquals(existingPatient, state.patient)
-            assertEquals(existingPatient.name, state.name)
-            assertEquals(existingPatient.nationalId, state.nationalId)
-            assertEquals(existingPatient.dateOfBirth, state.dateOfBirth)
+            assertEquals(existingPatient.fullName, state.fullName)
+            assertEquals(existingPatient.documentNumber, state.documentNumber)
+            assertEquals(existingPatient.birthDate, state.birthDate)
             assertEquals(existingPatient.phone, state.phone)
             assertEquals(existingPatient.sex, state.sex)
             assertEquals(existingPatient.bloodType, state.bloodType)
-            assertEquals(existingPatient.allergies, state.allergies)
-            assertEquals(existingPatient.assignedDoctor, state.assignedDoctor)
+            assertEquals(existingPatient.allergies.summary(), state.allergies)
             assertEquals(false, state.isLoading)
             cancelAndIgnoreRemainingEvents()
         }
@@ -150,7 +152,7 @@ class EditPatientViewModelTest {
 
         viewModel.uiState.test {
             awaitItem()
-            viewModel.load("#does-not-exist")
+            viewModel.load("does-not-exist")
             val state = awaitItem()
             assertNull(state.patient)
             assertEquals(false, state.isLoading)
@@ -198,7 +200,7 @@ class EditPatientViewModelTest {
         }
 
         val update = repository.lastUpdate
-        assertEquals("#00142", update?.id)
+        assertEquals("07c98942-3654-4034-b960-f3265814e214", update?.id)
         assertEquals("999-999-999", update?.newValues?.phone)
         assertEquals("apatel", update?.changedBy)
         assertEquals("15 Jan 2027", update?.fecha)
@@ -206,7 +208,7 @@ class EditPatientViewModelTest {
     }
 
     @Test
-    fun `save preserves id and lastVisit from the original patient`() = runTest(dispatcher) {
+    fun `save preserves id and converts the free-text allergies field back into a list`() = runTest(dispatcher) {
         val repository = FakePatientRepository()
         val viewModel = EditPatientViewModel(repository, FakeSessionRepository(), FakeClock())
 
@@ -224,8 +226,7 @@ class EditPatientViewModelTest {
 
         val update = repository.lastUpdate
         assertEquals(existingPatient.id, update?.newValues?.id)
-        assertEquals(existingPatient.lastVisit, update?.newValues?.lastVisit)
-        assertEquals("Ninguna", update?.newValues?.allergies)
+        assertEquals(emptyList(), update?.newValues?.allergies)
     }
 
     @Test

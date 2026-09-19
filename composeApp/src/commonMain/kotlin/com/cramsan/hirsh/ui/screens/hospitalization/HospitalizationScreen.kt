@@ -114,7 +114,7 @@ internal fun HospitalizationScreenContent(
                 Text("Hospitalizacion no encontrada: $hospId", style = MaterialTheme.typography.bodyMedium)
             else -> {
                 HospitalizationHeader(
-                    title = "${hospitalizacion.servicio} · ${patient.name}",
+                    title = "${hospitalizacion.servicio} · ${patient.fullName}",
                     canDischarge = hospitalizacion.estado == EstadoHospitalizacion.ACTIVA,
                     isDischarging = uiState.isDischarging,
                     onNewEvolucion = onNewEvolucion,
@@ -230,7 +230,7 @@ private fun InfoCard(patient: Patient, hospitalizacion: Hospitalizacion, modifie
                 ) {
                     Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                         Text(
-                            text = initialsOf(patient.name),
+                            text = initialsOf(patient.fullName),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.SemiBold,
                             color = HissAccent,
@@ -238,8 +238,8 @@ private fun InfoCard(patient: Patient, hospitalizacion: Hospitalizacion, modifie
                     }
                 }
                 Column(modifier = Modifier.padding(start = 12.dp)) {
-                    Text(patient.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                    Text(patient.id, fontFamily = FontFamily.Monospace, fontSize = 11.sp, color = HissInk2)
+                    Text(patient.fullName, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    Text(patient.medicalRecordNumber, fontFamily = FontFamily.Monospace, fontSize = 11.sp, color = HissInk2)
                 }
             }
             HorizontalDivider(color = HissFaint)

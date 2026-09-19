@@ -118,7 +118,7 @@ internal fun EvolucionViewScreenContent(
             )
             else -> {
                 EncounterTopBar(
-                    title = "Evolucion · ${patient.name} ${patient.id}",
+                    title = "Evolucion · ${patient.fullName} ${patient.medicalRecordNumber}",
                     onClose = onClose,
                     meta = {
                         Chip("${evolucion.fecha} · ${evolucion.hora}")

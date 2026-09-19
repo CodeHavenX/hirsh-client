@@ -36,7 +36,6 @@ import com.cramsan.hirsh.ui.theme.HissInk2
 import org.koin.compose.viewmodel.koinViewModel
 
 private val bloodTypeOptions = listOf("O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-")
-private val doctorOptions = listOf("Dr. Patel", "Dr. Reyes", "Dr. Lin")
 
 @Composable
 fun EditPatientScreen(
@@ -65,7 +64,6 @@ fun EditPatientScreen(
         onSexChange = viewModel::onSexChange,
         onBloodTypeChange = viewModel::onBloodTypeChange,
         onAllergiesChange = viewModel::onAllergiesChange,
-        onAssignedDoctorChange = viewModel::onAssignedDoctorChange,
         onSave = viewModel::save,
     )
 }
@@ -83,7 +81,6 @@ internal fun EditPatientScreenContent(
     onSexChange: (Sex) -> Unit,
     onBloodTypeChange: (String) -> Unit,
     onAllergiesChange: (String) -> Unit,
-    onAssignedDoctorChange: (String) -> Unit,
     onSave: () -> Unit,
 ) {
     val patient = uiState.patient
@@ -93,7 +90,7 @@ internal fun EditPatientScreenContent(
             patient == null -> Text("Paciente no encontrado: $patientId", style = MaterialTheme.typography.bodyMedium)
             else -> EditPatientForm(
                 uiState = uiState,
-                patientName = patient.name,
+                patientName = patient.fullName,
                 onCancel = onCancel,
                 onNameChange = onNameChange,
                 onNationalIdChange = onNationalIdChange,
@@ -102,7 +99,6 @@ internal fun EditPatientScreenContent(
                 onSexChange = onSexChange,
                 onBloodTypeChange = onBloodTypeChange,
                 onAllergiesChange = onAllergiesChange,
-                onAssignedDoctorChange = onAssignedDoctorChange,
                 onSave = onSave,
             )
         }
@@ -121,7 +117,6 @@ private fun EditPatientForm(
     onSexChange: (Sex) -> Unit,
     onBloodTypeChange: (String) -> Unit,
     onAllergiesChange: (String) -> Unit,
-    onAssignedDoctorChange: (String) -> Unit,
     onSave: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
@@ -142,7 +137,7 @@ private fun EditPatientForm(
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 FormSectionCaption("Datos personales")
                 OutlinedTextField(
-                    value = uiState.name,
+                    value = uiState.fullName,
                     onValueChange = onNameChange,
                     label = { RequiredFieldLabel("Nombre completo") },
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
@@ -150,7 +145,7 @@ private fun EditPatientForm(
                     modifier = Modifier.fillMaxWidth().testTag("edit_name_field"),
                 )
                 OutlinedTextField(
-                    value = uiState.nationalId,
+                    value = uiState.documentNumber,
                     onValueChange = onNationalIdChange,
                     label = { RequiredFieldLabel("DNI") },
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
@@ -158,7 +153,7 @@ private fun EditPatientForm(
                     modifier = Modifier.fillMaxWidth().testTag("edit_dni_field"),
                 )
                 OutlinedTextField(
-                    value = uiState.dateOfBirth,
+                    value = uiState.birthDate,
                     onValueChange = onDateOfBirthChange,
                     label = { RequiredFieldLabel("Fecha de nacimiento") },
                     placeholder = { Text("DD/MM/AAAA", fontSize = FieldFontSize) },
@@ -198,12 +193,6 @@ private fun EditPatientForm(
                     shape = fieldShape,
                     minLines = 2,
                     modifier = Modifier.fillMaxWidth(),
-                )
-                SelectField(
-                    label = { Text("Medico asignado", fontSize = 12.sp, color = HissInk2) },
-                    options = doctorOptions,
-                    selected = uiState.assignedDoctor,
-                    onSelect = onAssignedDoctorChange,
                 )
             }
         }

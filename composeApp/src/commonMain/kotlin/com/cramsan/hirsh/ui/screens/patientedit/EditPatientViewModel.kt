@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.Sex
+import com.cramsan.hirsh.model.singleAllergyFromText
+import com.cramsan.hirsh.model.summary
 import com.cramsan.hirsh.network.ApiError
 import com.cramsan.hirsh.network.ApiException
 import com.cramsan.hirsh.repository.PatientRepository
@@ -24,14 +26,13 @@ import kotlinx.datetime.toLocalDateTime
 data class EditPatientUiState(
     val isLoading: Boolean = true,
     val patient: Patient? = null,
-    val name: String = "",
-    val nationalId: String = "",
-    val dateOfBirth: String = "",
+    val fullName: String = "",
+    val documentNumber: String = "",
+    val birthDate: String = "",
     val phone: String = "",
     val sex: Sex? = null,
     val bloodType: String = "",
     val allergies: String = "",
-    val assignedDoctor: String = "",
     val error: String? = null,
     val isSaving: Boolean = false,
     val saved: Boolean = false,
@@ -65,27 +66,25 @@ class EditPatientViewModel(
                 it.copy(
                     isLoading = false,
                     patient = patient,
-                    name = patient.name,
-                    nationalId = patient.nationalId,
-                    dateOfBirth = patient.dateOfBirth,
+                    fullName = patient.fullName,
+                    documentNumber = patient.documentNumber,
+                    birthDate = patient.birthDate,
                     phone = patient.phone,
                     sex = patient.sex,
                     bloodType = patient.bloodType,
-                    allergies = patient.allergies,
-                    assignedDoctor = patient.assignedDoctor,
+                    allergies = patient.allergies.summary(),
                 )
             }
         }
     }
 
-    fun onNameChange(value: String) = _uiState.update { it.copy(name = value) }
-    fun onNationalIdChange(value: String) = _uiState.update { it.copy(nationalId = value) }
-    fun onDateOfBirthChange(value: String) = _uiState.update { it.copy(dateOfBirth = value) }
+    fun onNameChange(value: String) = _uiState.update { it.copy(fullName = value) }
+    fun onNationalIdChange(value: String) = _uiState.update { it.copy(documentNumber = value) }
+    fun onDateOfBirthChange(value: String) = _uiState.update { it.copy(birthDate = value) }
     fun onPhoneChange(value: String) = _uiState.update { it.copy(phone = value) }
     fun onSexChange(value: Sex) = _uiState.update { it.copy(sex = value) }
     fun onBloodTypeChange(value: String) = _uiState.update { it.copy(bloodType = value) }
     fun onAllergiesChange(value: String) = _uiState.update { it.copy(allergies = value) }
-    fun onAssignedDoctorChange(value: String) = _uiState.update { it.copy(assignedDoctor = value) }
 
     fun save() {
         val state = _uiState.value
@@ -94,7 +93,7 @@ class EditPatientViewModel(
         if (state.isSaving) {
             return
         }
-        if (state.name.isBlank() || state.nationalId.isBlank() || state.dateOfBirth.isBlank() ||
+        if (state.fullName.isBlank() || state.documentNumber.isBlank() || state.birthDate.isBlank() ||
             state.phone.isBlank() || sex == null
         ) {
             _uiState.update { it.copy(error = "Completa los campos requeridos") }
@@ -107,14 +106,13 @@ class EditPatientViewModel(
         viewModelScope.launch {
             try {
                 val newValues = original.copy(
-                    name = state.name,
-                    nationalId = state.nationalId,
-                    dateOfBirth = state.dateOfBirth,
+                    fullName = state.fullName,
+                    documentNumber = state.documentNumber,
+                    birthDate = state.birthDate,
                     phone = state.phone,
                     sex = sex,
                     bloodType = state.bloodType,
-                    allergies = state.allergies,
-                    assignedDoctor = state.assignedDoctor,
+                    allergies = singleAllergyFromText(state.allergies),
                 )
                 patientRepository.updatePatient(original.id, newValues, changedBy, fecha, hora)
                 _uiState.update { it.copy(isSaving = false, saved = true) }

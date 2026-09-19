@@ -25,9 +25,9 @@ class PatientListViewModel(private val patientRepository: PatientRepository) : V
             patients
         } else {
             patients.filter { patient ->
-                patient.name.contains(query, ignoreCase = true) ||
-                    patient.nationalId.contains(query, ignoreCase = true) ||
-                    patient.id.contains(query, ignoreCase = true)
+                patient.fullName.contains(query, ignoreCase = true) ||
+                    patient.documentNumber.contains(query, ignoreCase = true) ||
+                    patient.medicalRecordNumber.contains(query, ignoreCase = true)
             }
         }
         PatientListUiState(isLoading = false, patients = filtered, query = query)

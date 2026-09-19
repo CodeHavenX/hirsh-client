@@ -1,6 +1,7 @@
 package com.cramsan.hirsh.repository
 
 import app.cash.turbine.test
+import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.network.ApiError
@@ -11,7 +12,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-private const val PATIENT_ID = "#00142"
+private const val PATIENT_ID = "07c98942-3654-4034-b960-f3265814e214"
 
 class PatientRepositoryTest {
 
@@ -75,7 +76,7 @@ class PatientRepositoryTest {
             hora = "10:00",
         )
 
-        // Seed fixture: #00142 starts with exactly 2 historical entries (see the
+        // Seed fixture: 07c98942-3654-4034-b960-f3265814e214 starts with exactly 2 historical entries (see the
         // "seeded patients have their prototype change history" test below).
         repository.getChangeLog(PATIENT_ID).test {
             assertEquals(2, awaitItem().size)
@@ -118,7 +119,7 @@ class PatientRepositoryTest {
     fun `getChangeLog for a patient with no history emits an empty list`() = runTest {
         val repository = InMemoryPatientRepository()
 
-        repository.getChangeLog("#00135").test {
+        repository.getChangeLog("1e0697d0-f3e4-4755-85ad-d888d2b15f9d").test {
             assertEquals(emptyList(), awaitItem())
         }
     }
@@ -127,22 +128,22 @@ class PatientRepositoryTest {
     fun `seeded patients have their prototype change history`() = runTest {
         val repository = InMemoryPatientRepository()
 
-        repository.getChangeLog("#00142").test {
+        repository.getChangeLog("07c98942-3654-4034-b960-f3265814e214").test {
             val entries = awaitItem()
             assertEquals(2, entries.size)
             assertTrue(entries.any { it.changedBy == "apatel" && it.fields.single().field == "allergies" })
             assertTrue(entries.any { it.changedBy == "mreyes" && it.fields.single().field == "phone" })
         }
-        repository.getChangeLog("#00131").test {
+        repository.getChangeLog("caaedede-5d72-4a52-bb72-7532d7cdda83").test {
             val entries = awaitItem()
             assertEquals(2, entries.size)
-            assertTrue(entries.any { it.changedBy == "admin" && it.fields.single().field == "assignedDoctor" })
+            assertTrue(entries.any { it.changedBy == "admin" && it.fields.single().field == "district" })
             assertTrue(entries.any { it.changedBy == "mreyes" && it.fields.single().field == "bloodType" })
         }
-        repository.getChangeLog("#00138").test {
+        repository.getChangeLog("a21f8bfa-299c-42db-9681-c84f87a90ce4").test {
             val entries = awaitItem()
             assertEquals(1, entries.size)
-            assertEquals("nationalId", entries.single().fields.single().field)
+            assertEquals("documentNumber", entries.single().fields.single().field)
         }
     }
 
@@ -186,94 +187,94 @@ class PatientRepositoryTest {
     fun `updatePatient is a no-op for an unknown patient id`() = runTest {
         val repository = InMemoryPatientRepository()
         val bogus = Patient(
-            id = "#does-not-exist",
-            name = "Nobody",
-            dateOfBirth = "01/01/2000",
+            id = "does-not-exist",
+            medicalRecordNumber = "HC-00000",
+            documentType = DocumentType.NID,
+            documentNumber = "00000000",
+            fullName = "Nobody",
+            birthDate = "01/01/2000",
             phone = "000-000-000",
-            assignedDoctor = "Dr. Patel",
-            lastVisit = "—",
             bloodType = "O+",
-            allergies = "Ninguna",
-            nationalId = "00000000",
             sex = Sex.MALE,
         )
 
         repository.updatePatient(
-            id = "#does-not-exist",
+            id = "does-not-exist",
             newValues = bogus,
             changedBy = "apatel",
             fecha = "01 Ene 2027",
             hora = "10:00",
         )
 
-        assertTrue(repository.patients.value.none { it.id == "#does-not-exist" })
+        assertTrue(repository.patients.value.none { it.id == "does-not-exist" })
     }
 
     @Test
-    fun `addPatient generates the next id from the current max`() = runTest {
+    fun `addPatient generates a fresh UUID id and the next medical record number from the current max`() = runTest {
         val repository = InMemoryPatientRepository()
 
         val created = repository.addPatient(
             name = "Nuevo Paciente",
-            nationalId = "11223344",
-            dateOfBirth = "01/01/2000",
+            documentType = DocumentType.NID,
+            documentNumber = "11223344",
+            birthDate = "01/01/2000",
             phone = "999-999-999",
             sex = Sex.MALE,
             bloodType = "O+",
             allergies = "Ninguna",
-            assignedDoctor = "Dr. Patel",
         )
 
-        assertEquals("#00143", created.id)
+        assertTrue(repository.patients.value.none { it !== created && it.id == created.id }, "id must be unique")
+        assertEquals("HC-00143", created.medicalRecordNumber)
     }
 
     @Test
-    fun `addPatient defaults lastVisit and appends to the patient list`() = runTest {
+    fun `addPatient appends the new patient to the patient list`() = runTest {
         val repository = InMemoryPatientRepository()
         val beforeCount = repository.patients.value.size
 
         val created = repository.addPatient(
             name = "Nuevo Paciente",
-            nationalId = "11223344",
-            dateOfBirth = "01/01/2000",
+            documentType = DocumentType.NID,
+            documentNumber = "11223344",
+            birthDate = "01/01/2000",
             phone = "999-999-999",
             sex = Sex.MALE,
             bloodType = "O+",
             allergies = "Ninguna",
-            assignedDoctor = "Dr. Patel",
         )
 
-        assertEquals("—", created.lastVisit)
         assertEquals(beforeCount + 1, repository.patients.value.size)
         assertTrue(repository.patients.value.contains(created))
     }
 
     @Test
-    fun `sequential addPatient calls each increment from the new max`() = runTest {
+    fun `sequential addPatient calls each get a unique id and increment the medical record number`() = runTest {
         val repository = InMemoryPatientRepository()
 
         val first = repository.addPatient(
             name = "Primero",
-            nationalId = "11111111",
-            dateOfBirth = "01/01/2000",
+            documentType = DocumentType.NID,
+            documentNumber = "11111111",
+            birthDate = "01/01/2000",
             phone = "111-111-111",
             sex = Sex.MALE,
             bloodType = "O+",
             allergies = "Ninguna",
-            assignedDoctor = "Dr. Patel",
         )
         val second = repository.addPatient(
             name = "Segundo",
-            nationalId = "22222222",
-            dateOfBirth = "01/01/2000",
+            documentType = DocumentType.NID,
+            documentNumber = "22222222",
+            birthDate = "01/01/2000",
             phone = "222-222-222",
             sex = Sex.FEMALE,
             bloodType = "O+",
             allergies = "Ninguna",
-            assignedDoctor = "Dr. Patel",
         )
 
-        assertEquals("#00143", first.id)
-        assertEquals("#00144", second.id)
+        assertTrue(first.id != second.id)
+        assertEquals("HC-00143", first.medicalRecordNumber)
+        assertEquals("HC-00144", second.medicalRecordNumber)
     }
 }

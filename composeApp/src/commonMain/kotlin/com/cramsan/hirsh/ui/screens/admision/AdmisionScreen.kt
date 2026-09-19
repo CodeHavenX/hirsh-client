@@ -90,7 +90,7 @@ internal fun AdmisionScreenContent(
             patient == null -> Text("Paciente no encontrado: $patientId", style = MaterialTheme.typography.bodyMedium)
             else -> AdmisionForm(
                 uiState = uiState,
-                patientName = patient.name,
+                patientName = patient.fullName,
                 onCancel = onCancel,
                 onServicioChange = onServicioChange,
                 onCamaChange = onCamaChange,

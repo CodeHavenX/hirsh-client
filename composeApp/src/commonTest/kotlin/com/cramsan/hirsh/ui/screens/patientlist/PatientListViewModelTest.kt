@@ -1,9 +1,11 @@
 package com.cramsan.hirsh.ui.screens.patientlist
 
 import app.cash.turbine.test
+import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.PatientChangeLogEntry
 import com.cramsan.hirsh.model.Sex
+import com.cramsan.hirsh.model.singleAllergyFromText
 import com.cramsan.hirsh.repository.PatientRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -23,28 +25,28 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 private val samplePatient = Patient(
-    id = "#00142",
-    name = "Maria Gonzalez Huerta",
-    dateOfBirth = "14/03/1989",
+    id = "07c98942-3654-4034-b960-f3265814e214",
+    medicalRecordNumber = "HC-00142",
+    documentType = DocumentType.NID,
+    documentNumber = "45678901",
+    fullName = "Maria Gonzalez Huerta",
+    birthDate = "14/03/1989",
     phone = "987-654-321",
-    assignedDoctor = "Dr. Patel",
-    lastVisit = "12 Abr 2026",
     bloodType = "O+",
-    allergies = "Penicilina",
-    nationalId = "45678901",
+    allergies = singleAllergyFromText("Penicilina"),
     sex = Sex.FEMALE,
 )
 
 private val otherPatient = Patient(
-    id = "#00138",
-    name = "Eduardo Remon Huertas",
-    dateOfBirth = "17/07/1962",
+    id = "a21f8bfa-299c-42db-9681-c84f87a90ce4",
+    medicalRecordNumber = "HC-00138",
+    documentType = DocumentType.NID,
+    documentNumber = "09147875",
+    fullName = "Eduardo Remon Huertas",
+    birthDate = "17/07/1962",
     phone = "912-345-678",
-    assignedDoctor = "Dr. Reyes",
-    lastVisit = "17 Jun 2026",
     bloodType = "A+",
-    allergies = "Ninguna",
-    nationalId = "09147875",
+    allergies = emptyList(),
     sex = Sex.MALE,
 )
 
@@ -67,24 +69,24 @@ private class FakePatientRepository(patients: List<Patient>) : PatientRepository
 
     override suspend fun addPatient(
         name: String,
-        nationalId: String,
-        dateOfBirth: String,
+        documentType: DocumentType,
+        documentNumber: String,
+        birthDate: String,
         phone: String,
         sex: Sex,
         bloodType: String,
         allergies: String,
-        assignedDoctor: String,
     ): Patient {
         val created = Patient(
-            id = "#00000",
-            name = name,
-            dateOfBirth = dateOfBirth,
+            id = "new-patient-id",
+            medicalRecordNumber = "HC-00000",
+            documentType = documentType,
+            documentNumber = documentNumber,
+            fullName = name,
+            birthDate = birthDate,
             phone = phone,
-            assignedDoctor = assignedDoctor,
-            lastVisit = "—",
             bloodType = bloodType,
-            allergies = allergies,
-            nationalId = nationalId,
+            allergies = singleAllergyFromText(allergies),
             sex = sex,
         )
         _patients.update { list -> list + created }

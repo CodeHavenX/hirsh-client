@@ -6,9 +6,11 @@ import com.cramsan.hirsh.model.Evolucion
 import com.cramsan.hirsh.model.HcSectionKey
 import com.cramsan.hirsh.model.HistoriaClinica
 import com.cramsan.hirsh.model.Hospitalizacion
+import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.PatientChangeLogEntry
 import com.cramsan.hirsh.model.Sex
+import com.cramsan.hirsh.model.singleAllergyFromText
 import com.cramsan.hirsh.repository.HospitalizationRepository
 import com.cramsan.hirsh.repository.PatientRepository
 import kotlinx.coroutines.Dispatchers
@@ -28,15 +30,15 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 private val samplePatient = Patient(
-    id = "#00142",
-    name = "Maria Gonzalez Huerta",
-    dateOfBirth = "14/03/1989",
+    id = "07c98942-3654-4034-b960-f3265814e214",
+    medicalRecordNumber = "HC-00142",
+    documentType = DocumentType.NID,
+    documentNumber = "45678901",
+    fullName = "Maria Gonzalez Huerta",
+    birthDate = "14/03/1989",
     phone = "987-654-321",
-    assignedDoctor = "Dr. Patel",
-    lastVisit = "12 Abr 2026",
     bloodType = "O+",
-    allergies = "Penicilina",
-    nationalId = "45678901",
+    allergies = singleAllergyFromText("Penicilina"),
     sex = Sex.FEMALE,
 )
 
@@ -57,13 +59,13 @@ private class FakePatientRepository(patients: List<Patient> = listOf(samplePatie
 
     override suspend fun addPatient(
         name: String,
-        nationalId: String,
-        dateOfBirth: String,
+        documentType: DocumentType,
+        documentNumber: String,
+        birthDate: String,
         phone: String,
         sex: Sex,
         bloodType: String,
         allergies: String,
-        assignedDoctor: String,
     ): Patient = error("not used in this test")
 }
 
@@ -155,7 +157,7 @@ class AdmisionViewModelTest {
 
         viewModel.uiState.test {
             skipItems(1)
-            viewModel.load("#unknown")
+            viewModel.load("unknown-patient-id")
             val loaded = awaitItem()
             assertEquals(null, loaded.patient)
             assertEquals(false, loaded.isLoading)
@@ -167,7 +169,7 @@ class AdmisionViewModelTest {
     fun `register does nothing when the patient was not found`() = runTest(dispatcher) {
         val repository = FakeHospitalizationRepository()
         val viewModel = AdmisionViewModel(FakePatientRepository(emptyList()), repository)
-        viewModel.load("#unknown")
+        viewModel.load("unknown-patient-id")
         dispatcher.scheduler.advanceUntilIdle()
         fillRequiredFields(viewModel)
 

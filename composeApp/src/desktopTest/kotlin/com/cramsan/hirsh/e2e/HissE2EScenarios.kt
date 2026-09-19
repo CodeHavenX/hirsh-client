@@ -44,9 +44,9 @@ import kotlin.test.assertTrue
  * need that id passed between them.
  *
  * Seeded fixture data referenced below (from InMemoryPatientRepository/HospitalizationRepository/
- * AccountRepository, all seeded from prototype/shared/data.js): patients #00142 (Maria Gonzalez
- * Huerta, 3 Alta hospitalizations), #00129 (Karla Sofia Ricaldi Sedano, 1 Activa hospitalization
- * `h_ricaldi_1` with 0 evoluciones), #00124 (Olga Karen Santiesteban Bracamonte, 0
+ * AccountRepository, all seeded from prototype/shared/data.js): patients 07c98942-3654-4034-b960-f3265814e214 (Maria Gonzalez
+ * Huerta, 3 Alta hospitalizations), 30c14d79-8c7e-43f8-870c-f1dbc4c90247 (Karla Sofia Ricaldi Sedano, 1 Activa hospitalization
+ * `h_ricaldi_1` with 0 evoluciones), a7efc7af-d998-43e8-8abd-d07c1155ef9f (Olga Karen Santiesteban Bracamonte, 0
  * hospitalizations); accounts `admin`/ADMIN. `test02`/`test03` below are `@Ignore`d: they need a
  * seeded inactive account and a seeded non-admin account respectively, and only an admin account
  * is seeded in the real backend as of this ticket -- re-enable once account provisioning is real
@@ -104,7 +104,7 @@ abstract class HissE2EScenarios {
     fun test05_patientList_showsSeededPatients() {
         driver.loginAsAdmin()
         driver.clickTag("nav_patients")
-        driver.waitForTag("patient_row_#00142")
+        driver.waitForTag("patient_row_07c98942-3654-4034-b960-f3265814e214")
         val hierarchy = driver.getHierarchy()
         assertTrue(hierarchy.containsText("Maria Gonzalez Huerta"))
         assertTrue(hierarchy.containsText("Eduardo Remon Huertas"))
@@ -114,7 +114,7 @@ abstract class HissE2EScenarios {
     fun test06_patientRecord_populated_showsHospitalizationsAndProfileCard() {
         driver.loginAsAdmin()
         driver.clickTag("nav_patients")
-        driver.clickTag("patient_row_#00142")
+        driver.clickTag("patient_row_07c98942-3654-4034-b960-f3265814e214")
         driver.waitForTag("record_edit_button")
         val hierarchy = driver.getHierarchy()
         assertTrue(hierarchy.containsText("Maria Gonzalez Huerta"))
@@ -129,7 +129,7 @@ abstract class HissE2EScenarios {
         driver.loginAsAdmin()
         driver.clickTag("nav_patients")
         driver.scrollDown("screen_scroll_container")
-        driver.clickTag("patient_row_#00124")
+        driver.clickTag("patient_row_a7efc7af-d998-43e8-8abd-d07c1155ef9f")
         driver.waitForTag("record_edit_button")
         val hierarchy = driver.getHierarchy()
         assertTrue(hierarchy.containsText("Olga Karen Santiesteban Bracamonte"))
@@ -143,7 +143,7 @@ abstract class HissE2EScenarios {
     fun test08_patientRecord_viewHistory_navigatesAndBack() {
         driver.loginAsAdmin()
         driver.clickTag("nav_patients")
-        driver.clickTag("patient_row_#00142")
+        driver.clickTag("patient_row_07c98942-3654-4034-b960-f3265814e214")
         driver.clickTag("record_history_link")
         driver.waitForTag("history_back_button")
         assertTrue(driver.getHierarchy().containsText("Maria Gonzalez Huerta"), "history screen must be scoped to the patient it was opened from")
@@ -171,7 +171,7 @@ abstract class HissE2EScenarios {
         driver.clickTag("nav_patients")
         driver.clickTag("patient_register_button")
         driver.waitForTag("register_name_field")
-        // Substring match against the seeded "Maria Gonzalez Huerta" (#00142) -- see
+        // Substring match against the seeded "Maria Gonzalez Huerta" (07c98942-3654-4034-b960-f3265814e214) -- see
         // RegisterPatientViewModel.checkDuplicate(). Blurring onto the DNI field is what
         // fires the name field's onFocusChanged(false) that triggers the check.
         driver.type("register_name_field", "Maria Gonzalez")
@@ -204,7 +204,7 @@ abstract class HissE2EScenarios {
     fun test12_editPatient_updatesPhoneAndSaves() {
         driver.loginAsAdmin()
         driver.clickTag("nav_patients")
-        driver.clickTag("patient_row_#00142")
+        driver.clickTag("patient_row_07c98942-3654-4034-b960-f3265814e214")
         driver.clickTag("record_edit_button")
         driver.waitForTag("edit_phone_field")
         driver.type("edit_phone_field", "555-9999")
@@ -220,7 +220,7 @@ abstract class HissE2EScenarios {
         driver.loginAsAdmin()
         driver.clickTag("nav_patients")
         driver.scrollDown("screen_scroll_container")
-        driver.clickTag("patient_row_#00129")
+        driver.clickTag("patient_row_30c14d79-8c7e-43f8-870c-f1dbc4c90247")
         driver.clickTag("hosp_card_h_ricaldi_1")
         driver.waitForTag("hosp_new_evolucion_button")
         val hierarchy = driver.getHierarchy()
@@ -239,7 +239,7 @@ abstract class HissE2EScenarios {
         driver.loginAsAdmin()
         driver.clickTag("nav_patients")
         driver.scrollDown("screen_scroll_container")
-        driver.clickTag("patient_row_#00124") // Olga Karen Santiesteban Bracamonte, 0 hospitalizations
+        driver.clickTag("patient_row_a7efc7af-d998-43e8-8abd-d07c1155ef9f") // Olga Karen Santiesteban Bracamonte, 0 hospitalizations
         driver.clickTag("record_new_hospitalization_button")
         driver.waitForTag("admision_submit_button")
 
@@ -327,7 +327,7 @@ abstract class HissE2EScenarios {
     fun test14b_patientList_filtersBySearch() {
         driver.loginAsAdmin()
         driver.clickTag("nav_patients")
-        driver.waitForTag("patient_row_#00142")
+        driver.waitForTag("patient_row_07c98942-3654-4034-b960-f3265814e214")
         driver.type("patient_search_field", "Gonzalez")
         val hierarchy = driver.getHierarchy()
         assertTrue(hierarchy.containsText("Maria Gonzalez Huerta"), "search must still show the matching patient")

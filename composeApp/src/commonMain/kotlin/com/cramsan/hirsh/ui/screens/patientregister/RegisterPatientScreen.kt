@@ -47,7 +47,6 @@ import com.cramsan.hirsh.ui.theme.HissWarnWash
 import org.koin.compose.viewmodel.koinViewModel
 
 private val bloodTypeOptions = listOf("O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-")
-private val doctorOptions = listOf("Dr. Patel", "Dr. Reyes", "Dr. Lin")
 
 @Composable
 fun RegisterPatientScreen(
@@ -74,7 +73,6 @@ fun RegisterPatientScreen(
         onCheckDuplicate = viewModel::checkDuplicate,
         onBloodTypeChange = viewModel::onBloodTypeChange,
         onAllergiesChange = viewModel::onAllergiesChange,
-        onAssignedDoctorChange = viewModel::onAssignedDoctorChange,
         onRegister = viewModel::register,
     )
 }
@@ -93,7 +91,6 @@ internal fun RegisterPatientScreenContent(
     onCheckDuplicate: () -> Unit,
     onBloodTypeChange: (String) -> Unit,
     onAllergiesChange: (String) -> Unit,
-    onAssignedDoctorChange: (String) -> Unit,
     onRegister: () -> Unit,
 ) {
     Column(
@@ -121,7 +118,7 @@ internal fun RegisterPatientScreenContent(
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 FormSectionCaption("Datos personales")
                 OutlinedTextField(
-                    value = uiState.name,
+                    value = uiState.fullName,
                     onValueChange = onNameChange,
                     label = { RequiredFieldLabel("Nombre completo") },
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
@@ -131,7 +128,7 @@ internal fun RegisterPatientScreenContent(
                         .testTag("register_name_field"),
                 )
                 OutlinedTextField(
-                    value = uiState.nationalId,
+                    value = uiState.documentNumber,
                     onValueChange = onNationalIdChange,
                     label = { RequiredFieldLabel("DNI") },
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
@@ -141,7 +138,7 @@ internal fun RegisterPatientScreenContent(
                         .testTag("register_dni_field"),
                 )
                 OutlinedTextField(
-                    value = uiState.dateOfBirth,
+                    value = uiState.birthDate,
                     onValueChange = onDateOfBirthChange,
                     label = { RequiredFieldLabel("Fecha de nacimiento") },
                     placeholder = { Text("DD/MM/AAAA", fontSize = FieldFontSize) },
@@ -181,12 +178,6 @@ internal fun RegisterPatientScreenContent(
                     shape = fieldShape,
                     minLines = 2,
                     modifier = Modifier.fillMaxWidth(),
-                )
-                SelectField(
-                    label = { Text("Medico asignado", fontSize = 12.sp, color = HissInk2) },
-                    options = doctorOptions,
-                    selected = uiState.assignedDoctor,
-                    onSelect = onAssignedDoctorChange,
                 )
             }
         }
