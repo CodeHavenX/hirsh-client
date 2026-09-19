@@ -23,6 +23,13 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Instant
 
+// Seeded patient ids from PatientRepository.kt's InMemoryPatientRepository -- named here (rather
+// than repeating the raw UUIDs) so it's still obvious at a glance which patient each test targets.
+private const val PATIENT_GONZALEZ_ID = "07c98942-3654-4034-b960-f3265814e214"
+private const val PATIENT_SANTIESTEBAN_ID = "a7efc7af-d998-43e8-8abd-d07c1155ef9f"
+private const val PATIENT_MENDOZA_ID = "1e0697d0-f3e4-4755-85ad-d888d2b15f9d"
+private const val PATIENT_VASQUEZ_ID = "caaedede-5d72-4a52-bb72-7532d7cdda83"
+
 // Built from a local wall-clock value (not a literal UTC Instant) so
 // formatDate/formatTime's output is independent of the test host's time zone.
 private val FIXED_NOW: Instant = LocalDateTime(2027, 1, 15, 10, 30).toInstant(TimeZone.currentSystemDefault())
@@ -55,7 +62,7 @@ class HospitalizationRepositoryTest {
     fun `getHospitalizations returns only the requested patient's stays`() = runTest {
         val repository = InMemoryHospitalizationRepository(FakeClock())
 
-        repository.getHospitalizations("07c98942-3654-4034-b960-f3265814e214").test {
+        repository.getHospitalizations(PATIENT_GONZALEZ_ID).test {
             assertEquals(3, awaitItem().size)
         }
     }
@@ -64,7 +71,7 @@ class HospitalizationRepositoryTest {
     fun `getHospitalizations is empty for a patient with none`() = runTest {
         val repository = InMemoryHospitalizationRepository(FakeClock())
 
-        repository.getHospitalizations("a7efc7af-d998-43e8-8abd-d07c1155ef9f").test {
+        repository.getHospitalizations(PATIENT_SANTIESTEBAN_ID).test {
             assertEquals(emptyList(), awaitItem())
         }
     }
@@ -73,7 +80,7 @@ class HospitalizationRepositoryTest {
     fun `getHospitalization resolves by patientId and hospId together`() = runTest {
         val repository = InMemoryHospitalizationRepository(FakeClock())
 
-        repository.getHospitalization("1e0697d0-f3e4-4755-85ad-d888d2b15f9d", "h_mendoza_1").test {
+        repository.getHospitalization(PATIENT_MENDOZA_ID, "h_mendoza_1").test {
             assertEquals("h_mendoza_1", awaitItem()?.id)
         }
     }
@@ -82,9 +89,9 @@ class HospitalizationRepositoryTest {
     fun `getHospitalization does not fall back when hospId belongs to a different patient`() = runTest {
         val repository = InMemoryHospitalizationRepository(FakeClock())
 
-        // h_mendoza_1 is real, but under 1e0697d0-f3e4-4755-85ad-d888d2b15f9d, not caaedede-5d72-4a52-bb72-7532d7cdda83 -- must resolve to
+        // h_mendoza_1 is real, but under PATIENT_MENDOZA_ID, not PATIENT_VASQUEZ_ID -- must resolve to
         // not-found, never render Jesus's stay under Maria Vasquez's record.
-        repository.getHospitalization("caaedede-5d72-4a52-bb72-7532d7cdda83", "h_mendoza_1").test {
+        repository.getHospitalization(PATIENT_VASQUEZ_ID, "h_mendoza_1").test {
             assertNull(awaitItem())
         }
     }
@@ -112,7 +119,7 @@ class HospitalizationRepositoryTest {
         val repository = InMemoryHospitalizationRepository(FakeClock())
 
         val created = repository.addHospitalization(
-            patientId = "a7efc7af-d998-43e8-8abd-d07c1155ef9f",
+            patientId = PATIENT_SANTIESTEBAN_ID,
             servicio = "Medicina General",
             cama = "05",
             medicoResponsable = "Dr. Lin",
@@ -131,10 +138,10 @@ class HospitalizationRepositoryTest {
     fun `addHospitalization is visible to an existing getHospitalizations observer`() = runTest {
         val repository = InMemoryHospitalizationRepository(FakeClock())
 
-        repository.getHospitalizations("a7efc7af-d998-43e8-8abd-d07c1155ef9f").test {
+        repository.getHospitalizations(PATIENT_SANTIESTEBAN_ID).test {
             assertEquals(emptyList(), awaitItem())
             repository.addHospitalization(
-                patientId = "a7efc7af-d998-43e8-8abd-d07c1155ef9f",
+                patientId = PATIENT_SANTIESTEBAN_ID,
                 servicio = "Medicina General",
                 cama = "05",
                 medicoResponsable = "Dr. Lin",
@@ -150,7 +157,7 @@ class HospitalizationRepositoryTest {
 
         repository.discharge("h_mendoza_1", jpaVersion = 0L)
 
-        repository.getHospitalization("1e0697d0-f3e4-4755-85ad-d888d2b15f9d", "h_mendoza_1").test {
+        repository.getHospitalization(PATIENT_MENDOZA_ID, "h_mendoza_1").test {
             val hospitalization = awaitItem()
             assertEquals(EstadoHospitalizacion.ALTA, hospitalization?.estado)
             assertEquals("15 Jan 2027", hospitalization?.fechaAlta)
@@ -164,7 +171,7 @@ class HospitalizationRepositoryTest {
 
         repository.discharge("does-not-exist", jpaVersion = 0L)
 
-        repository.getHospitalizations("1e0697d0-f3e4-4755-85ad-d888d2b15f9d").test {
+        repository.getHospitalizations(PATIENT_MENDOZA_ID).test {
             assertEquals(EstadoHospitalizacion.ACTIVA, awaitItem().single().estado)
         }
     }
@@ -175,7 +182,7 @@ class HospitalizationRepositoryTest {
 
         repository.discharge("h_mendoza_1", jpaVersion = 0L)
 
-        repository.getHospitalization("1e0697d0-f3e4-4755-85ad-d888d2b15f9d", "h_mendoza_1").test {
+        repository.getHospitalization(PATIENT_MENDOZA_ID, "h_mendoza_1").test {
             assertEquals(1L, awaitItem()?.jpaVersion)
         }
     }
@@ -190,7 +197,7 @@ class HospitalizationRepositoryTest {
             }
 
             assertEquals(ApiError.Conflict("h_mendoza_1"), exception.error)
-            repository.getHospitalization("1e0697d0-f3e4-4755-85ad-d888d2b15f9d", "h_mendoza_1").test {
+            repository.getHospitalization(PATIENT_MENDOZA_ID, "h_mendoza_1").test {
                 val hospitalization = awaitItem()
                 assertEquals(EstadoHospitalizacion.ACTIVA, hospitalization?.estado)
                 assertEquals(0L, hospitalization?.jpaVersion)
@@ -217,7 +224,7 @@ class HospitalizationRepositoryTest {
 
         repository.saveHistoriaClinicaSection("h_mendoza_1", HcSectionKey.FILIACION, newFiliacion)
 
-        repository.getHospitalization("1e0697d0-f3e4-4755-85ad-d888d2b15f9d", "h_mendoza_1").test {
+        repository.getHospitalization(PATIENT_MENDOZA_ID, "h_mendoza_1").test {
             val hc = awaitItem()?.historiaClinica
             assertEquals(true, hc?.filiacion?.complete)
             assertEquals(newFiliacion, hc?.filiacion?.data)
@@ -252,7 +259,7 @@ class HospitalizationRepositoryTest {
 
         repository.addEvolucion("h_mendoza_1", draftEvolucion())
 
-        repository.getHospitalization("1e0697d0-f3e4-4755-85ad-d888d2b15f9d", "h_mendoza_1").test {
+        repository.getHospitalization(PATIENT_MENDOZA_ID, "h_mendoza_1").test {
             val evoluciones = awaitItem()?.evoluciones.orEmpty()
             assertEquals(4, evoluciones.size)
             assertEquals("15 Jan 2027", evoluciones.first().fecha)
@@ -263,7 +270,7 @@ class HospitalizationRepositoryTest {
     fun `addEvolucion is visible to an existing getHospitalization observer without re-subscribing`() = runTest {
         val repository = InMemoryHospitalizationRepository(FakeClock())
 
-        repository.getHospitalization("1e0697d0-f3e4-4755-85ad-d888d2b15f9d", "h_mendoza_1").test {
+        repository.getHospitalization(PATIENT_MENDOZA_ID, "h_mendoza_1").test {
             assertEquals(3, awaitItem()?.evoluciones?.size)
             repository.addEvolucion("h_mendoza_1", draftEvolucion())
             assertEquals(4, awaitItem()?.evoluciones?.size)
