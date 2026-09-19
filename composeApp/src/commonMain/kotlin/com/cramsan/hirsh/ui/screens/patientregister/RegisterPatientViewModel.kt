@@ -6,6 +6,7 @@ import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.repository.PatientRepository
+import com.cramsan.hirsh.repository.assembleFullName
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,7 +15,10 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class RegisterPatientUiState(
-    val fullName: String = "",
+    val medicalRecordNumber: String = "",
+    val firstName: String = "",
+    val lastName: String = "",
+    val secondLastName: String = "",
     val documentNumber: String = "",
     val birthDate: String = "",
     val phone: String = "",
@@ -32,7 +36,10 @@ class RegisterPatientViewModel(private val patientRepository: PatientRepository)
     private val _uiState = MutableStateFlow(RegisterPatientUiState())
     val uiState: StateFlow<RegisterPatientUiState> = _uiState.asStateFlow()
 
-    fun onNameChange(value: String) = _uiState.update { it.copy(fullName = value) }
+    fun onMedicalRecordNumberChange(value: String) = _uiState.update { it.copy(medicalRecordNumber = value) }
+    fun onFirstNameChange(value: String) = _uiState.update { it.copy(firstName = value) }
+    fun onLastNameChange(value: String) = _uiState.update { it.copy(lastName = value) }
+    fun onSecondLastNameChange(value: String) = _uiState.update { it.copy(secondLastName = value) }
     fun onNationalIdChange(value: String) = _uiState.update { it.copy(documentNumber = value) }
     fun onDateOfBirthChange(value: String) = _uiState.update { it.copy(birthDate = value) }
     fun onPhoneChange(value: String) = _uiState.update { it.copy(phone = value) }
@@ -47,8 +54,9 @@ class RegisterPatientViewModel(private val patientRepository: PatientRepository)
      */
     fun checkDuplicate() {
         val state = _uiState.value
+        val name = assembleFullName(state.firstName, state.lastName, state.secondLastName)
         val match = patientRepository.patients.value.find { patient ->
-            (state.fullName.isNotBlank() && patient.fullName.contains(state.fullName, ignoreCase = true)) ||
+            (name.isNotBlank() && patient.fullName.contains(name, ignoreCase = true)) ||
                 (state.documentNumber.isNotBlank() && patient.documentNumber == state.documentNumber)
         }
         _uiState.update { it.copy(duplicateWarning = match) }
@@ -60,8 +68,8 @@ class RegisterPatientViewModel(private val patientRepository: PatientRepository)
         if (state.isSaving) {
             return
         }
-        if (state.fullName.isBlank() || state.documentNumber.isBlank() || state.birthDate.isBlank() ||
-            state.phone.isBlank() || sex == null
+        if (state.medicalRecordNumber.isBlank() || state.firstName.isBlank() || state.lastName.isBlank() ||
+            state.documentNumber.isBlank() || state.birthDate.isBlank() || state.phone.isBlank() || sex == null
         ) {
             _uiState.update { it.copy(error = "Completa los campos requeridos") }
             return
@@ -74,7 +82,10 @@ class RegisterPatientViewModel(private val patientRepository: PatientRepository)
                 // offers a document-type picker), so DocumentType.NID is the only value this path
                 // can produce until that form gains one.
                 val created = patientRepository.addPatient(
-                    name = state.fullName,
+                    medicalRecordNumber = state.medicalRecordNumber,
+                    firstName = state.firstName,
+                    lastName = state.lastName,
+                    secondLastName = state.secondLastName,
                     documentType = DocumentType.NID,
                     documentNumber = state.documentNumber,
                     birthDate = state.birthDate,

@@ -65,7 +65,10 @@ fun RegisterPatientScreen(
         uiState = uiState,
         onCancel = onCancel,
         onViewExistingPatient = onViewExistingPatient,
-        onNameChange = viewModel::onNameChange,
+        onMedicalRecordNumberChange = viewModel::onMedicalRecordNumberChange,
+        onFirstNameChange = viewModel::onFirstNameChange,
+        onLastNameChange = viewModel::onLastNameChange,
+        onSecondLastNameChange = viewModel::onSecondLastNameChange,
         onNationalIdChange = viewModel::onNationalIdChange,
         onDateOfBirthChange = viewModel::onDateOfBirthChange,
         onPhoneChange = viewModel::onPhoneChange,
@@ -79,11 +82,15 @@ fun RegisterPatientScreen(
 
 /** All rendering lives here, taking [uiState] as plain data, so `*Previews.kt` never needs a real ViewModel. */
 @Composable
+@Suppress("LongParameterList")
 internal fun RegisterPatientScreenContent(
     uiState: RegisterPatientUiState,
     onCancel: () -> Unit,
     onViewExistingPatient: (patientId: String) -> Unit,
-    onNameChange: (String) -> Unit,
+    onMedicalRecordNumberChange: (String) -> Unit,
+    onFirstNameChange: (String) -> Unit,
+    onLastNameChange: (String) -> Unit,
+    onSecondLastNameChange: (String) -> Unit,
     onNationalIdChange: (String) -> Unit,
     onDateOfBirthChange: (String) -> Unit,
     onPhoneChange: (String) -> Unit,
@@ -118,14 +125,41 @@ internal fun RegisterPatientScreenContent(
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 FormSectionCaption("Datos personales")
                 OutlinedTextField(
-                    value = uiState.fullName,
-                    onValueChange = onNameChange,
-                    label = { RequiredFieldLabel("Nombre completo") },
+                    value = uiState.medicalRecordNumber,
+                    onValueChange = onMedicalRecordNumberChange,
+                    label = { RequiredFieldLabel("N° Historia Clinica") },
+                    placeholder = { Text("Ej: HC-2026-004312", fontSize = FieldFontSize) },
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
+                    shape = fieldShape,
+                    modifier = Modifier.fillMaxWidth().testTag("register_mrn_field"),
+                )
+                OutlinedTextField(
+                    value = uiState.firstName,
+                    onValueChange = onFirstNameChange,
+                    label = { RequiredFieldLabel("Nombres") },
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
                     shape = fieldShape,
                     modifier = Modifier.fillMaxWidth()
                         .onFocusChanged { if (!it.isFocused) onCheckDuplicate() }
-                        .testTag("register_name_field"),
+                        .testTag("register_first_name_field"),
+                )
+                OutlinedTextField(
+                    value = uiState.lastName,
+                    onValueChange = onLastNameChange,
+                    label = { RequiredFieldLabel("Apellido paterno") },
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
+                    shape = fieldShape,
+                    modifier = Modifier.fillMaxWidth()
+                        .onFocusChanged { if (!it.isFocused) onCheckDuplicate() }
+                        .testTag("register_last_name_field"),
+                )
+                OutlinedTextField(
+                    value = uiState.secondLastName,
+                    onValueChange = onSecondLastNameChange,
+                    label = { Text("Apellido materno", fontSize = 12.sp, color = HissInk2) },
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
+                    shape = fieldShape,
+                    modifier = Modifier.fillMaxWidth().testTag("register_second_last_name_field"),
                 )
                 OutlinedTextField(
                     value = uiState.documentNumber,

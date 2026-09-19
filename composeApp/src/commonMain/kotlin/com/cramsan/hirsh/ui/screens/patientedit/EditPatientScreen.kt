@@ -24,10 +24,10 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.model.toDisplayLabel
 import com.cramsan.hirsh.ui.components.FieldFontSize
 import com.cramsan.hirsh.ui.components.FormSectionCaption
+import com.cramsan.hirsh.ui.components.ReadOnlyField
 import com.cramsan.hirsh.ui.components.RequiredFieldLabel
 import com.cramsan.hirsh.ui.components.SelectField
 import com.cramsan.hirsh.ui.components.fieldShape
@@ -57,13 +57,11 @@ fun EditPatientScreen(
         uiState = uiState,
         patientId = patientId,
         onCancel = onCancel,
-        onNameChange = viewModel::onNameChange,
-        onNationalIdChange = viewModel::onNationalIdChange,
-        onDateOfBirthChange = viewModel::onDateOfBirthChange,
+        onFirstNameChange = viewModel::onFirstNameChange,
+        onLastNameChange = viewModel::onLastNameChange,
+        onSecondLastNameChange = viewModel::onSecondLastNameChange,
         onPhoneChange = viewModel::onPhoneChange,
-        onSexChange = viewModel::onSexChange,
         onBloodTypeChange = viewModel::onBloodTypeChange,
-        onAllergiesChange = viewModel::onAllergiesChange,
         onSave = viewModel::save,
     )
 }
@@ -74,13 +72,11 @@ internal fun EditPatientScreenContent(
     uiState: EditPatientUiState,
     patientId: String,
     onCancel: () -> Unit,
-    onNameChange: (String) -> Unit,
-    onNationalIdChange: (String) -> Unit,
-    onDateOfBirthChange: (String) -> Unit,
+    onFirstNameChange: (String) -> Unit,
+    onLastNameChange: (String) -> Unit,
+    onSecondLastNameChange: (String) -> Unit,
     onPhoneChange: (String) -> Unit,
-    onSexChange: (Sex) -> Unit,
     onBloodTypeChange: (String) -> Unit,
-    onAllergiesChange: (String) -> Unit,
     onSave: () -> Unit,
 ) {
     val patient = uiState.patient
@@ -92,13 +88,11 @@ internal fun EditPatientScreenContent(
                 uiState = uiState,
                 patientName = patient.fullName,
                 onCancel = onCancel,
-                onNameChange = onNameChange,
-                onNationalIdChange = onNationalIdChange,
-                onDateOfBirthChange = onDateOfBirthChange,
+                onFirstNameChange = onFirstNameChange,
+                onLastNameChange = onLastNameChange,
+                onSecondLastNameChange = onSecondLastNameChange,
                 onPhoneChange = onPhoneChange,
-                onSexChange = onSexChange,
                 onBloodTypeChange = onBloodTypeChange,
-                onAllergiesChange = onAllergiesChange,
                 onSave = onSave,
             )
         }
@@ -110,13 +104,11 @@ private fun EditPatientForm(
     uiState: EditPatientUiState,
     patientName: String,
     onCancel: () -> Unit,
-    onNameChange: (String) -> Unit,
-    onNationalIdChange: (String) -> Unit,
-    onDateOfBirthChange: (String) -> Unit,
+    onFirstNameChange: (String) -> Unit,
+    onLastNameChange: (String) -> Unit,
+    onSecondLastNameChange: (String) -> Unit,
     onPhoneChange: (String) -> Unit,
-    onSexChange: (Sex) -> Unit,
     onBloodTypeChange: (String) -> Unit,
-    onAllergiesChange: (String) -> Unit,
     onSave: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
@@ -137,30 +129,35 @@ private fun EditPatientForm(
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 FormSectionCaption("Datos personales")
                 OutlinedTextField(
-                    value = uiState.fullName,
-                    onValueChange = onNameChange,
-                    label = { RequiredFieldLabel("Nombre completo") },
+                    value = uiState.firstName,
+                    onValueChange = onFirstNameChange,
+                    label = { RequiredFieldLabel("Nombres") },
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
                     shape = fieldShape,
-                    modifier = Modifier.fillMaxWidth().testTag("edit_name_field"),
+                    modifier = Modifier.fillMaxWidth().testTag("edit_first_name_field"),
                 )
                 OutlinedTextField(
-                    value = uiState.documentNumber,
-                    onValueChange = onNationalIdChange,
-                    label = { RequiredFieldLabel("DNI") },
+                    value = uiState.lastName,
+                    onValueChange = onLastNameChange,
+                    label = { RequiredFieldLabel("Apellido paterno") },
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
                     shape = fieldShape,
-                    modifier = Modifier.fillMaxWidth().testTag("edit_dni_field"),
+                    modifier = Modifier.fillMaxWidth().testTag("edit_last_name_field"),
                 )
                 OutlinedTextField(
-                    value = uiState.birthDate,
-                    onValueChange = onDateOfBirthChange,
-                    label = { RequiredFieldLabel("Fecha de nacimiento") },
-                    placeholder = { Text("DD/MM/AAAA", fontSize = FieldFontSize) },
+                    value = uiState.secondLastName,
+                    onValueChange = onSecondLastNameChange,
+                    label = { Text("Apellido materno", fontSize = 12.sp, color = HissInk2) },
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
                     shape = fieldShape,
-                    modifier = Modifier.fillMaxWidth().testTag("edit_dob_field"),
+                    modifier = Modifier.fillMaxWidth().testTag("edit_second_last_name_field"),
                 )
+                // DNI/fecha de nacimiento/sexo are read-only: the real PATCH endpoint doesn't
+                // accept identity fields at all (HISS-622, confirmed against the backend source)
+                // -- an editable field here would silently fail to save.
+                ReadOnlyField("DNI", uiState.documentNumber)
+                ReadOnlyField("Fecha de nacimiento", uiState.birthDate)
+                ReadOnlyField("Sexo", uiState.sex?.toDisplayLabel().orEmpty())
                 OutlinedTextField(
                     value = uiState.phone,
                     onValueChange = onPhoneChange,
@@ -168,13 +165,6 @@ private fun EditPatientForm(
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
                     shape = fieldShape,
                     modifier = Modifier.fillMaxWidth().testTag("edit_phone_field"),
-                )
-                SelectField(
-                    label = { RequiredFieldLabel("Sexo") },
-                    options = listOf("Masculino", "Femenino"),
-                    selected = uiState.sex?.toDisplayLabel().orEmpty(),
-                    onSelect = { label -> onSexChange(if (label == "Masculino") Sex.MALE else Sex.FEMALE) },
-                    testTag = "edit_sex_field",
                 )
             }
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -185,15 +175,9 @@ private fun EditPatientForm(
                     selected = uiState.bloodType,
                     onSelect = onBloodTypeChange,
                 )
-                OutlinedTextField(
-                    value = uiState.allergies,
-                    onValueChange = onAllergiesChange,
-                    label = { Text("Alergias conocidas", fontSize = 12.sp, color = HissInk2) },
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
-                    shape = fieldShape,
-                    minLines = 2,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                // Allergies are read-only here too: this repository doesn't reconcile the free-text
+                // field against the real allergies sub-resource on update yet -- that's HISS-623's job.
+                ReadOnlyField("Alergias conocidas", uiState.allergies)
             }
         }
 
