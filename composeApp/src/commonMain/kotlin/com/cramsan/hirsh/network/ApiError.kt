@@ -4,6 +4,7 @@ package com.cramsan.hirsh.network
 sealed interface ApiError {
     data class Validation(val fields: Map<String, String>) : ApiError
     data class Conflict(val resourceId: String) : ApiError
+    data class NotFound(val resourceId: String? = null) : ApiError
     data object Unauthorized : ApiError
     data class Unknown(val message: String?) : ApiError
 }

@@ -20,13 +20,16 @@ data class ProblemDetails(
 /**
  * Status-code-first mapping, following RFC7807 convention: 401 is always [ApiError.Unauthorized]
  * regardless of body content, 409 is always [ApiError.Conflict] (empty resource id if the backend
- * didn't include one), 400/422 map to [ApiError.Validation] only when [ProblemDetails.errors] is
- * actually populated (otherwise there's nothing field-level to surface, so it falls through to
- * [ApiError.Unknown] instead of a [ApiError.Validation] with an empty field map).
+ * didn't include one), 404 is always [ApiError.NotFound] (the request's own path already carries
+ * the id that wasn't found -- the body has no dedicated field for it), 400/422 map to
+ * [ApiError.Validation] only when [ProblemDetails.errors] is actually populated (otherwise there's
+ * nothing field-level to surface, so it falls through to [ApiError.Unknown] instead of a
+ * [ApiError.Validation] with an empty field map).
  */
 fun ProblemDetails.toApiError(status: HttpStatusCode): ApiError = when {
     status == HttpStatusCode.Unauthorized -> ApiError.Unauthorized
     status == HttpStatusCode.Conflict -> ApiError.Conflict(conflictingResourceId.orEmpty())
+    status == HttpStatusCode.NotFound -> ApiError.NotFound()
     (status == HttpStatusCode.BadRequest || status == HttpStatusCode.UnprocessableEntity) && !errors.isNullOrEmpty() ->
         ApiError.Validation(errors.associate { it.field to it.message })
     else -> ApiError.Unknown(detail ?: title)
