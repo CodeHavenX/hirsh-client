@@ -166,34 +166,65 @@ fun BridgeDriver.createE2eTestDoctorAccount() {
     scrollDown("screen_scroll_container")
 }
 
+/** [registerE2eTestPatient]'s result: the two identifiers its callers actually need back. */
+data class RegisteredE2ePatient(val fullName: String, val medicalRecordNumber: String)
+
 /**
  * Registers a fresh patient through the real, Ktor-backed `PatientRepository` (HISS-622) and
- * lands on that patient's own record screen, returning its assembled full name. Every call gets
- * its own [System.nanoTime]-derived suffix for `medicalRecordNumber`/`documentNumber` so
- * concurrent/repeated runs against the same backend instance never collide on a real uniqueness
- * constraint the old `InMemoryPatientRepository` never enforced. Caller must already be logged
- * in (see [loginAsAdmin]); this navigates to the patient list itself.
+ * lands on that patient's own record screen. Every call gets its own [System.nanoTime]-derived
+ * suffix for `medicalRecordNumber`/`documentNumber` so concurrent/repeated runs against the same
+ * backend instance never collide on a real uniqueness constraint the old `InMemoryPatientRepository`
+ * never enforced. Caller must already be logged in (see [loginAsAdmin]); this navigates to the
+ * patient list itself.
  */
 fun BridgeDriver.registerE2eTestPatient(
     firstName: String = "Zzz",
     lastName: String = "E2E",
     secondLastName: String = "Test",
-): String {
+): RegisteredE2ePatient {
     val suffix = System.nanoTime().toString().takeLast(9)
+    val medicalRecordNumber = "HC-E2E-$suffix"
     clickTag("nav_patients")
     clickTag("patient_register_button")
-    waitForTag("register_submit_button")
-    type("register_mrn_field", "HC-E2E-$suffix")
+    waitForTag("register_mrn_field")
+    type("register_mrn_field", medicalRecordNumber)
     type("register_first_name_field", firstName)
     type("register_last_name_field", lastName)
     type("register_second_last_name_field", secondLastName)
     type("register_dni_field", "E2E-$suffix")
     type("register_dob_field", "01/01/1990")
     type("register_phone_field", "555-0100")
+    // register_sex_field/register_submit_button sit below (or right at) the fold once the mrn/
+    // firstName/lastName/secondLastName fields HISS-622 added push the form past the window's
+    // visible height -- see scrollDown's own doc (confirmed via a live run: register_submit_button
+    // exists in the tree with x=0,y=0,w=0,h=0 until scrolled into view; register_sex_field's own
+    // margin is close enough to the fold to be flaky the same way).
+    scrollDown("screen_scroll_container")
     selectOption("register_sex_field", 0)
     clickTag("register_submit_button")
     waitForTag("record_edit_button")
-    return "$firstName $lastName $secondLastName"
+    return RegisteredE2ePatient("$firstName $lastName $secondLastName", medicalRecordNumber)
+}
+
+/**
+ * Returns to the patient list and opens [patient]'s own record by searching for its unique
+ * [RegisteredE2ePatient.medicalRecordNumber] first, rather than clicking a row found by scanning
+ * the unfiltered list -- confirmed via a live run that clicking a row out of the full (and, on a
+ * long-lived shared backend, ever-growing) list is unreliable: `PatientListViewModel`'s `init`
+ * re-triggers a real `refresh()` network call every time this screen is (re)entered, and the
+ * resulting full-list replacement can invalidate a row found a moment earlier before a click
+ * lands on it. Filtering down to the one row matching this patient's own MRN first avoids ever
+ * needing to re-resolve a row out of a list that's still settling.
+ */
+fun BridgeDriver.reopenPatientRecord(patient: RegisteredE2ePatient) {
+    clickTag("nav_patients")
+    waitForTag("patient_search_field")
+    type("patient_search_field", patient.medicalRecordNumber)
+    val patientRowTag = checkNotNull(
+        getHierarchy().tagOfNodeContaining(patient.medicalRecordNumber, "patient_row_"),
+    ) { "expected exactly one patient_row_* tag rendering \"${patient.medicalRecordNumber}\"" }
+    clickTag(patientRowTag)
+    waitForTag("record_edit_button")
 }
 
 /**
