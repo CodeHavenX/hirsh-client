@@ -125,17 +125,19 @@ internal fun PatientListScreenContent(
     }
 }
 
+// "Medico"/"Ult. ingreso" columns are gone (HISS-621): neither has any equivalent on the
+// backend's PatientResponse -- that's episode/admission data, not patient demographics -- and
+// displaying permanently-fake placeholder data once this model claims to match the real
+// contract would be dishonest. A deliberate divergence from prototype/patients.html.
 private fun patientColumns(today: LocalDate): List<DataTableColumn<Patient>> = listOf(
     DataTableColumn(label = "HCL", weight = 0.7f) { patient -> Text(patient.id, fontSize = CellFontSize) },
     DataTableColumn(label = "Nombre", weight = 2f) { patient ->
-        Text(patient.name, fontSize = CellFontSize, fontWeight = FontWeight.SemiBold)
+        Text(patient.fullName, fontSize = CellFontSize, fontWeight = FontWeight.SemiBold)
     },
-    DataTableColumn(label = "F. Nacimiento", weight = 1f) { patient -> Text(patient.dateOfBirth, fontSize = CellFontSize) },
+    DataTableColumn(label = "F. Nacimiento", weight = 1f) { patient -> Text(patient.birthDate, fontSize = CellFontSize) },
     DataTableColumn(label = "Edad", weight = 0.5f) { patient ->
-        Text(calculateAge(patient.dateOfBirth, today).toString(), fontSize = CellFontSize)
+        Text(calculateAge(patient.birthDate, today).toString(), fontSize = CellFontSize)
     },
     DataTableColumn(label = "Telefono", weight = 1f) { patient -> Text(patient.phone, fontSize = CellFontSize) },
-    DataTableColumn(label = "Medico", weight = 0.9f) { patient -> Text(patient.assignedDoctor, fontSize = CellFontSize) },
-    DataTableColumn(label = "Ult. ingreso", weight = 1f) { patient -> Text(patient.lastVisit, fontSize = CellFontSize) },
     DataTableColumn(label = "", weight = 0.2f) { Text("›", fontSize = CellFontSize, color = HissInk2) },
 )

@@ -1,35 +1,37 @@
 package com.cramsan.hirsh.ui.screens.patientedit
 
 import androidx.compose.runtime.Composable
+import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.Sex
+import com.cramsan.hirsh.model.singleAllergyFromText
+import com.cramsan.hirsh.model.summary
 import com.cramsan.hirsh.ui.preview.PreviewResponsive
 import com.cramsan.hirsh.ui.theme.HirshTheme
 
 private val previewPatient = Patient(
     id = "#00142",
-    name = "Maria Gonzalez Huerta",
-    dateOfBirth = "14/03/1989",
+    medicalRecordNumber = "HC-00142",
+    documentType = DocumentType.NID,
+    documentNumber = "45678901",
+    fullName = "Maria Gonzalez Huerta",
+    birthDate = "14/03/1989",
     phone = "987-654-321",
-    assignedDoctor = "Dr. Patel",
-    lastVisit = "12 Abr 2026",
     bloodType = "O+",
-    allergies = "Penicilina",
-    nationalId = "45678901",
+    allergies = singleAllergyFromText("Penicilina"),
     sex = Sex.FEMALE,
 )
 
 private val previewUiState = EditPatientUiState(
     isLoading = false,
     patient = previewPatient,
-    name = previewPatient.name,
-    nationalId = previewPatient.nationalId,
-    dateOfBirth = previewPatient.dateOfBirth,
+    fullName = previewPatient.fullName,
+    documentNumber = previewPatient.documentNumber,
+    birthDate = previewPatient.birthDate,
     phone = previewPatient.phone,
     sex = previewPatient.sex,
     bloodType = previewPatient.bloodType,
-    allergies = previewPatient.allergies,
-    assignedDoctor = previewPatient.assignedDoctor,
+    allergies = previewPatient.allergies.summary(),
 )
 
 @PreviewResponsive
@@ -47,7 +49,6 @@ private fun EditPatientScreenPreview() {
             onSexChange = {},
             onBloodTypeChange = {},
             onAllergiesChange = {},
-            onAssignedDoctorChange = {},
             onSave = {},
         )
     }

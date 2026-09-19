@@ -12,6 +12,7 @@ import com.cramsan.hirsh.model.HcSectionKey
 import com.cramsan.hirsh.model.HistoriaClinica
 import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.MotivoIngreso
+import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.Plan
 import com.cramsan.hirsh.model.Sex
@@ -21,14 +22,14 @@ import com.cramsan.hirsh.ui.theme.HirshTheme
 
 private val previewPatient = Patient(
     id = "#00129",
-    name = "Karla Sofia Ricaldi Sedano",
-    dateOfBirth = "15/10/2012",
+    medicalRecordNumber = "HC-00129",
+    documentType = DocumentType.NID,
+    documentNumber = "70083906",
+    fullName = "Karla Sofia Ricaldi Sedano",
+    birthDate = "15/10/2012",
     phone = "998-984-134",
-    assignedDoctor = "Dr. Reyes",
-    lastVisit = "20 May 2026",
     bloodType = "—",
-    allergies = "Ninguna",
-    nationalId = "70083906",
+    allergies = emptyList(),
     sex = Sex.FEMALE,
 )
 

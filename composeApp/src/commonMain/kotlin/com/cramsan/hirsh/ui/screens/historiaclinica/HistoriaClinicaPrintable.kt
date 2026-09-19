@@ -28,8 +28,8 @@ fun HistoriaClinicaPrintable(
         onBack = onBack,
         subtitle = "Historia Clinica · ${hospitalizacion.servicio}",
         metaItems = listOf(
-            "Paciente" to patient.name,
-            "DNI" to patient.nationalId,
+            "Paciente" to patient.fullName,
+            "DNI" to patient.documentNumber,
             "Fecha de ingreso" to "${hospitalizacion.fechaIngreso} · ${hospitalizacion.horaIngreso}",
             "Medico responsable" to hospitalizacion.medicoResponsable,
             "N° Historia" to patient.id,

@@ -36,8 +36,8 @@ fun EvolucionPrintable(
         onBack = onBack,
         subtitle = "Nota de evolucion · ${hospitalizacion.servicio}",
         metaItems = listOf(
-            "Paciente" to patient.name,
-            "DNI" to patient.nationalId,
+            "Paciente" to patient.fullName,
+            "DNI" to patient.documentNumber,
             "Fecha de evolucion" to "${evolucion.fecha} · ${evolucion.hora}",
             "Medico" to evolucion.medico,
             "N° Historia" to patient.id,

@@ -8,6 +8,7 @@ import com.cramsan.hirsh.model.EvolucionResultado
 import com.cramsan.hirsh.model.Examen
 import com.cramsan.hirsh.model.HistoriaClinica
 import com.cramsan.hirsh.model.Hospitalizacion
+import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.Pronostico
 import com.cramsan.hirsh.model.Sex
@@ -18,14 +19,14 @@ import com.cramsan.hirsh.ui.theme.HirshTheme
 
 private val previewPatient = Patient(
     id = "#00135",
-    name = "Jesus Alberto Mendoza Aguilar",
-    dateOfBirth = "10/08/1990",
+    medicalRecordNumber = "HC-00135",
+    documentType = DocumentType.NID,
+    documentNumber = "70567572",
+    fullName = "Jesus Alberto Mendoza Aguilar",
+    birthDate = "10/08/1990",
     phone = "955-123-456",
-    assignedDoctor = "Dr. Patel",
-    lastVisit = "18 Jun 2026",
     bloodType = "B+",
-    allergies = "Ninguna",
-    nationalId = "70567572",
+    allergies = emptyList(),
     sex = Sex.MALE,
 )
 

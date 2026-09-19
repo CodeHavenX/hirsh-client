@@ -137,7 +137,7 @@ private fun RecordHeader(
 ) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
         Text(
-            patient.name,
+            patient.fullName,
             style = MaterialTheme.typography.headlineSmall.copy(fontSize = 20.sp, fontWeight = FontWeight.Bold),
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -186,7 +186,7 @@ private fun ProfileCard(
                 ) {
                     Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                         Text(
-                            text = initialsOf(patient.name),
+                            text = initialsOf(patient.fullName),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.SemiBold,
                             color = HissAccent,
@@ -194,21 +194,21 @@ private fun ProfileCard(
                     }
                 }
                 Column(modifier = Modifier.padding(start = 12.dp)) {
-                    Text(patient.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    Text(patient.fullName, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                     Text(patient.id, fontFamily = FontFamily.Monospace, fontSize = 11.sp, color = HissInk2)
                 }
             }
-            KeyValueRow("DNI", patient.nationalId)
-            KeyValueRow("Fecha nacimiento", patient.dateOfBirth)
-            KeyValueRow("Edad", "${calculateAge(patient.dateOfBirth, today)} anos")
+            KeyValueRow("DNI", patient.documentNumber)
+            KeyValueRow("Fecha nacimiento", patient.birthDate)
+            KeyValueRow("Edad", "${calculateAge(patient.birthDate, today)} anos")
             KeyValueRow("Sexo", patient.sex.toDisplayLabel())
             KeyValueRow("Telefono", patient.phone)
             KeyValueRow("Grupo sanguineo", patient.bloodType)
             KeyValueRow("Alergias") {
-                val tone = if (patient.allergies != "Ninguna") BadgeTone.Warn else BadgeTone.Off
-                StatusBadge(text = patient.allergies, tone = tone)
+                val allergiesSummary = patient.allergies.joinToString(", ") { it.description }.ifEmpty { "Ninguna" }
+                val tone = if (patient.allergies.isNotEmpty()) BadgeTone.Warn else BadgeTone.Off
+                StatusBadge(text = allergiesSummary, tone = tone)
             }
-            KeyValueRow("Medico asignado", patient.assignedDoctor)
             Column(
                 modifier = Modifier.fillMaxWidth().dashedTopBorder(HissFaint).padding(top = 8.dp),
             ) {

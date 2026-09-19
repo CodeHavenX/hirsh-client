@@ -7,36 +7,38 @@ import com.cramsan.hirsh.model.FieldChange
 import com.cramsan.hirsh.model.HcSection
 import com.cramsan.hirsh.model.HistoriaClinica
 import com.cramsan.hirsh.model.Hospitalizacion
+import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.PatientChangeLogEntry
 import com.cramsan.hirsh.model.Plan
 import com.cramsan.hirsh.model.Sex
+import com.cramsan.hirsh.model.singleAllergyFromText
 import com.cramsan.hirsh.ui.preview.PreviewResponsive
 import com.cramsan.hirsh.ui.theme.HirshTheme
 
 private val previewPatients = listOf(
     Patient(
         id = "#00142",
-        name = "Maria Gonzalez Huerta",
-        dateOfBirth = "14/03/1989",
+        medicalRecordNumber = "HC-00142",
+        documentType = DocumentType.NID,
+        documentNumber = "45678901",
+        fullName = "Maria Gonzalez Huerta",
+        birthDate = "14/03/1989",
         phone = "987-654-321",
-        assignedDoctor = "Dr. Patel",
-        lastVisit = "12 Abr 2026",
         bloodType = "O+",
-        allergies = "Penicilina",
-        nationalId = "45678901",
+        allergies = singleAllergyFromText("Penicilina"),
         sex = Sex.FEMALE,
     ),
     Patient(
         id = "#00124",
-        name = "Olga Karen Santiesteban Bracamonte",
-        dateOfBirth = "12/06/1980",
+        medicalRecordNumber = "HC-00124",
+        documentType = DocumentType.NID,
+        documentNumber = "40734432",
+        fullName = "Olga Karen Santiesteban Bracamonte",
+        birthDate = "12/06/1980",
         phone = "944-556-677",
-        assignedDoctor = "Dr. Patel",
-        lastVisit = "12 Jun 2026",
         bloodType = "O-",
-        allergies = "Ninguna",
-        nationalId = "40734432",
+        allergies = emptyList(),
         sex = Sex.FEMALE,
     ),
 )

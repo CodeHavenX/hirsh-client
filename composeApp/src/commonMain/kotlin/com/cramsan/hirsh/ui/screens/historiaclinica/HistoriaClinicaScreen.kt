@@ -126,7 +126,7 @@ internal fun HistoriaClinicaScreenContent(
             else -> {
                 val historiaClinica = hospitalizacion.historiaClinica
                 EncounterTopBar(
-                    title = "Historia Clinica · ${patient.name} ${patient.id}",
+                    title = "Historia Clinica · ${patient.fullName} ${patient.id}",
                     onClose = onClose,
                     meta = {
                         Chip(hospitalizacion.servicio)
