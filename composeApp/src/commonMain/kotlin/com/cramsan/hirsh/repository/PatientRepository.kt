@@ -1,9 +1,13 @@
 package com.cramsan.hirsh.repository
 
+import com.cramsan.hirsh.model.Allergy
+import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.FieldChange
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.PatientChangeLogEntry
 import com.cramsan.hirsh.model.Sex
+import com.cramsan.hirsh.model.singleAllergyFromText
+import com.cramsan.hirsh.model.summary
 import com.cramsan.hirsh.model.toDisplayLabel
 import com.cramsan.hirsh.network.ApiError
 import com.cramsan.hirsh.network.ApiException
@@ -39,22 +43,23 @@ interface PatientRepository {
     suspend fun updatePatient(id: String, newValues: Patient, changedBy: String, fecha: String, hora: String)
 
     /**
-     * Creates a new patient, generating its id the same way the prototype's
-     * nextPatientId() does (max existing numeric suffix + 1, zero-padded to
-     * 5) and defaulting lastVisit to "—" -- a freshly registered patient has
-     * no admisiones yet. No change-log entry: the prototype's own
-     * registerPatient() doesn't call logPatientChange either, registration
+     * Creates a new patient, generating its id and medical record number the same way the
+     * prototype's nextPatientId() does (max existing numeric suffix + 1, zero-padded to 5) --
+     * a freshly registered patient has no admisiones yet. [allergies] stays a single free-text
+     * field at the call boundary (HISS-621 defers the real per-allergy CRUD UI to HISS-623): a
+     * non-blank, non-"Ninguna" value becomes one synthetic [Allergy] entry. No change-log entry:
+     * the prototype's own registerPatient() doesn't call logPatientChange either, registration
      * isn't an edit.
      */
     suspend fun addPatient(
         name: String,
-        nationalId: String,
-        dateOfBirth: String,
+        documentType: DocumentType,
+        documentNumber: String,
+        birthDate: String,
         phone: String,
         sex: Sex,
         bloodType: String,
         allergies: String,
-        assignedDoctor: String,
     ): Patient
 }
 
@@ -70,74 +75,74 @@ class InMemoryPatientRepository : PatientRepository {
         listOf(
             Patient(
                 id = "#00142",
-                name = "Maria Gonzalez Huerta",
-                dateOfBirth = "14/03/1989",
+                medicalRecordNumber = "HC-00142",
+                documentType = DocumentType.NID,
+                documentNumber = "45678901",
+                fullName = "Maria Gonzalez Huerta",
+                birthDate = "14/03/1989",
                 phone = "987-654-321",
-                assignedDoctor = "Dr. Patel",
-                lastVisit = "12 Abr 2026",
                 bloodType = "O+",
-                allergies = "Penicilina",
-                nationalId = "45678901",
+                allergies = singleAllergyFromText("Penicilina"),
                 sex = Sex.FEMALE,
             ),
             Patient(
                 id = "#00138",
-                name = "Eduardo Remon Huertas",
-                dateOfBirth = "17/07/1962",
+                medicalRecordNumber = "HC-00138",
+                documentType = DocumentType.NID,
+                documentNumber = "09147875",
+                fullName = "Eduardo Remon Huertas",
+                birthDate = "17/07/1962",
                 phone = "912-345-678",
-                assignedDoctor = "Dr. Reyes",
-                lastVisit = "17 Jun 2026",
                 bloodType = "A+",
-                allergies = "Ninguna",
-                nationalId = "09147875",
+                allergies = emptyList(),
                 sex = Sex.MALE,
             ),
             Patient(
                 id = "#00135",
-                name = "Jesus Alberto Mendoza Aguilar",
-                dateOfBirth = "10/08/1990",
+                medicalRecordNumber = "HC-00135",
+                documentType = DocumentType.NID,
+                documentNumber = "70567572",
+                fullName = "Jesus Alberto Mendoza Aguilar",
+                birthDate = "10/08/1990",
                 phone = "955-123-456",
-                assignedDoctor = "Dr. Patel",
-                lastVisit = "18 Jun 2026",
                 bloodType = "B+",
-                allergies = "Ninguna",
-                nationalId = "70567572",
+                allergies = emptyList(),
                 sex = Sex.MALE,
             ),
             Patient(
                 id = "#00131",
-                name = "Maria Santos Vasquez Davila",
-                dateOfBirth = "29/01/1943",
+                medicalRecordNumber = "HC-00131",
+                documentType = DocumentType.NID,
+                documentNumber = "07024120",
+                fullName = "Maria Santos Vasquez Davila",
+                birthDate = "29/01/1943",
                 phone = "998-765-432",
-                assignedDoctor = "Dr. Lin",
-                lastVisit = "19 Jun 2026",
                 bloodType = "AB+",
-                allergies = "Sulfas",
-                nationalId = "07024120",
+                allergies = singleAllergyFromText("Sulfas"),
                 sex = Sex.FEMALE,
             ),
             Patient(
                 id = "#00129",
-                name = "Karla Sofia Ricaldi Sedano",
-                dateOfBirth = "15/10/2012",
+                medicalRecordNumber = "HC-00129",
+                documentType = DocumentType.NID,
+                documentNumber = "70083906",
+                fullName = "Karla Sofia Ricaldi Sedano",
+                birthDate = "15/10/2012",
                 phone = "998-984-134",
-                assignedDoctor = "Dr. Reyes",
-                lastVisit = "20 May 2026",
                 bloodType = "—",
-                allergies = "Ninguna",
-                nationalId = "70083906",
+                allergies = emptyList(),
                 sex = Sex.FEMALE,
             ),
             Patient(
                 id = "#00124",
-                name = "Olga Karen Santiesteban Bracamonte",
-                dateOfBirth = "12/06/1980",
+                medicalRecordNumber = "HC-00124",
+                documentType = DocumentType.NID,
+                documentNumber = "40734432",
+                fullName = "Olga Karen Santiesteban Bracamonte",
+                birthDate = "12/06/1980",
                 phone = "944-556-677",
-                assignedDoctor = "Dr. Patel",
-                lastVisit = "12 Jun 2026",
                 bloodType = "O-",
-                allergies = "Ninguna",
-                nationalId = "40734432",
+                allergies = emptyList(),
                 sex = Sex.FEMALE,
             ),
         ),
@@ -183,10 +188,10 @@ class InMemoryPatientRepository : PatientRepository {
                     hora = "09:00",
                     fields = listOf(
                         FieldChange(
-                            field = "assignedDoctor",
-                            label = "Medico asignado",
-                            oldValue = "Dr. Reyes",
-                            newValue = "Dr. Lin",
+                            field = "district",
+                            label = "Distrito",
+                            oldValue = "—",
+                            newValue = "San Martin de Porres",
                         ),
                     ),
                 ),
@@ -211,7 +216,7 @@ class InMemoryPatientRepository : PatientRepository {
                     hora = "10:30",
                     fields = listOf(
                         FieldChange(
-                            field = "nationalId",
+                            field = "documentNumber",
                             label = "DNI",
                             oldValue = "09147785",
                             newValue = "09147875",
@@ -237,14 +242,14 @@ class InMemoryPatientRepository : PatientRepository {
             throw ApiException(ApiError.Conflict(id))
         }
         val changedFields = buildList {
-            diff(current.name, newValues.name, "name", "Nombre completo")?.let(::add)
-            diff(current.nationalId, newValues.nationalId, "nationalId", "DNI")?.let(::add)
-            diff(current.dateOfBirth, newValues.dateOfBirth, "dateOfBirth", "Fecha de nacimiento")?.let(::add)
+            diff(current.fullName, newValues.fullName, "fullName", "Nombre completo")?.let(::add)
+            diff(current.documentType.toDisplayLabel(), newValues.documentType.toDisplayLabel(), "documentType", "Tipo de documento")?.let(::add)
+            diff(current.documentNumber, newValues.documentNumber, "documentNumber", "DNI")?.let(::add)
+            diff(current.birthDate, newValues.birthDate, "birthDate", "Fecha de nacimiento")?.let(::add)
             diff(current.phone, newValues.phone, "phone", "Telefono de contacto")?.let(::add)
             diff(current.sex.toDisplayLabel(), newValues.sex.toDisplayLabel(), "sex", "Sexo")?.let(::add)
             diff(current.bloodType, newValues.bloodType, "bloodType", "Grupo sanguineo")?.let(::add)
-            diff(current.allergies, newValues.allergies, "allergies", "Alergias conocidas")?.let(::add)
-            diff(current.assignedDoctor, newValues.assignedDoctor, "assignedDoctor", "Medico asignado")?.let(::add)
+            diff(current.allergies.summary(), newValues.allergies.summary(), "allergies", "Alergias conocidas")?.let(::add)
         }
         if (changedFields.isEmpty()) return
 
@@ -257,25 +262,26 @@ class InMemoryPatientRepository : PatientRepository {
 
     override suspend fun addPatient(
         name: String,
-        nationalId: String,
-        dateOfBirth: String,
+        documentType: DocumentType,
+        documentNumber: String,
+        birthDate: String,
         phone: String,
         sex: Sex,
         bloodType: String,
         allergies: String,
-        assignedDoctor: String,
     ): Patient {
+        val newId = nextPatientId()
         val newPatient = Patient(
-            id = nextPatientId(),
-            name = name,
-            dateOfBirth = dateOfBirth,
+            id = newId,
+            medicalRecordNumber = "HC-" + newId.removePrefix("#"),
+            documentType = documentType,
+            documentNumber = documentNumber,
+            fullName = name,
+            birthDate = birthDate,
             phone = phone,
-            assignedDoctor = assignedDoctor,
-            lastVisit = "—",
-            bloodType = bloodType,
-            allergies = allergies,
-            nationalId = nationalId,
             sex = sex,
+            bloodType = bloodType,
+            allergies = singleAllergyFromText(allergies),
         )
         _patients.update { list -> list + newPatient }
         return newPatient
