@@ -41,6 +41,17 @@ fun HierarchyNode.containsText(substring: String): Boolean = allTexts().any { it
 fun HierarchyNode.firstTextMatching(predicate: (String) -> Boolean): String? = allTexts().firstOrNull(predicate)
 
 /**
+ * The testTag of the nearest node prefixed with [tagPrefix] whose own subtree renders [text] --
+ * lets a caller click a dynamically-generated row (e.g. a patient a test just registered through
+ * the real backend, whose server-generated id cmp-bridge has no way to read out of a URL) by
+ * matching on rendered content instead of a hardcoded id.
+ */
+fun HierarchyNode.tagOfNodeContaining(text: String, tagPrefix: String): String? {
+    if (testTag?.startsWith(tagPrefix) == true && containsText(text)) return testTag
+    return children.firstNotNullOfOrNull { it.tagOfNodeContaining(text, tagPrefix) }
+}
+
+/**
  * Waits for [tag] to exist, then clicks it -- covers a freshly-composed screen's first frame.
  * The trailing settle delay matters even for a click: every ViewModel action here goes
  * through `viewModelScope.launch { ... }`, so reading [BridgeDriver.getHierarchy] immediately
@@ -153,6 +164,55 @@ fun BridgeDriver.createE2eTestDoctorAccount() {
     // can leave account_deactivate_e2etest just past the visible bottom. One more scroll now
     // that the row exists reaches the container's true bottom.
     scrollDown("screen_scroll_container")
+}
+
+/**
+ * Registers a fresh patient through the real, Ktor-backed `PatientRepository` (HISS-622) and
+ * lands on that patient's own record screen, returning its assembled full name. Every call gets
+ * its own [System.nanoTime]-derived suffix for `medicalRecordNumber`/`documentNumber` so
+ * concurrent/repeated runs against the same backend instance never collide on a real uniqueness
+ * constraint the old `InMemoryPatientRepository` never enforced. Caller must already be logged
+ * in (see [loginAsAdmin]); this navigates to the patient list itself.
+ */
+fun BridgeDriver.registerE2eTestPatient(
+    firstName: String = "Zzz",
+    lastName: String = "E2E",
+    secondLastName: String = "Test",
+): String {
+    val suffix = System.nanoTime().toString().takeLast(9)
+    clickTag("nav_patients")
+    clickTag("patient_register_button")
+    waitForTag("register_submit_button")
+    type("register_mrn_field", "HC-E2E-$suffix")
+    type("register_first_name_field", firstName)
+    type("register_last_name_field", lastName)
+    type("register_second_last_name_field", secondLastName)
+    type("register_dni_field", "E2E-$suffix")
+    type("register_dob_field", "01/01/1990")
+    type("register_phone_field", "555-0100")
+    selectOption("register_sex_field", 0)
+    clickTag("register_submit_button")
+    waitForTag("record_edit_button")
+    return "$firstName $lastName $secondLastName"
+}
+
+/**
+ * Admits the patient whose record screen is currently open into a new hospitalization via the
+ * real Admision form, landing on that hospitalization's own screen (`hosp_discharge_button`
+ * visible). Mirrors the admission steps `HissE2EScenarios`'s full-lifecycle test already drove
+ * inline; factored out here since other patient-record scenarios now also need a real
+ * (non-seeded) Activa hospitalization to open, now that hospitalizations are only ever findable
+ * under whichever patient id the real backend actually assigned.
+ */
+fun BridgeDriver.admitPatient(motivo: String = "E2E: sintomas respiratorios", cama: String = "12") {
+    clickTag("record_new_hospitalization_button")
+    waitForTag("admision_submit_button")
+    selectOption("admision_servicio_field", 0)
+    type("admision_cama_field", cama)
+    selectOption("admision_medico_field", 0)
+    type("admision_motivo_field", motivo)
+    clickTag("admision_submit_button")
+    waitForTag("hosp_discharge_button")
 }
 
 /**
