@@ -210,11 +210,14 @@ class PatientRepositoryTest {
     }
 
     @Test
-    fun `addPatient generates a fresh UUID id and the next medical record number from the current max`() = runTest {
+    fun `addPatient generates a fresh UUID id and assembles fullName from the name parts`() = runTest {
         val repository = InMemoryPatientRepository()
 
         val created = repository.addPatient(
-            name = "Nuevo Paciente",
+            medicalRecordNumber = "HC-2027-000001",
+            firstName = "Nuevo",
+            lastName = "Paciente",
+            secondLastName = "Segundo",
             documentType = DocumentType.NID,
             documentNumber = "11223344",
             birthDate = "01/01/2000",
@@ -225,7 +228,8 @@ class PatientRepositoryTest {
         )
 
         assertTrue(repository.patients.value.none { it !== created && it.id == created.id }, "id must be unique")
-        assertEquals("HC-00143", created.medicalRecordNumber)
+        assertEquals("HC-2027-000001", created.medicalRecordNumber)
+        assertEquals("Nuevo Paciente Segundo", created.fullName)
     }
 
     @Test
@@ -234,7 +238,10 @@ class PatientRepositoryTest {
         val beforeCount = repository.patients.value.size
 
         val created = repository.addPatient(
-            name = "Nuevo Paciente",
+            medicalRecordNumber = "HC-2027-000001",
+            firstName = "Nuevo",
+            lastName = "Paciente",
+            secondLastName = "",
             documentType = DocumentType.NID,
             documentNumber = "11223344",
             birthDate = "01/01/2000",
@@ -249,11 +256,14 @@ class PatientRepositoryTest {
     }
 
     @Test
-    fun `sequential addPatient calls each get a unique id and increment the medical record number`() = runTest {
+    fun `sequential addPatient calls each get a unique id`() = runTest {
         val repository = InMemoryPatientRepository()
 
         val first = repository.addPatient(
-            name = "Primero",
+            medicalRecordNumber = "HC-2027-000001",
+            firstName = "Primero",
+            lastName = "Uno",
+            secondLastName = "",
             documentType = DocumentType.NID,
             documentNumber = "11111111",
             birthDate = "01/01/2000",
@@ -263,7 +273,10 @@ class PatientRepositoryTest {
             allergies = "Ninguna",
         )
         val second = repository.addPatient(
-            name = "Segundo",
+            medicalRecordNumber = "HC-2027-000002",
+            firstName = "Segundo",
+            lastName = "Dos",
+            secondLastName = "",
             documentType = DocumentType.NID,
             documentNumber = "22222222",
             birthDate = "01/01/2000",
@@ -274,7 +287,5 @@ class PatientRepositoryTest {
         )
 
         assertTrue(first.id != second.id)
-        assertEquals("HC-00143", first.medicalRecordNumber)
-        assertEquals("HC-00144", second.medicalRecordNumber)
     }
 }

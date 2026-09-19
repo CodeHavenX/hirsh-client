@@ -7,6 +7,7 @@ import com.cramsan.hirsh.model.PatientChangeLogEntry
 import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.model.singleAllergyFromText
 import com.cramsan.hirsh.repository.PatientRepository
+import com.cramsan.hirsh.repository.assembleFullName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -53,6 +54,7 @@ private val otherPatient = Patient(
 private class FakePatientRepository(patients: List<Patient>) : PatientRepository {
     private val _patients = MutableStateFlow(patients)
     override val patients: StateFlow<List<Patient>> = _patients.asStateFlow()
+    override suspend fun refresh() = Unit
     override fun getPatient(id: String): Flow<Patient?> = patients.map { list -> list.find { it.id == id } }
     override fun getChangeLog(patientId: String): Flow<List<PatientChangeLogEntry>> =
         MutableStateFlow(emptyList<PatientChangeLogEntry>())
@@ -68,7 +70,10 @@ private class FakePatientRepository(patients: List<Patient>) : PatientRepository
     }
 
     override suspend fun addPatient(
-        name: String,
+        medicalRecordNumber: String,
+        firstName: String,
+        lastName: String,
+        secondLastName: String,
         documentType: DocumentType,
         documentNumber: String,
         birthDate: String,
@@ -79,10 +84,13 @@ private class FakePatientRepository(patients: List<Patient>) : PatientRepository
     ): Patient {
         val created = Patient(
             id = "new-patient-id",
-            medicalRecordNumber = "HC-00000",
+            medicalRecordNumber = medicalRecordNumber,
             documentType = documentType,
             documentNumber = documentNumber,
-            fullName = name,
+            firstName = firstName,
+            lastName = lastName,
+            secondLastName = secondLastName,
+            fullName = assembleFullName(firstName, lastName, secondLastName),
             birthDate = birthDate,
             phone = phone,
             bloodType = bloodType,
