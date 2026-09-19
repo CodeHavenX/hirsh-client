@@ -105,10 +105,11 @@ which tier actually applies to this ticket's feature (network-layer only,
 full UI E2E, or not applicable yet because the feature's repository is still
 Fake/InMemory) by checking that repository's binding in `di/AppModule.kt`.
 Don't accept a clean `verifyCi` (Step 2) as covering this regardless of tier —
-every mock-based test and the existing fake-backed `desktopTest` E2E suite
-only verify against *assumptions*, which is exactly the gap this check exists
-to close (see that fragment's own rationale — HISS-604's bodyless-401 bug
-shipped past 100% green mock-based tests).
+`verifyCi` doesn't even run the e2e suite (it lives under
+`desktopIntegrationTest`, deliberately outside `verifyLocal`/`verifyCi`), and
+every mock-based test only verifies against *assumptions*, which is exactly
+the gap this check exists to close (see that fragment's own rationale —
+HISS-604's bodyless-401 bug shipped past 100% green mock-based tests).
 
 If Step 0 resolves to "not applicable," say so in the report along with which
 repository is still Fake/InMemory — don't skip this step silently.

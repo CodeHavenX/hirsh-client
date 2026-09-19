@@ -150,18 +150,23 @@ land; the interfaces are the seam. `FakeAuthRepository` is kept around
 
 ## Running the test suite against a real backend
 
-Since HISS-611, `:composeApp:desktopTest` requires a real instance of the
-backend service running locally (`http://localhost:8080` by default -- see
-`network/ApiConfig.kt`) **and** two environment variables set to that backend's
-seeded admin credentials, matching whatever it reads to bootstrap that account:
+`:composeApp:desktopTest` (part of `verifyLocal`/`verifyCi`) is fully
+self-contained -- no backend or display needed. The full UI e2e suite
+(`composeApp/src/desktopIntegrationTest/kotlin/com/cramsan/hirsh/e2e/`) lives
+in the separate `desktopIntegrationTest` compilation instead, alongside the
+network-layer real-backend tests (see
+`.claude/skills/_shared/real-backend-check.md`) -- deliberately **not** part
+of `verifyLocal`/`verifyCi`, since both depend on a real, separately-running
+instance of the backend service (`http://localhost:8080` by default -- see
+`network/ApiConfig.kt`) **and** two environment variables set to that
+backend's seeded admin credentials, matching whatever it reads to bootstrap
+that account:
 
 ```
 HIRSH_ADMIN_USERNAME=<seeded admin username>
 HIRSH_ADMIN_PASSWORD=<seeded admin password>
-./gradlew :composeApp:desktopTest
+./gradlew :composeApp:desktopIntegrationTest
 ```
 
-Without both, every login-dependent e2e scenario in
-`composeApp/src/desktopTest/kotlin/com/cramsan/hirsh/e2e/` fails immediately
-with a clear "not set" error rather than a confusing timeout. This applies to
-`verifyLocal`/`verifyCi` too, since both depend on `desktopTest`.
+Without both, every login-dependent e2e scenario fails immediately with a
+clear "not set" error rather than a confusing timeout.

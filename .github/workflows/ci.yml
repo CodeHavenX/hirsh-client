@@ -113,7 +113,7 @@ jobs:
       # root-owned files under ~/.gradle that break the later non-root `xvfb-run ./gradlew` step.
       - name: Install Playwright OS dependencies
         run: |
-          CP=$(./gradlew :composeApp:printDesktopTestRuntimeClasspath -q)
+          CP=$(./gradlew :composeApp:printDesktopIntegrationTestRuntimeClasspath -q)
           sudo java -cp "$CP" com.microsoft.playwright.CLI install-deps
 
       # WebE2ETest's WasmDevServerProcess only waits for the dev server's port to open (180s
@@ -130,6 +130,14 @@ jobs:
       - name: Run verifyCi
         run: xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" ./gradlew verifyCi --stacktrace
 
+      # desktopIntegrationTest (network-layer real-backend tests + the full UI e2e suite) is
+      # deliberately outside verifyCi/verifyLocal (see composeApp/build.gradle.kts's own comment
+      # on why), but the backend/Postgres/Xvfb/Playwright setup above exists specifically to run
+      # it here in CI -- a separate step so a failure here is distinguishable from a verifyCi
+      # failure in the job summary.
+      - name: Run desktopIntegrationTest
+        run: xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" ./gradlew :composeApp:desktopIntegrationTest --stacktrace
+
       # The console log only prints exception type + location for a failing test, never its
       # message (e.g. which tag timed out) -- this job has never uploaded the actual test report,
       # so a failure here has been undebuggable without reproducing it locally. Runs unconditionally
@@ -140,6 +148,14 @@ jobs:
         with:
           name: desktopTest-reports
           path: composeApp/build/reports/tests/desktopTest/
+          if-no-files-found: warn
+
+      - name: Upload integration test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktopIntegrationTest-reports
+          path: composeApp/build/reports/tests/desktopIntegrationTest/
           if-no-files-found: warn
 
       - name: Upload backend log
