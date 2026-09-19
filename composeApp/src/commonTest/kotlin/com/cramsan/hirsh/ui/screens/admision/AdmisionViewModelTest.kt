@@ -30,7 +30,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 private val samplePatient = Patient(
-    id = "#00142",
+    id = "07c98942-3654-4034-b960-f3265814e214",
     medicalRecordNumber = "HC-00142",
     documentType = DocumentType.NID,
     documentNumber = "45678901",
@@ -157,7 +157,7 @@ class AdmisionViewModelTest {
 
         viewModel.uiState.test {
             skipItems(1)
-            viewModel.load("#unknown")
+            viewModel.load("unknown-patient-id")
             val loaded = awaitItem()
             assertEquals(null, loaded.patient)
             assertEquals(false, loaded.isLoading)
@@ -169,7 +169,7 @@ class AdmisionViewModelTest {
     fun `register does nothing when the patient was not found`() = runTest(dispatcher) {
         val repository = FakeHospitalizationRepository()
         val viewModel = AdmisionViewModel(FakePatientRepository(emptyList()), repository)
-        viewModel.load("#unknown")
+        viewModel.load("unknown-patient-id")
         dispatcher.scheduler.advanceUntilIdle()
         fillRequiredFields(viewModel)
 

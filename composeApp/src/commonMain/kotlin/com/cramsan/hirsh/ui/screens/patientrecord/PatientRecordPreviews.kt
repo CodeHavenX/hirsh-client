@@ -18,7 +18,7 @@ import com.cramsan.hirsh.ui.theme.HirshTheme
 
 private val previewPatients = listOf(
     Patient(
-        id = "#00142",
+        id = "07c98942-3654-4034-b960-f3265814e214",
         medicalRecordNumber = "HC-00142",
         documentType = DocumentType.NID,
         documentNumber = "45678901",
@@ -30,7 +30,7 @@ private val previewPatients = listOf(
         sex = Sex.FEMALE,
     ),
     Patient(
-        id = "#00124",
+        id = "a7efc7af-d998-43e8-8abd-d07c1155ef9f",
         medicalRecordNumber = "HC-00124",
         documentType = DocumentType.NID,
         documentNumber = "40734432",
@@ -44,7 +44,7 @@ private val previewPatients = listOf(
 )
 
 private val previewChangeLog = mapOf(
-    "#00142" to listOf(
+    "07c98942-3654-4034-b960-f3265814e214" to listOf(
         PatientChangeLogEntry(
             changedBy = "apatel",
             fecha = "05 May 2026",
@@ -56,7 +56,7 @@ private val previewChangeLog = mapOf(
 
 private fun previewHospitalization(id: String, fechaAlta: String?) = Hospitalizacion(
     id = id,
-    patientId = "#00142",
+    patientId = "07c98942-3654-4034-b960-f3265814e214",
     servicio = "Medicina General",
     cama = "08",
     medicoResponsable = "Dr. Patel",
@@ -91,15 +91,15 @@ private fun PatientRecordScreenPreview() {
         PatientRecordScreenContent(
             uiState = PatientRecordUiState(
                 isLoading = false,
-                patient = previewPatients.first { it.id == "#00142" },
+                patient = previewPatients.first { it.id == "07c98942-3654-4034-b960-f3265814e214" },
                 hospitalizations = listOf(
                     previewHospitalization("h_gonzalez_1", "12 Abr 2026"),
                     previewHospitalization("h_gonzalez_2", "02 Feb 2026"),
                     previewHospitalization("h_gonzalez_3", "15 Nov 2025"),
                 ),
-                lastChange = previewChangeLog["#00142"]?.firstOrNull(),
+                lastChange = previewChangeLog["07c98942-3654-4034-b960-f3265814e214"]?.firstOrNull(),
             ),
-            patientId = "#00142",
+            patientId = "07c98942-3654-4034-b960-f3265814e214",
             onEditProfile = {},
             onNewHospitalization = {},
             onHospitalizationSelected = {},
@@ -108,7 +108,7 @@ private fun PatientRecordScreenPreview() {
     }
 }
 
-/** #00124 has no hospitalizaciones in this preview's fixtures -- exercises the empty state. */
+/** a7efc7af-d998-43e8-8abd-d07c1155ef9f has no hospitalizaciones in this preview's fixtures -- exercises the empty state. */
 @PreviewResponsive
 @Composable
 private fun PatientRecordScreenEmptyHospitalizationsPreview() {
@@ -116,11 +116,11 @@ private fun PatientRecordScreenEmptyHospitalizationsPreview() {
         PatientRecordScreenContent(
             uiState = PatientRecordUiState(
                 isLoading = false,
-                patient = previewPatients.first { it.id == "#00124" },
+                patient = previewPatients.first { it.id == "a7efc7af-d998-43e8-8abd-d07c1155ef9f" },
                 hospitalizations = emptyList(),
-                lastChange = previewChangeLog["#00124"]?.firstOrNull(),
+                lastChange = previewChangeLog["a7efc7af-d998-43e8-8abd-d07c1155ef9f"]?.firstOrNull(),
             ),
-            patientId = "#00124",
+            patientId = "a7efc7af-d998-43e8-8abd-d07c1155ef9f",
             onEditProfile = {},
             onNewHospitalization = {},
             onHospitalizationSelected = {},

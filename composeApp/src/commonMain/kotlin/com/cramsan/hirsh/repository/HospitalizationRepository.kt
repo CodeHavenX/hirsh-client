@@ -210,7 +210,7 @@ private fun Hospitalizacion.withSection(key: HcSectionKey, data: Any): Hospitali
 private fun seedHospitalizations(): List<Hospitalizacion> = listOf(
     Hospitalizacion(
         id = "h_ricaldi_1",
-        patientId = "#00129",
+        patientId = "30c14d79-8c7e-43f8-870c-f1dbc4c90247",
         servicio = "Psiquiatria (UHSMA)",
         cama = "01",
         medicoResponsable = "Dr. Reyes",
@@ -311,7 +311,7 @@ private fun seedHospitalizations(): List<Hospitalizacion> = listOf(
     ),
     Hospitalizacion(
         id = "h_mendoza_1",
-        patientId = "#00135",
+        patientId = "1e0697d0-f3e4-4755-85ad-d888d2b15f9d",
         servicio = "Emergencia - Topico de Medicina",
         cama = "0",
         medicoResponsable = "Dr. Hirsh",
@@ -471,7 +471,7 @@ private fun seedHospitalizations(): List<Hospitalizacion> = listOf(
     ),
     Hospitalizacion(
         id = "h_remon_1",
-        patientId = "#00138",
+        patientId = "a21f8bfa-299c-42db-9681-c84f87a90ce4",
         servicio = "Emergencia - Topico de Medicina",
         cama = "0",
         medicoResponsable = "Dr. Hirsh",
@@ -592,7 +592,7 @@ private fun seedHospitalizations(): List<Hospitalizacion> = listOf(
     ),
     Hospitalizacion(
         id = "h_vasquez_1",
-        patientId = "#00131",
+        patientId = "caaedede-5d72-4a52-bb72-7532d7cdda83",
         servicio = "Emergencia - Topico de Medicina",
         cama = "0",
         medicoResponsable = "Dr. Hirsh",
@@ -707,7 +707,7 @@ private fun seedHospitalizations(): List<Hospitalizacion> = listOf(
     ),
     Hospitalizacion(
         id = "h_gonzalez_1",
-        patientId = "#00142",
+        patientId = "07c98942-3654-4034-b960-f3265814e214",
         servicio = "Medicina General",
         cama = "12",
         medicoResponsable = "Dr. Patel",
@@ -780,7 +780,7 @@ private fun seedHospitalizations(): List<Hospitalizacion> = listOf(
     ),
     Hospitalizacion(
         id = "h_gonzalez_2",
-        patientId = "#00142",
+        patientId = "07c98942-3654-4034-b960-f3265814e214",
         servicio = "Medicina General",
         cama = "08",
         medicoResponsable = "Dr. Patel",
@@ -831,7 +831,7 @@ private fun seedHospitalizations(): List<Hospitalizacion> = listOf(
     ),
     Hospitalizacion(
         id = "h_gonzalez_3",
-        patientId = "#00142",
+        patientId = "07c98942-3654-4034-b960-f3265814e214",
         servicio = "Medicina General",
         cama = "08",
         medicoResponsable = "Dr. Reyes",

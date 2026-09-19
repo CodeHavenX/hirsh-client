@@ -10,7 +10,7 @@ import com.cramsan.hirsh.ui.theme.HirshTheme
 
 private val previewPatients = listOf(
     Patient(
-        id = "#00142",
+        id = "07c98942-3654-4034-b960-f3265814e214",
         medicalRecordNumber = "HC-00142",
         documentType = DocumentType.NID,
         documentNumber = "45678901",

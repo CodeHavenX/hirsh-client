@@ -239,7 +239,7 @@ private fun InfoCard(patient: Patient, hospitalizacion: Hospitalizacion, modifie
                 }
                 Column(modifier = Modifier.padding(start = 12.dp)) {
                     Text(patient.fullName, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                    Text(patient.id, fontFamily = FontFamily.Monospace, fontSize = 11.sp, color = HissInk2)
+                    Text(patient.medicalRecordNumber, fontFamily = FontFamily.Monospace, fontSize = 11.sp, color = HissInk2)
                 }
             }
             HorizontalDivider(color = HissFaint)

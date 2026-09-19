@@ -26,7 +26,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 private val existingPatient = Patient(
-    id = "#00142",
+    id = "07c98942-3654-4034-b960-f3265814e214",
     medicalRecordNumber = "HC-00142",
     documentType = DocumentType.NID,
     documentNumber = "45678901",
@@ -70,7 +70,7 @@ private class FakePatientRepository(patients: List<Patient> = listOf(existingPat
     ): Patient {
         addPatientCalls++
         val created = Patient(
-            id = "#00200",
+            id = "new-patient-id",
             medicalRecordNumber = "HC-00200",
             documentType = documentType,
             documentNumber = documentNumber,
@@ -154,7 +154,7 @@ class RegisterPatientViewModelTest {
             assertEquals(true, saving.isSaving)
             val done = awaitItem()
             assertEquals(false, done.isSaving)
-            assertEquals("#00200", done.registeredPatientId)
+            assertEquals("new-patient-id", done.registeredPatientId)
             assertNull(done.error)
             cancelAndIgnoreRemainingEvents()
         }

@@ -21,7 +21,7 @@ import com.cramsan.hirsh.ui.preview.PreviewResponsive
 import com.cramsan.hirsh.ui.theme.HirshTheme
 
 private val previewPatient = Patient(
-    id = "#00129",
+    id = "30c14d79-8c7e-43f8-870c-f1dbc4c90247",
     medicalRecordNumber = "HC-00129",
     documentType = DocumentType.NID,
     documentNumber = "70083906",

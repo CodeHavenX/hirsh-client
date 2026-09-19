@@ -130,7 +130,7 @@ internal fun PatientListScreenContent(
 // displaying permanently-fake placeholder data once this model claims to match the real
 // contract would be dishonest. A deliberate divergence from prototype/patients.html.
 private fun patientColumns(today: LocalDate): List<DataTableColumn<Patient>> = listOf(
-    DataTableColumn(label = "HCL", weight = 0.7f) { patient -> Text(patient.id, fontSize = CellFontSize) },
+    DataTableColumn(label = "HCL", weight = 0.7f) { patient -> Text(patient.medicalRecordNumber, fontSize = CellFontSize) },
     DataTableColumn(label = "Nombre", weight = 2f) { patient ->
         Text(patient.fullName, fontSize = CellFontSize, fontWeight = FontWeight.SemiBold)
     },

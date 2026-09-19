@@ -33,7 +33,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 private val samplePatient = Patient(
-    id = "#00142",
+    id = "07c98942-3654-4034-b960-f3265814e214",
     medicalRecordNumber = "HC-00142",
     documentType = DocumentType.NID,
     documentNumber = "45678901",
@@ -90,7 +90,7 @@ private class FakePatientRepository(patients: List<Patient>, changeLog: List<Pat
         allergies: String,
     ): Patient {
         val created = Patient(
-            id = "#00000",
+            id = "new-patient-id",
             medicalRecordNumber = "HC-00000",
             documentType = documentType,
             documentNumber = documentNumber,
@@ -175,7 +175,7 @@ class PatientRecordViewModelTest {
 
         viewModel.uiState.test {
             assertEquals(PatientRecordUiState(), awaitItem())
-            viewModel.load("#does-not-exist")
+            viewModel.load("does-not-exist")
             assertEquals(PatientRecordUiState(isLoading = false, patient = null), awaitItem())
             cancelAndIgnoreRemainingEvents()
         }

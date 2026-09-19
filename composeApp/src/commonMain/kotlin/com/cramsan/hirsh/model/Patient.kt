@@ -13,6 +13,10 @@ package com.cramsan.hirsh.model
  * consumer here yet -- modeling it now would be a guess with nothing to validate it against).
  */
 data class Patient(
+    /**
+     * The backend's opaque row identifier -- a UUID string, not a human-readable number. Never
+     * display this; [medicalRecordNumber] is the human-facing identifier ("HC-00142"-style).
+     */
     val id: String,
     val medicalRecordNumber: String,
     val documentType: DocumentType,

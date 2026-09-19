@@ -17,6 +17,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 interface PatientRepository {
     val patients: StateFlow<List<Patient>>
@@ -43,13 +45,14 @@ interface PatientRepository {
     suspend fun updatePatient(id: String, newValues: Patient, changedBy: String, fecha: String, hora: String)
 
     /**
-     * Creates a new patient, generating its id and medical record number the same way the
-     * prototype's nextPatientId() does (max existing numeric suffix + 1, zero-padded to 5) --
-     * a freshly registered patient has no admisiones yet. [allergies] stays a single free-text
-     * field at the call boundary (HISS-621 defers the real per-allergy CRUD UI to HISS-623): a
-     * non-blank, non-"Ninguna" value becomes one synthetic [Allergy] entry. No change-log entry:
-     * the prototype's own registerPatient() doesn't call logPatientChange either, registration
-     * isn't an edit.
+     * Creates a new patient. [Patient.id] is a fresh UUID, matching the backend's opaque row
+     * identifier (HISS-621); [Patient.medicalRecordNumber] keeps the prototype's own
+     * nextPatientId() scheme (max existing numeric suffix + 1, zero-padded to 5) since that's the
+     * human-facing identifier a real medical-records system would still assign sequentially.
+     * [allergies] stays a single free-text field at the call boundary (HISS-621 defers the real
+     * per-allergy CRUD UI to HISS-623): a non-blank, non-"Ninguna" value becomes one synthetic
+     * [Allergy] entry. No change-log entry: the prototype's own registerPatient() doesn't call
+     * logPatientChange either, registration isn't an edit.
      */
     suspend fun addPatient(
         name: String,
@@ -74,7 +77,7 @@ class InMemoryPatientRepository : PatientRepository {
     private val _patients = MutableStateFlow(
         listOf(
             Patient(
-                id = "#00142",
+                id = "07c98942-3654-4034-b960-f3265814e214",
                 medicalRecordNumber = "HC-00142",
                 documentType = DocumentType.NID,
                 documentNumber = "45678901",
@@ -86,7 +89,7 @@ class InMemoryPatientRepository : PatientRepository {
                 sex = Sex.FEMALE,
             ),
             Patient(
-                id = "#00138",
+                id = "a21f8bfa-299c-42db-9681-c84f87a90ce4",
                 medicalRecordNumber = "HC-00138",
                 documentType = DocumentType.NID,
                 documentNumber = "09147875",
@@ -98,7 +101,7 @@ class InMemoryPatientRepository : PatientRepository {
                 sex = Sex.MALE,
             ),
             Patient(
-                id = "#00135",
+                id = "1e0697d0-f3e4-4755-85ad-d888d2b15f9d",
                 medicalRecordNumber = "HC-00135",
                 documentType = DocumentType.NID,
                 documentNumber = "70567572",
@@ -110,7 +113,7 @@ class InMemoryPatientRepository : PatientRepository {
                 sex = Sex.MALE,
             ),
             Patient(
-                id = "#00131",
+                id = "caaedede-5d72-4a52-bb72-7532d7cdda83",
                 medicalRecordNumber = "HC-00131",
                 documentType = DocumentType.NID,
                 documentNumber = "07024120",
@@ -122,7 +125,7 @@ class InMemoryPatientRepository : PatientRepository {
                 sex = Sex.FEMALE,
             ),
             Patient(
-                id = "#00129",
+                id = "30c14d79-8c7e-43f8-870c-f1dbc4c90247",
                 medicalRecordNumber = "HC-00129",
                 documentType = DocumentType.NID,
                 documentNumber = "70083906",
@@ -134,7 +137,7 @@ class InMemoryPatientRepository : PatientRepository {
                 sex = Sex.FEMALE,
             ),
             Patient(
-                id = "#00124",
+                id = "a7efc7af-d998-43e8-8abd-d07c1155ef9f",
                 medicalRecordNumber = "HC-00124",
                 documentType = DocumentType.NID,
                 documentNumber = "40734432",
@@ -153,7 +156,7 @@ class InMemoryPatientRepository : PatientRepository {
 
     private val _changeLog = MutableStateFlow(
         mapOf(
-            "#00142" to listOf(
+            "07c98942-3654-4034-b960-f3265814e214" to listOf(
                 PatientChangeLogEntry(
                     changedBy = "apatel",
                     fecha = "05 May 2026",
@@ -181,7 +184,7 @@ class InMemoryPatientRepository : PatientRepository {
                     ),
                 ),
             ),
-            "#00131" to listOf(
+            "caaedede-5d72-4a52-bb72-7532d7cdda83" to listOf(
                 PatientChangeLogEntry(
                     changedBy = "admin",
                     fecha = "16 Jun 2026",
@@ -209,7 +212,7 @@ class InMemoryPatientRepository : PatientRepository {
                     ),
                 ),
             ),
-            "#00138" to listOf(
+            "a21f8bfa-299c-42db-9681-c84f87a90ce4" to listOf(
                 PatientChangeLogEntry(
                     changedBy = "slin",
                     fecha = "14 Jun 2026",
@@ -270,10 +273,9 @@ class InMemoryPatientRepository : PatientRepository {
         bloodType: String,
         allergies: String,
     ): Patient {
-        val newId = nextPatientId()
         val newPatient = Patient(
-            id = newId,
-            medicalRecordNumber = "HC-" + newId.removePrefix("#"),
+            id = nextPatientId(),
+            medicalRecordNumber = nextMedicalRecordNumber(),
             documentType = documentType,
             documentNumber = documentNumber,
             fullName = name,
@@ -287,9 +289,13 @@ class InMemoryPatientRepository : PatientRepository {
         return newPatient
     }
 
-    private fun nextPatientId(): String {
-        val maxId = _patients.value.maxOfOrNull { it.id.removePrefix("#").toInt() } ?: 0
-        return "#" + (maxId + 1).toString().padStart(5, '0')
+    /** A real UUID, matching the backend's opaque row identifier (HISS-621) -- never `#XXXXX`. */
+    @OptIn(ExperimentalUuidApi::class)
+    private fun nextPatientId(): String = Uuid.random().toString()
+
+    private fun nextMedicalRecordNumber(): String {
+        val maxNumber = _patients.value.maxOfOrNull { it.medicalRecordNumber.removePrefix("HC-").toInt() } ?: 0
+        return "HC-" + (maxNumber + 1).toString().padStart(5, '0')
     }
 }
 

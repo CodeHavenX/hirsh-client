@@ -55,7 +55,7 @@ class HospitalizationRepositoryTest {
     fun `getHospitalizations returns only the requested patient's stays`() = runTest {
         val repository = InMemoryHospitalizationRepository(FakeClock())
 
-        repository.getHospitalizations("#00142").test {
+        repository.getHospitalizations("07c98942-3654-4034-b960-f3265814e214").test {
             assertEquals(3, awaitItem().size)
         }
     }
@@ -64,7 +64,7 @@ class HospitalizationRepositoryTest {
     fun `getHospitalizations is empty for a patient with none`() = runTest {
         val repository = InMemoryHospitalizationRepository(FakeClock())
 
-        repository.getHospitalizations("#00124").test {
+        repository.getHospitalizations("a7efc7af-d998-43e8-8abd-d07c1155ef9f").test {
             assertEquals(emptyList(), awaitItem())
         }
     }
@@ -73,7 +73,7 @@ class HospitalizationRepositoryTest {
     fun `getHospitalization resolves by patientId and hospId together`() = runTest {
         val repository = InMemoryHospitalizationRepository(FakeClock())
 
-        repository.getHospitalization("#00135", "h_mendoza_1").test {
+        repository.getHospitalization("1e0697d0-f3e4-4755-85ad-d888d2b15f9d", "h_mendoza_1").test {
             assertEquals("h_mendoza_1", awaitItem()?.id)
         }
     }
@@ -82,9 +82,9 @@ class HospitalizationRepositoryTest {
     fun `getHospitalization does not fall back when hospId belongs to a different patient`() = runTest {
         val repository = InMemoryHospitalizationRepository(FakeClock())
 
-        // h_mendoza_1 is real, but under #00135, not #00131 -- must resolve to
+        // h_mendoza_1 is real, but under 1e0697d0-f3e4-4755-85ad-d888d2b15f9d, not caaedede-5d72-4a52-bb72-7532d7cdda83 -- must resolve to
         // not-found, never render Jesus's stay under Maria Vasquez's record.
-        repository.getHospitalization("#00131", "h_mendoza_1").test {
+        repository.getHospitalization("caaedede-5d72-4a52-bb72-7532d7cdda83", "h_mendoza_1").test {
             assertNull(awaitItem())
         }
     }
@@ -112,7 +112,7 @@ class HospitalizationRepositoryTest {
         val repository = InMemoryHospitalizationRepository(FakeClock())
 
         val created = repository.addHospitalization(
-            patientId = "#00124",
+            patientId = "a7efc7af-d998-43e8-8abd-d07c1155ef9f",
             servicio = "Medicina General",
             cama = "05",
             medicoResponsable = "Dr. Lin",
@@ -131,10 +131,10 @@ class HospitalizationRepositoryTest {
     fun `addHospitalization is visible to an existing getHospitalizations observer`() = runTest {
         val repository = InMemoryHospitalizationRepository(FakeClock())
 
-        repository.getHospitalizations("#00124").test {
+        repository.getHospitalizations("a7efc7af-d998-43e8-8abd-d07c1155ef9f").test {
             assertEquals(emptyList(), awaitItem())
             repository.addHospitalization(
-                patientId = "#00124",
+                patientId = "a7efc7af-d998-43e8-8abd-d07c1155ef9f",
                 servicio = "Medicina General",
                 cama = "05",
                 medicoResponsable = "Dr. Lin",
@@ -150,7 +150,7 @@ class HospitalizationRepositoryTest {
 
         repository.discharge("h_mendoza_1", jpaVersion = 0L)
 
-        repository.getHospitalization("#00135", "h_mendoza_1").test {
+        repository.getHospitalization("1e0697d0-f3e4-4755-85ad-d888d2b15f9d", "h_mendoza_1").test {
             val hospitalization = awaitItem()
             assertEquals(EstadoHospitalizacion.ALTA, hospitalization?.estado)
             assertEquals("15 Jan 2027", hospitalization?.fechaAlta)
@@ -164,7 +164,7 @@ class HospitalizationRepositoryTest {
 
         repository.discharge("does-not-exist", jpaVersion = 0L)
 
-        repository.getHospitalizations("#00135").test {
+        repository.getHospitalizations("1e0697d0-f3e4-4755-85ad-d888d2b15f9d").test {
             assertEquals(EstadoHospitalizacion.ACTIVA, awaitItem().single().estado)
         }
     }
@@ -175,7 +175,7 @@ class HospitalizationRepositoryTest {
 
         repository.discharge("h_mendoza_1", jpaVersion = 0L)
 
-        repository.getHospitalization("#00135", "h_mendoza_1").test {
+        repository.getHospitalization("1e0697d0-f3e4-4755-85ad-d888d2b15f9d", "h_mendoza_1").test {
             assertEquals(1L, awaitItem()?.jpaVersion)
         }
     }
@@ -190,7 +190,7 @@ class HospitalizationRepositoryTest {
             }
 
             assertEquals(ApiError.Conflict("h_mendoza_1"), exception.error)
-            repository.getHospitalization("#00135", "h_mendoza_1").test {
+            repository.getHospitalization("1e0697d0-f3e4-4755-85ad-d888d2b15f9d", "h_mendoza_1").test {
                 val hospitalization = awaitItem()
                 assertEquals(EstadoHospitalizacion.ACTIVA, hospitalization?.estado)
                 assertEquals(0L, hospitalization?.jpaVersion)
@@ -217,7 +217,7 @@ class HospitalizationRepositoryTest {
 
         repository.saveHistoriaClinicaSection("h_mendoza_1", HcSectionKey.FILIACION, newFiliacion)
 
-        repository.getHospitalization("#00135", "h_mendoza_1").test {
+        repository.getHospitalization("1e0697d0-f3e4-4755-85ad-d888d2b15f9d", "h_mendoza_1").test {
             val hc = awaitItem()?.historiaClinica
             assertEquals(true, hc?.filiacion?.complete)
             assertEquals(newFiliacion, hc?.filiacion?.data)
@@ -252,7 +252,7 @@ class HospitalizationRepositoryTest {
 
         repository.addEvolucion("h_mendoza_1", draftEvolucion())
 
-        repository.getHospitalization("#00135", "h_mendoza_1").test {
+        repository.getHospitalization("1e0697d0-f3e4-4755-85ad-d888d2b15f9d", "h_mendoza_1").test {
             val evoluciones = awaitItem()?.evoluciones.orEmpty()
             assertEquals(4, evoluciones.size)
             assertEquals("15 Jan 2027", evoluciones.first().fecha)
@@ -263,7 +263,7 @@ class HospitalizationRepositoryTest {
     fun `addEvolucion is visible to an existing getHospitalization observer without re-subscribing`() = runTest {
         val repository = InMemoryHospitalizationRepository(FakeClock())
 
-        repository.getHospitalization("#00135", "h_mendoza_1").test {
+        repository.getHospitalization("1e0697d0-f3e4-4755-85ad-d888d2b15f9d", "h_mendoza_1").test {
             assertEquals(3, awaitItem()?.evoluciones?.size)
             repository.addEvolucion("h_mendoza_1", draftEvolucion())
             assertEquals(4, awaitItem()?.evoluciones?.size)

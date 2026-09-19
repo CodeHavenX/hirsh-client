@@ -25,7 +25,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 private val samplePatient = Patient(
-    id = "#00142",
+    id = "07c98942-3654-4034-b960-f3265814e214",
     medicalRecordNumber = "HC-00142",
     documentType = DocumentType.NID,
     documentNumber = "45678901",
@@ -38,7 +38,7 @@ private val samplePatient = Patient(
 )
 
 private val otherPatient = Patient(
-    id = "#00138",
+    id = "a21f8bfa-299c-42db-9681-c84f87a90ce4",
     medicalRecordNumber = "HC-00138",
     documentType = DocumentType.NID,
     documentNumber = "09147875",
@@ -78,7 +78,7 @@ private class FakePatientRepository(patients: List<Patient>) : PatientRepository
         allergies: String,
     ): Patient {
         val created = Patient(
-            id = "#00000",
+            id = "new-patient-id",
             medicalRecordNumber = "HC-00000",
             documentType = documentType,
             documentNumber = documentNumber,

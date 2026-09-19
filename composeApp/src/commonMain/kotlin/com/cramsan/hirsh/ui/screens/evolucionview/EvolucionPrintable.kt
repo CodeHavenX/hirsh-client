@@ -40,7 +40,7 @@ fun EvolucionPrintable(
             "DNI" to patient.documentNumber,
             "Fecha de evolucion" to "${evolucion.fecha} · ${evolucion.hora}",
             "Medico" to evolucion.medico,
-            "N° Historia" to patient.id,
+            "N° Historia" to patient.medicalRecordNumber,
             "Cama" to hospitalizacion.cama,
             "Pronostico" to evolucion.pronostico.toDisplayLabel(),
             "Evolucion" to evolucion.resultado.toDisplayLabel(),

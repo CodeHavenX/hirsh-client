@@ -194,7 +194,7 @@ internal fun NuevaEvolucionScreenContent(
             )
             else -> {
                 EncounterTopBar(
-                    title = "Nueva evolucion · ${patient.fullName} ${patient.id}",
+                    title = "Nueva evolucion · ${patient.fullName} ${patient.medicalRecordNumber}",
                     onClose = onClose,
                     meta = {
                         Chip("${uiState.openedFecha} · ${uiState.openedHora}")

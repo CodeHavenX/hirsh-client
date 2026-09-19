@@ -37,7 +37,7 @@ import kotlin.test.assertTrue
 import kotlin.time.Instant
 
 private val existingPatient = Patient(
-    id = "#00142",
+    id = "07c98942-3654-4034-b960-f3265814e214",
     medicalRecordNumber = "HC-00142",
     documentType = DocumentType.NID,
     documentNumber = "45678901",
@@ -152,7 +152,7 @@ class EditPatientViewModelTest {
 
         viewModel.uiState.test {
             awaitItem()
-            viewModel.load("#does-not-exist")
+            viewModel.load("does-not-exist")
             val state = awaitItem()
             assertNull(state.patient)
             assertEquals(false, state.isLoading)
@@ -200,7 +200,7 @@ class EditPatientViewModelTest {
         }
 
         val update = repository.lastUpdate
-        assertEquals("#00142", update?.id)
+        assertEquals("07c98942-3654-4034-b960-f3265814e214", update?.id)
         assertEquals("999-999-999", update?.newValues?.phone)
         assertEquals("apatel", update?.changedBy)
         assertEquals("15 Jan 2027", update?.fecha)

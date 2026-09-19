@@ -34,7 +34,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 private val samplePatient = Patient(
-    id = "#00142",
+    id = "07c98942-3654-4034-b960-f3265814e214",
     medicalRecordNumber = "HC-00142",
     documentType = DocumentType.NID,
     documentNumber = "45678901",
@@ -160,7 +160,7 @@ class HospitalizationViewModelTest {
 
     @Test
     fun `load produces not-found when the hospId belongs to a different patient`() = runTest(dispatcher) {
-        val hospitalization = sampleHospitalization("h1", "#00999")
+        val hospitalization = sampleHospitalization("h1", "other-patient-id")
         val viewModel = HospitalizationViewModel(
             FakePatientRepository(listOf(samplePatient)),
             FakeHospitalizationRepository(listOf(hospitalization)),
@@ -185,7 +185,7 @@ class HospitalizationViewModelTest {
 
         viewModel.uiState.test {
             awaitItem()
-            viewModel.load("#does-not-exist", "h1")
+            viewModel.load("does-not-exist", "h1")
             val loaded = awaitItem()
             assertNull(loaded.patient)
             assertNull(loaded.hospitalizacion)

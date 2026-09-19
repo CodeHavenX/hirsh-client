@@ -32,7 +32,7 @@ fun HistoriaClinicaPrintable(
             "DNI" to patient.documentNumber,
             "Fecha de ingreso" to "${hospitalizacion.fechaIngreso} · ${hospitalizacion.horaIngreso}",
             "Medico responsable" to hospitalizacion.medicoResponsable,
-            "N° Historia" to patient.id,
+            "N° Historia" to patient.medicalRecordNumber,
             "Cama" to hospitalizacion.cama,
         ),
         sections = HcSectionKey.entries.map { key ->
