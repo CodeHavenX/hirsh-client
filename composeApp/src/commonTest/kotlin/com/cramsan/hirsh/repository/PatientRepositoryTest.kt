@@ -1,6 +1,7 @@
 package com.cramsan.hirsh.repository
 
 import app.cash.turbine.test
+import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.network.ApiError
@@ -136,13 +137,13 @@ class PatientRepositoryTest {
         repository.getChangeLog("#00131").test {
             val entries = awaitItem()
             assertEquals(2, entries.size)
-            assertTrue(entries.any { it.changedBy == "admin" && it.fields.single().field == "assignedDoctor" })
+            assertTrue(entries.any { it.changedBy == "admin" && it.fields.single().field == "district" })
             assertTrue(entries.any { it.changedBy == "mreyes" && it.fields.single().field == "bloodType" })
         }
         repository.getChangeLog("#00138").test {
             val entries = awaitItem()
             assertEquals(1, entries.size)
-            assertEquals("nationalId", entries.single().fields.single().field)
+            assertEquals("documentNumber", entries.single().fields.single().field)
         }
     }
 
@@ -187,14 +188,13 @@ class PatientRepositoryTest {
         val repository = InMemoryPatientRepository()
         val bogus = Patient(
             id = "#does-not-exist",
-            name = "Nobody",
-            dateOfBirth = "01/01/2000",
+            medicalRecordNumber = "HC-00000",
+            documentType = DocumentType.NID,
+            documentNumber = "00000000",
+            fullName = "Nobody",
+            birthDate = "01/01/2000",
             phone = "000-000-000",
-            assignedDoctor = "Dr. Patel",
-            lastVisit = "—",
             bloodType = "O+",
-            allergies = "Ninguna",
-            nationalId = "00000000",
             sex = Sex.MALE,
         )
 
@@ -215,35 +215,34 @@ class PatientRepositoryTest {
 
         val created = repository.addPatient(
             name = "Nuevo Paciente",
-            nationalId = "11223344",
-            dateOfBirth = "01/01/2000",
+            documentType = DocumentType.NID,
+            documentNumber = "11223344",
+            birthDate = "01/01/2000",
             phone = "999-999-999",
             sex = Sex.MALE,
             bloodType = "O+",
             allergies = "Ninguna",
-            assignedDoctor = "Dr. Patel",
         )
 
         assertEquals("#00143", created.id)
     }
 
     @Test
-    fun `addPatient defaults lastVisit and appends to the patient list`() = runTest {
+    fun `addPatient appends the new patient to the patient list`() = runTest {
         val repository = InMemoryPatientRepository()
         val beforeCount = repository.patients.value.size
 
         val created = repository.addPatient(
             name = "Nuevo Paciente",
-            nationalId = "11223344",
-            dateOfBirth = "01/01/2000",
+            documentType = DocumentType.NID,
+            documentNumber = "11223344",
+            birthDate = "01/01/2000",
             phone = "999-999-999",
             sex = Sex.MALE,
             bloodType = "O+",
             allergies = "Ninguna",
-            assignedDoctor = "Dr. Patel",
         )
 
-        assertEquals("—", created.lastVisit)
         assertEquals(beforeCount + 1, repository.patients.value.size)
         assertTrue(repository.patients.value.contains(created))
     }
@@ -254,23 +253,23 @@ class PatientRepositoryTest {
 
         val first = repository.addPatient(
             name = "Primero",
-            nationalId = "11111111",
-            dateOfBirth = "01/01/2000",
+            documentType = DocumentType.NID,
+            documentNumber = "11111111",
+            birthDate = "01/01/2000",
             phone = "111-111-111",
             sex = Sex.MALE,
             bloodType = "O+",
             allergies = "Ninguna",
-            assignedDoctor = "Dr. Patel",
         )
         val second = repository.addPatient(
             name = "Segundo",
-            nationalId = "22222222",
-            dateOfBirth = "01/01/2000",
+            documentType = DocumentType.NID,
+            documentNumber = "22222222",
+            birthDate = "01/01/2000",
             phone = "222-222-222",
             sex = Sex.FEMALE,
             bloodType = "O+",
             allergies = "Ninguna",
-            assignedDoctor = "Dr. Patel",
         )
 
         assertEquals("#00143", first.id)

@@ -7,9 +7,11 @@ import com.cramsan.hirsh.model.FieldChange
 import com.cramsan.hirsh.model.HcSectionKey
 import com.cramsan.hirsh.model.HistoriaClinica
 import com.cramsan.hirsh.model.Hospitalizacion
+import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.PatientChangeLogEntry
 import com.cramsan.hirsh.model.Sex
+import com.cramsan.hirsh.model.singleAllergyFromText
 import com.cramsan.hirsh.repository.HospitalizationRepository
 import com.cramsan.hirsh.repository.PatientRepository
 import kotlinx.coroutines.Dispatchers
@@ -32,14 +34,14 @@ import kotlin.test.assertNull
 
 private val samplePatient = Patient(
     id = "#00142",
-    name = "Maria Gonzalez Huerta",
-    dateOfBirth = "14/03/1989",
+    medicalRecordNumber = "HC-00142",
+    documentType = DocumentType.NID,
+    documentNumber = "45678901",
+    fullName = "Maria Gonzalez Huerta",
+    birthDate = "14/03/1989",
     phone = "987-654-321",
-    assignedDoctor = "Dr. Patel",
-    lastVisit = "12 Abr 2026",
     bloodType = "O+",
-    allergies = "Penicilina",
-    nationalId = "45678901",
+    allergies = singleAllergyFromText("Penicilina"),
     sex = Sex.FEMALE,
 )
 
@@ -79,24 +81,24 @@ private class FakePatientRepository(patients: List<Patient>, changeLog: List<Pat
 
     override suspend fun addPatient(
         name: String,
-        nationalId: String,
-        dateOfBirth: String,
+        documentType: DocumentType,
+        documentNumber: String,
+        birthDate: String,
         phone: String,
         sex: Sex,
         bloodType: String,
         allergies: String,
-        assignedDoctor: String,
     ): Patient {
         val created = Patient(
             id = "#00000",
-            name = name,
-            dateOfBirth = dateOfBirth,
+            medicalRecordNumber = "HC-00000",
+            documentType = documentType,
+            documentNumber = documentNumber,
+            fullName = name,
+            birthDate = birthDate,
             phone = phone,
-            assignedDoctor = assignedDoctor,
-            lastVisit = "—",
             bloodType = bloodType,
-            allergies = allergies,
-            nationalId = nationalId,
+            allergies = singleAllergyFromText(allergies),
             sex = sex,
         )
         _patients.update { list -> list + created }
