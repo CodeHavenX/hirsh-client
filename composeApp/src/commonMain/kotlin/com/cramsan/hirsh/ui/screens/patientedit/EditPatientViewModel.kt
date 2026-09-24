@@ -37,7 +37,6 @@ data class EditPatientUiState(
     val sex: Sex? = null,
     val bloodType: String = "",
     val allergies: List<Allergy> = emptyList(),
-    /** The add/edit allergy form currently open, if any -- see [AllergyDraft]. */
     val allergyDraft: AllergyDraft? = null,
     /** The allergy whose "Quitar" is awaiting its inline confirmation. */
     val confirmingDeleteId: String? = null,
@@ -147,6 +146,9 @@ class EditPatientViewModel(
                     fullName = assembleFullName(state.firstName, state.lastName, state.secondLastName),
                     phone = state.phone,
                     bloodType = state.bloodType,
+                    // [original] was loaded before any immediate allergy change on this screen;
+                    // an implementation that stores the whole Patient would otherwise revert them.
+                    allergies = state.allergies,
                 )
                 patientRepository.updatePatient(original.id, newValues, changedBy, fecha, hora)
                 _uiState.update { it.copy(isSaving = false, saved = true) }

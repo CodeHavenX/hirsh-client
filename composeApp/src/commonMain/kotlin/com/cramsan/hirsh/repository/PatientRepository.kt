@@ -94,8 +94,9 @@ interface PatientRepository {
      * collects it as a real required field. [firstName]/[lastName] are required, [secondLastName]
      * optional, matching `CreatePatientRequest`'s exact shape; implementations assemble [Patient.fullName]
      * themselves when there's no server response to take it from. [allergies] stays a single
-     * free-text field at the call boundary (HISS-621 defers the real per-allergy CRUD UI to
-     * HISS-623): a non-blank, non-"Ninguna" value becomes one synthetic [Allergy] entry. No
+     * free-text field at the call boundary -- per-allergy entry on registration is HISS-625 (the
+     * edit screen got it in HISS-623): a non-blank, non-"Ninguna" value becomes one synthetic
+     * [Allergy] entry. No
      * change-log entry: the prototype's own registerPatient() doesn't call logPatientChange either,
      * registration isn't an edit.
      */

@@ -356,6 +356,28 @@ class EditPatientViewModelTest {
         }
 
     @Test
+    fun `saving demographics after adding an allergy keeps the new allergy`() = runTest(dispatcher) {
+        val repository = FakePatientRepository()
+        val viewModel = loadedViewModel(repository)
+
+        viewModel.onStartAddAllergy()
+        viewModel.onAllergyTypeChange(AllergyType.FOOD)
+        viewModel.onAllergyDescriptionChange("Mariscos")
+        viewModel.saveAllergyDraft()
+        dispatcher.scheduler.advanceUntilIdle()
+        viewModel.onPhoneChange("999-999-999")
+        viewModel.save()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(listOf("Mariscos", "Penicilina"), repository.lastUpdate?.newValues?.allergies?.map { it.description })
+        assertEquals(
+            listOf("Mariscos", "Penicilina"),
+            repository.patients.value.single { it.id == existingPatient.id }.allergies.map { it.description },
+            "a demographic save must not revert an allergy already saved on its own",
+        )
+    }
+
+    @Test
     fun `adding an allergy without a type or description is blocked before any call`() = runTest(dispatcher) {
         val repository = FakePatientRepository()
         val viewModel = loadedViewModel(repository)
