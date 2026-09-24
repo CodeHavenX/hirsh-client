@@ -239,42 +239,6 @@ class PatientRecordViewModelTest {
     }
 
     @Test
-    fun `load populates lastChange from the newest change log entry`() = runTest(dispatcher) {
-        val entry = PatientChangeLogEntry(
-            changedBy = "apatel",
-            fecha = "05 May 2026",
-            hora = "11:20",
-            fields = listOf(FieldChange(field = "phone", label = "Telefono", oldValue = "1", newValue = "2")),
-        )
-        val viewModel = PatientRecordViewModel(
-            FakePatientRepository(listOf(samplePatient), changeLog = listOf(entry)),
-            FakeHospitalizationRepository(),
-        )
-
-        viewModel.uiState.test {
-            awaitItem()
-            viewModel.load(samplePatient.id)
-            assertEquals(entry, awaitItem().lastChange)
-            cancelAndIgnoreRemainingEvents()
-        }
-    }
-
-    @Test
-    fun `load leaves lastChange null when the change log is empty`() = runTest(dispatcher) {
-        val viewModel = PatientRecordViewModel(
-            FakePatientRepository(listOf(samplePatient)),
-            FakeHospitalizationRepository(),
-        )
-
-        viewModel.uiState.test {
-            awaitItem()
-            viewModel.load(samplePatient.id)
-            assertNull(awaitItem().lastChange)
-            cancelAndIgnoreRemainingEvents()
-        }
-    }
-
-    @Test
     fun `a hospitalization mutated elsewhere is reflected without calling load again`() = runTest(dispatcher) {
         val hospitalizationRepository = FakeHospitalizationRepository(
             listOf(sampleHospitalization("h1", samplePatient.id)),

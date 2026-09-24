@@ -37,7 +37,6 @@ import androidx.compose.ui.unit.sp
 import com.cramsan.hirsh.model.EstadoHospitalizacion
 import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.Patient
-import com.cramsan.hirsh.model.PatientChangeLogEntry
 import com.cramsan.hirsh.model.calculateAge
 import com.cramsan.hirsh.model.toDisplayLabel
 import com.cramsan.hirsh.ui.components.AllergyList
@@ -66,7 +65,7 @@ fun PatientRecordScreen(
     onEditProfile: () -> Unit,
     onNewHospitalization: () -> Unit,
     onHospitalizationSelected: (hospId: String) -> Unit,
-    onViewHistory: () -> Unit,
+    onViewHistory: (() -> Unit)?,
     viewModel: PatientRecordViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -94,7 +93,7 @@ internal fun PatientRecordScreenContent(
     onEditProfile: () -> Unit,
     onNewHospitalization: () -> Unit,
     onHospitalizationSelected: (hospId: String) -> Unit,
-    onViewHistory: () -> Unit,
+    onViewHistory: (() -> Unit)?,
 ) {
     val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
     val patient = uiState.patient
@@ -115,7 +114,6 @@ internal fun PatientRecordScreenContent(
                     ProfileCard(
                         patient = patient,
                         today = today,
-                        lastChangeLine = lastChangeLine(uiState.lastChange),
                         onViewHistory = onViewHistory,
                         modifier = Modifier.width(280.dp),
                     )
@@ -167,8 +165,7 @@ private fun RecordHeader(
 private fun ProfileCard(
     patient: Patient,
     today: LocalDate,
-    lastChangeLine: String,
-    onViewHistory: () -> Unit,
+    onViewHistory: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     Surface(
@@ -219,28 +216,25 @@ private fun ProfileCard(
             if (patient.allergies.isNotEmpty()) {
                 AllergyList(allergies = patient.allergies, modifier = Modifier.testTag("record_allergy_list"))
             }
-            Column(
-                modifier = Modifier.fillMaxWidth().dashedTopBorder(HissFaint).padding(top = 8.dp),
-            ) {
-                Text(lastChangeLine, fontFamily = FontFamily.Monospace, fontSize = 10.sp, color = HissInk2)
-                Text(
-                    "Ver historial de cambios →",
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 10.sp,
-                    color = HissAccent,
-                    modifier = Modifier.padding(top = 2.dp).clickable(onClick = onViewHistory).testTag("record_history_link"),
-                )
+            // Only sessions with AUDIT_READ get a callback (see AppNavHost) -- the access trail's
+            // endpoint 403s for everyone else. The prototype's "Ultima edicion" line is gone: the
+            // backend keeps no per-edit author/time to fill it from (HISS-624).
+            if (onViewHistory != null) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().dashedTopBorder(HissFaint).padding(top = 8.dp),
+                ) {
+                    Text(
+                        "Ver registro de accesos →",
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 10.sp,
+                        color = HissAccent,
+                        modifier = Modifier.clickable(onClick = onViewHistory).testTag("record_history_link"),
+                    )
+                }
             }
         }
     }
 }
-
-private fun lastChangeLine(lastChange: PatientChangeLogEntry?): String =
-    if (lastChange != null) {
-        "Ultima edicion: ${lastChange.changedBy} · ${lastChange.fecha}, ${lastChange.hora}"
-    } else {
-        "Sin cambios registrados."
-    }
 
 @Composable
 private fun HospitalizationsSection(

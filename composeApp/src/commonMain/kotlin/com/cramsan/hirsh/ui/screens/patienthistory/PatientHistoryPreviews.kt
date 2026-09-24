@@ -1,12 +1,12 @@
 package com.cramsan.hirsh.ui.screens.patienthistory
 
 import androidx.compose.runtime.Composable
+import com.cramsan.hirsh.model.AccessAction
+import com.cramsan.hirsh.model.AccessLogEntry
 import com.cramsan.hirsh.model.Allergy
 import com.cramsan.hirsh.model.AllergyType
 import com.cramsan.hirsh.model.DocumentType
-import com.cramsan.hirsh.model.FieldChange
 import com.cramsan.hirsh.model.Patient
-import com.cramsan.hirsh.model.PatientChangeLogEntry
 import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.ui.preview.PreviewResponsive
 import com.cramsan.hirsh.ui.theme.HirshTheme
@@ -38,38 +38,11 @@ private val previewPatients = listOf(
     ),
 )
 
-private val previewChangeLog = mapOf(
-    "07c98942-3654-4034-b960-f3265814e214" to listOf(
-        PatientChangeLogEntry(
-            changedBy = "apatel",
-            fecha = "05 May 2026",
-            hora = "11:20",
-            fields = listOf(FieldChange("allergies", "Alergias conocidas", "Ninguna", "Penicilina")),
-        ),
-        PatientChangeLogEntry(
-            changedBy = "mreyes",
-            fecha = "13 Abr 2026",
-            hora = "08:30",
-            fields = listOf(FieldChange("phone", "Telefono de contacto", "987-654-320", "987-654-321")),
-        ),
-    ),
-)
-
-private fun previewUiState(patientId: String) = PatientHistoryUiState(
-    isLoading = false,
-    patient = previewPatients.find { it.id == patientId },
-    rows = previewChangeLog[patientId].orEmpty().flatMap { entry ->
-        entry.fields.map { field ->
-            ChangeHistoryRow(
-                fecha = entry.fecha,
-                hora = entry.hora,
-                changedBy = entry.changedBy,
-                label = field.label,
-                oldValue = field.oldValue,
-                newValue = field.newValue,
-            )
-        }
-    },
+private val previewEntries = listOf(
+    AccessLogEntry("e1", "3f2504e0-4f89-41d3-9a0c-0305e82c3301", AccessAction.RECORD_READ, "24 Sep 2026 · 11:05", "10.20.30.41"),
+    AccessLogEntry("e2", "3f2504e0-4f89-41d3-9a0c-0305e82c3301", AccessAction.PATIENT_MODIFIED, "24 Sep 2026 · 11:02", "10.20.30.41"),
+    AccessLogEntry("e4", "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d", AccessAction.PRINT, "23 Sep 2026 · 18:42", "10.20.30.57"),
+    AccessLogEntry("e3", "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d", AccessAction.RECORD_READ, "23 Sep 2026 · 18:40", "10.20.30.57"),
 )
 
 @PreviewResponsive
@@ -77,21 +50,39 @@ private fun previewUiState(patientId: String) = PatientHistoryUiState(
 private fun PatientHistoryScreenPreview() {
     HirshTheme {
         PatientHistoryScreenContent(
-            uiState = previewUiState("07c98942-3654-4034-b960-f3265814e214"),
+            uiState = PatientHistoryUiState(
+                isLoading = false,
+                patient = previewPatients[0],
+                entries = previewEntries,
+                totalEntries = 132,
+            ),
             patientId = "07c98942-3654-4034-b960-f3265814e214",
             onBack = {},
         )
     }
 }
 
-/** 1e0697d0-f3e4-4755-85ad-d888d2b15f9d has no change-log entries in this preview's fixtures -- exercises the empty state. */
+/** A patient whose record nobody has opened yet -- exercises the empty state. */
 @PreviewResponsive
 @Composable
 private fun PatientHistoryScreenEmptyPreview() {
     HirshTheme {
         PatientHistoryScreenContent(
-            uiState = previewUiState("1e0697d0-f3e4-4755-85ad-d888d2b15f9d"),
+            uiState = PatientHistoryUiState(isLoading = false, patient = previewPatients[1]),
             patientId = "1e0697d0-f3e4-4755-85ad-d888d2b15f9d",
+            onBack = {},
+        )
+    }
+}
+
+/** A session without AUDIT_READ that reaches this screen anyway gets a 403 from the backend. */
+@PreviewResponsive
+@Composable
+private fun PatientHistoryScreenForbiddenPreview() {
+    HirshTheme {
+        PatientHistoryScreenContent(
+            uiState = PatientHistoryUiState(isLoading = false, patient = previewPatients[0], error = AccessLogError.FORBIDDEN),
+            patientId = "07c98942-3654-4034-b960-f3265814e214",
             onBack = {},
         )
     }
