@@ -28,6 +28,7 @@ data class ProblemDetails(
  */
 fun ProblemDetails.toApiError(status: HttpStatusCode): ApiError = when {
     status == HttpStatusCode.Unauthorized -> ApiError.Unauthorized
+    status == HttpStatusCode.Forbidden -> ApiError.Forbidden
     status == HttpStatusCode.Conflict -> ApiError.Conflict(conflictingResourceId.orEmpty())
     status == HttpStatusCode.NotFound -> ApiError.NotFound()
     (status == HttpStatusCode.BadRequest || status == HttpStatusCode.UnprocessableEntity) && !errors.isNullOrEmpty() ->

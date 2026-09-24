@@ -4,6 +4,7 @@ import com.cramsan.hirsh.network.ApiConfig
 import com.cramsan.hirsh.network.XsrfHeaderPlugin
 import com.cramsan.hirsh.network.installApiErrorValidator
 import com.cramsan.hirsh.preferences.AppPreferences
+import com.cramsan.hirsh.repository.AccessLogRepository
 import com.cramsan.hirsh.repository.AccountRepository
 import com.cramsan.hirsh.repository.AuthRepository
 import com.cramsan.hirsh.repository.DefaultSessionRepository
@@ -11,6 +12,7 @@ import com.cramsan.hirsh.repository.HospitalizationRepository
 import com.cramsan.hirsh.repository.InMemoryAccountRepository
 import com.cramsan.hirsh.repository.InMemoryHospitalizationRepository
 import com.cramsan.hirsh.repository.KtorAuthRepository
+import com.cramsan.hirsh.repository.KtorAccessLogRepository
 import com.cramsan.hirsh.repository.KtorPatientRepository
 import com.cramsan.hirsh.repository.PatientRepository
 import com.cramsan.hirsh.repository.SessionRepository
@@ -76,6 +78,7 @@ private val sharedModule = module {
     singleOf(::KtorAuthRepository) bind AuthRepository::class
     singleOf(::DefaultSessionRepository) bind SessionRepository::class
     singleOf(::KtorPatientRepository) bind PatientRepository::class
+    singleOf(::KtorAccessLogRepository) bind AccessLogRepository::class
     singleOf(::InMemoryAccountRepository) bind AccountRepository::class
     singleOf(::InMemoryHospitalizationRepository) bind HospitalizationRepository::class
     singleOf(::DefaultClock) bind Clock::class
