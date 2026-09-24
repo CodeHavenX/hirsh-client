@@ -1,10 +1,11 @@
 package com.cramsan.hirsh.ui.screens.patientlist
 
 import androidx.compose.runtime.Composable
+import com.cramsan.hirsh.model.Allergy
+import com.cramsan.hirsh.model.AllergyType
 import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.Sex
-import com.cramsan.hirsh.model.singleAllergyFromText
 import com.cramsan.hirsh.ui.preview.PreviewResponsive
 import com.cramsan.hirsh.ui.theme.HirshTheme
 
@@ -18,7 +19,7 @@ private val previewPatients = listOf(
         birthDate = "14/03/1989",
         phone = "987-654-321",
         bloodType = "O+",
-        allergies = singleAllergyFromText("Penicilina"),
+        allergies = listOf(Allergy("allergy_Penicilina", AllergyType.OTHER, "Penicilina", null)),
         sex = Sex.FEMALE,
     ),
     Patient(

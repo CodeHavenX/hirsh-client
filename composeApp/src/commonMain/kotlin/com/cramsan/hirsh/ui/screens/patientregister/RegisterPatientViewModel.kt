@@ -180,7 +180,6 @@ class RegisterPatientViewModel(private val patientRepository: PatientRepository)
                     phone = state.phone,
                     sex = sex,
                     bloodType = state.bloodType,
-                    allergies = "",
                 )
                 saveAllergies(created.id, state.allergies)
             } catch (e: CancellationException) {

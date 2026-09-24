@@ -8,13 +8,11 @@ import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.PatientChangeLogEntry
 import com.cramsan.hirsh.model.Severity
 import com.cramsan.hirsh.model.Sex
-import com.cramsan.hirsh.model.singleAllergyFromText
 import com.cramsan.hirsh.model.summary
 import com.cramsan.hirsh.model.toDisplayLabel
 import com.cramsan.hirsh.network.ApiError
 import com.cramsan.hirsh.network.ApiException
 import com.cramsan.hirsh.network.dto.AllergySummary
-import com.cramsan.hirsh.network.dto.AllergyTypeDto
 import com.cramsan.hirsh.network.dto.CreateAllergyRequest
 import com.cramsan.hirsh.network.dto.CreatePatientRequest
 import com.cramsan.hirsh.network.dto.PageResponse
@@ -93,11 +91,9 @@ interface PatientRepository {
      * -- [RegisterPatientViewModel][com.cramsan.hirsh.ui.screens.patientregister.RegisterPatientViewModel]
      * collects it as a real required field. [firstName]/[lastName] are required, [secondLastName]
      * optional, matching `CreatePatientRequest`'s exact shape; implementations assemble [Patient.fullName]
-     * themselves when there's no server response to take it from. [allergies] stays a single
-     * free-text field at the call boundary -- per-allergy entry on registration is HISS-625 (the
-     * edit screen got it in HISS-623): a non-blank, non-"Ninguna" value becomes one synthetic
-     * [Allergy] entry. No
-     * change-log entry: the prototype's own registerPatient() doesn't call logPatientChange either,
+     * themselves when there's no server response to take it from. The new patient
+     * starts with no allergies: registration posts each one afterwards via [addAllergy] (HISS-625).
+     * No change-log entry: the prototype's own registerPatient() doesn't call logPatientChange either,
      * registration isn't an edit.
      */
     suspend fun addPatient(
@@ -111,7 +107,6 @@ interface PatientRepository {
         phone: String,
         sex: Sex,
         bloodType: String,
-        allergies: String,
     ): Patient
 
     /**
@@ -365,7 +360,6 @@ class InMemoryPatientRepository : PatientRepository {
         phone: String,
         sex: Sex,
         bloodType: String,
-        allergies: String,
     ): Patient {
         val newPatient = Patient(
             id = nextId(),
@@ -380,7 +374,7 @@ class InMemoryPatientRepository : PatientRepository {
             phone = phone,
             sex = sex,
             bloodType = bloodType,
-            allergies = singleAllergyFromText(allergies),
+            allergies = emptyList(),
         )
         _patients.update { list -> list + newPatient }
         return newPatient
@@ -564,7 +558,6 @@ class KtorPatientRepository(
         phone: String,
         sex: Sex,
         bloodType: String,
-        allergies: String,
     ): Patient {
         val response = httpClient.post("/api/v1/patients") {
             contentType(ContentType.Application.Json)
@@ -583,14 +576,7 @@ class KtorPatientRepository(
                 ),
             )
         }.body<PatientResponse>()
-        var created = response.toDomain()
-        if (allergies.isNotBlank() && allergies != "Ninguna") {
-            val allergy = httpClient.post("/api/v1/patients/${created.id}/allergies") {
-                contentType(ContentType.Application.Json)
-                setBody(CreateAllergyRequest(allergyType = AllergyTypeDto.OTHER, description = allergies))
-            }.body<AllergySummary>()
-            created = created.copy(allergies = listOf(allergy.toDomain()))
-        }
+        val created = response.toDomain()
         _patients.update { list -> list + created }
         return created
     }
