@@ -107,6 +107,7 @@ then **add the discovered mapping to this table** so the cache stays current.
 | HISS-623 | `847401fa-9cad-4431-9c0d-2023d9705c71` |
 | HISS-624 | `8c61924d-faac-482c-8bdb-f44e3a5bc1a7` |
 | HISS-625 | `22f9d984-81f0-415a-853f-38b8cce5a53a` |
+| HISS-626 | `1a3c84e2-3885-4f65-9d8d-a371f48048aa` |
 | HISS-631 | `d0e6c330-a4c8-4bab-a23d-a96266dae532` |
 | HISS-632 | `4a8321ca-c044-4bf1-ab46-39e9cb4abd50` |
 | HISS-633 | `49b15932-72ec-482a-bbd4-9c8c43e95909` |

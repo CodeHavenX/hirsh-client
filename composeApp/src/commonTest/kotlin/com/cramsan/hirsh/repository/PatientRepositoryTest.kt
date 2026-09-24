@@ -233,7 +233,6 @@ class PatientRepositoryTest {
             phone = "999-999-999",
             sex = Sex.MALE,
             bloodType = "O+",
-            allergies = "Ninguna",
         )
 
         assertTrue(repository.patients.value.none { it !== created && it.id == created.id }, "id must be unique")
@@ -257,7 +256,6 @@ class PatientRepositoryTest {
             phone = "999-999-999",
             sex = Sex.MALE,
             bloodType = "O+",
-            allergies = "Ninguna",
         )
 
         assertEquals(beforeCount + 1, repository.patients.value.size)
@@ -279,7 +277,6 @@ class PatientRepositoryTest {
             phone = "111-111-111",
             sex = Sex.MALE,
             bloodType = "O+",
-            allergies = "Ninguna",
         )
         val second = repository.addPatient(
             medicalRecordNumber = "HC-2027-000002",
@@ -292,7 +289,6 @@ class PatientRepositoryTest {
             phone = "222-222-222",
             sex = Sex.FEMALE,
             bloodType = "O+",
-            allergies = "Ninguna",
         )
 
         assertTrue(first.id != second.id)

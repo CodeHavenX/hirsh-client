@@ -25,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -34,6 +35,10 @@ import androidx.compose.ui.unit.sp
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.model.toDisplayLabel
+import com.cramsan.hirsh.ui.components.AddAllergyButton
+import com.cramsan.hirsh.ui.components.AllergyActions
+import com.cramsan.hirsh.ui.components.AllergyDraftForm
+import com.cramsan.hirsh.ui.components.AllergyList
 import com.cramsan.hirsh.ui.components.FieldFontSize
 import com.cramsan.hirsh.ui.components.FormSectionCaption
 import com.cramsan.hirsh.ui.components.RequiredFieldLabel
@@ -75,8 +80,22 @@ fun RegisterPatientScreen(
         onSexChange = viewModel::onSexChange,
         onCheckDuplicate = viewModel::checkDuplicate,
         onBloodTypeChange = viewModel::onBloodTypeChange,
-        onAllergiesChange = viewModel::onAllergiesChange,
+        allergyActions = AllergyActions(
+            onStartAdd = viewModel::onStartAddAllergy,
+            onStartEdit = viewModel::onStartEditAllergy,
+            onTypeChange = viewModel::onAllergyTypeChange,
+            onDescriptionChange = viewModel::onAllergyDescriptionChange,
+            onSeverityChange = viewModel::onAllergySeverityChange,
+            onObservationsChange = viewModel::onAllergyObservationsChange,
+            onCancelDraft = viewModel::onCancelAllergyDraft,
+            onSaveDraft = viewModel::saveAllergyDraft,
+            onRequestDelete = viewModel::onRequestDeleteAllergy,
+            onConfirmDelete = viewModel::confirmDeleteAllergy,
+            onCancelDelete = viewModel::onCancelDeleteAllergy,
+        ),
         onRegister = viewModel::register,
+        onRetryAllergies = viewModel::retryAllergies,
+        onGoToRecord = viewModel::goToRecord,
     )
 }
 
@@ -97,9 +116,15 @@ internal fun RegisterPatientScreenContent(
     onSexChange: (Sex) -> Unit,
     onCheckDuplicate: () -> Unit,
     onBloodTypeChange: (String) -> Unit,
-    onAllergiesChange: (String) -> Unit,
+    allergyActions: AllergyActions,
     onRegister: () -> Unit,
+    onRetryAllergies: () -> Unit,
+    onGoToRecord: () -> Unit,
 ) {
+    // Once the patient exists (only some allergies failed), nothing on the form can change it anymore.
+    val editable = !uiState.isLocked
+    // Unspecified inherits the field's own (disabled) content color, the way RequiredFieldLabel already does.
+    val optionalLabelColor = if (editable) HissInk2 else Color.Unspecified
     Column(
         modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp).testTag("screen_scroll_container"),
         verticalArrangement = Arrangement.spacedBy(18.dp),
@@ -131,6 +156,7 @@ internal fun RegisterPatientScreenContent(
                     placeholder = { Text("Ej: HC-2026-004312", fontSize = FieldFontSize) },
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
                     shape = fieldShape,
+                    enabled = editable,
                     modifier = Modifier.fillMaxWidth().testTag("register_mrn_field"),
                 )
                 OutlinedTextField(
@@ -139,6 +165,7 @@ internal fun RegisterPatientScreenContent(
                     label = { RequiredFieldLabel("Nombres") },
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
                     shape = fieldShape,
+                    enabled = editable,
                     modifier = Modifier.fillMaxWidth()
                         .onFocusChanged { if (!it.isFocused) onCheckDuplicate() }
                         .testTag("register_first_name_field"),
@@ -149,6 +176,7 @@ internal fun RegisterPatientScreenContent(
                     label = { RequiredFieldLabel("Apellido paterno") },
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
                     shape = fieldShape,
+                    enabled = editable,
                     modifier = Modifier.fillMaxWidth()
                         .onFocusChanged { if (!it.isFocused) onCheckDuplicate() }
                         .testTag("register_last_name_field"),
@@ -156,9 +184,10 @@ internal fun RegisterPatientScreenContent(
                 OutlinedTextField(
                     value = uiState.secondLastName,
                     onValueChange = onSecondLastNameChange,
-                    label = { Text("Apellido materno", fontSize = 12.sp, color = HissInk2) },
+                    label = { Text("Apellido materno", fontSize = 12.sp, color = optionalLabelColor) },
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
                     shape = fieldShape,
+                    enabled = editable,
                     modifier = Modifier.fillMaxWidth().testTag("register_second_last_name_field"),
                 )
                 OutlinedTextField(
@@ -167,6 +196,7 @@ internal fun RegisterPatientScreenContent(
                     label = { RequiredFieldLabel("DNI") },
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
                     shape = fieldShape,
+                    enabled = editable,
                     modifier = Modifier.fillMaxWidth()
                         .onFocusChanged { if (!it.isFocused) onCheckDuplicate() }
                         .testTag("register_dni_field"),
@@ -178,6 +208,7 @@ internal fun RegisterPatientScreenContent(
                     placeholder = { Text("DD/MM/AAAA", fontSize = FieldFontSize) },
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
                     shape = fieldShape,
+                    enabled = editable,
                     modifier = Modifier.fillMaxWidth().testTag("register_dob_field"),
                 )
                 OutlinedTextField(
@@ -186,6 +217,7 @@ internal fun RegisterPatientScreenContent(
                     label = { RequiredFieldLabel("Telefono de contacto") },
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
                     shape = fieldShape,
+                    enabled = editable,
                     modifier = Modifier.fillMaxWidth().testTag("register_phone_field"),
                 )
                 SelectField(
@@ -194,25 +226,19 @@ internal fun RegisterPatientScreenContent(
                     selected = uiState.sex?.toDisplayLabel().orEmpty(),
                     onSelect = { label -> onSexChange(if (label == "Masculino") Sex.MALE else Sex.FEMALE) },
                     testTag = "register_sex_field",
+                    enabled = editable,
                 )
             }
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 FormSectionCaption("Datos medicos (opcional)")
                 SelectField(
-                    label = { Text("Grupo sanguineo", fontSize = 12.sp, color = HissInk2) },
+                    label = { Text("Grupo sanguineo", fontSize = 12.sp, color = optionalLabelColor) },
                     options = bloodTypeOptions,
                     selected = uiState.bloodType,
                     onSelect = onBloodTypeChange,
+                    enabled = editable,
                 )
-                OutlinedTextField(
-                    value = uiState.allergies,
-                    onValueChange = onAllergiesChange,
-                    label = { Text("Alergias conocidas", fontSize = 12.sp, color = HissInk2) },
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
-                    shape = fieldShape,
-                    minLines = 2,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                RegisterAllergySection(uiState = uiState, actions = allergyActions, editable = editable)
             }
         }
 
@@ -220,26 +246,91 @@ internal fun RegisterPatientScreenContent(
             Text(error, color = MaterialTheme.colorScheme.error)
         }
 
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            OutlinedButton(
-                onClick = onCancel,
+        if (uiState.isLocked) {
+            AllergyRetryFooter(isSaving = uiState.isSaving, onGoToRecord = onGoToRecord, onRetry = onRetryAllergies)
+        } else {
+            RegisterFooter(isSaving = uiState.isSaving, onCancel = onCancel, onRegister = onRegister)
+        }
+    }
+}
+
+/** Local allergy entries (HISS-625): nothing here is sent until "Registrar paciente". */
+@Composable
+private fun RegisterAllergySection(uiState: RegisterPatientUiState, actions: AllergyActions, editable: Boolean) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text("Alergias conocidas", fontSize = 12.sp, color = HissInk2)
+        if (editable) {
+            AllergyList(
+                allergies = uiState.allergies,
                 enabled = !uiState.isSaving,
-                shape = fieldShape,
-                border = BorderStroke(1.5.dp, HissInk),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
-                modifier = Modifier.testTag("register_cancel_button"),
-            ) {
-                Text("Cancelar", fontSize = FieldFontSize, fontWeight = FontWeight.Medium, color = HissInk)
+                confirmingDeleteId = uiState.confirmingDeleteId,
+                onEdit = actions.onStartEdit,
+                onRequestDelete = actions.onRequestDelete,
+                onConfirmDelete = actions.onConfirmDelete,
+                onCancelDelete = actions.onCancelDelete,
+            )
+            val draft = uiState.allergyDraft
+            if (draft != null) {
+                AllergyDraftForm(draft = draft, isBusy = uiState.isSaving, actions = actions, lockAgent = false)
+            } else {
+                AddAllergyButton(enabled = !uiState.isSaving, onClick = actions.onStartAdd)
             }
-            Button(
-                onClick = onRegister,
-                enabled = !uiState.isSaving,
-                shape = fieldShape,
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
-                modifier = Modifier.padding(start = 10.dp).testTag("register_submit_button"),
-            ) {
-                Text("Registrar paciente", fontSize = FieldFontSize, fontWeight = FontWeight.Medium)
-            }
+        } else {
+            AllergyList(allergies = uiState.allergies)
+        }
+        uiState.allergyError?.let { error ->
+            Text(error, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("allergy_error"))
+        }
+    }
+}
+
+@Composable
+private fun RegisterFooter(isSaving: Boolean, onCancel: () -> Unit, onRegister: () -> Unit) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+        OutlinedButton(
+            onClick = onCancel,
+            enabled = !isSaving,
+            shape = fieldShape,
+            border = BorderStroke(1.5.dp, HissInk),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+            modifier = Modifier.testTag("register_cancel_button"),
+        ) {
+            Text("Cancelar", fontSize = FieldFontSize, fontWeight = FontWeight.Medium, color = HissInk)
+        }
+        Button(
+            onClick = onRegister,
+            enabled = !isSaving,
+            shape = fieldShape,
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+            modifier = Modifier.padding(start = 10.dp).testTag("register_submit_button"),
+        ) {
+            Text("Registrar paciente", fontSize = FieldFontSize, fontWeight = FontWeight.Medium)
+        }
+    }
+}
+
+/** Shown once the patient exists but some allergies didn't save -- registering again would duplicate the patient. */
+@Composable
+private fun AllergyRetryFooter(isSaving: Boolean, onGoToRecord: () -> Unit, onRetry: () -> Unit) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+        OutlinedButton(
+            onClick = onGoToRecord,
+            enabled = !isSaving,
+            shape = fieldShape,
+            border = BorderStroke(1.5.dp, HissInk),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+            modifier = Modifier.testTag("register_go_to_record_button"),
+        ) {
+            Text("Ir al registro", fontSize = FieldFontSize, fontWeight = FontWeight.Medium, color = HissInk)
+        }
+        Button(
+            onClick = onRetry,
+            enabled = !isSaving,
+            shape = fieldShape,
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+            modifier = Modifier.padding(start = 10.dp).testTag("register_retry_allergies_button"),
+        ) {
+            Text("Reintentar", fontSize = FieldFontSize, fontWeight = FontWeight.Medium)
         }
     }
 }

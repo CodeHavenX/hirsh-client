@@ -1,27 +1,31 @@
 package com.cramsan.hirsh.ui.screens.evolucionnew
 
 import app.cash.turbine.test
-import com.cramsan.hirsh.model.Severity
-import com.cramsan.hirsh.model.AllergyType
 import com.cramsan.hirsh.model.Allergy
+import com.cramsan.hirsh.model.AllergyType
+import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.EstadoHospitalizacion
 import com.cramsan.hirsh.model.Evolucion
 import com.cramsan.hirsh.model.EvolucionResultado
 import com.cramsan.hirsh.model.HcSectionKey
 import com.cramsan.hirsh.model.HistoriaClinica
 import com.cramsan.hirsh.model.Hospitalizacion
-import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.PatientChangeLogEntry
 import com.cramsan.hirsh.model.Pronostico
 import com.cramsan.hirsh.model.Session
+import com.cramsan.hirsh.model.Severity
 import com.cramsan.hirsh.model.Sex
-import com.cramsan.hirsh.model.singleAllergyFromText
 import com.cramsan.hirsh.model.toDisplayLabel
 import com.cramsan.hirsh.repository.HospitalizationRepository
 import com.cramsan.hirsh.repository.PatientRepository
 import com.cramsan.hirsh.repository.SessionRepository
 import com.cramsan.hirsh.util.Clock
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -38,11 +42,6 @@ import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
-import kotlin.test.AfterTest
-import kotlin.test.BeforeTest
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertNull
 
 private val samplePatient = Patient(
     id = "07c98942-3654-4034-b960-f3265814e214",
@@ -53,7 +52,7 @@ private val samplePatient = Patient(
     birthDate = "14/03/1989",
     phone = "987-654-321",
     bloodType = "O+",
-    allergies = singleAllergyFromText("Penicilina"),
+    allergies = listOf(Allergy("allergy_Penicilina", AllergyType.OTHER, "Penicilina", null)),
     sex = Sex.FEMALE,
 )
 
@@ -99,7 +98,6 @@ private class FakePatientRepository(patients: List<Patient>) : PatientRepository
         phone: String,
         sex: Sex,
         bloodType: String,
-        allergies: String,
     ): Patient = error("not used by this test")
 
     override suspend fun addAllergy(

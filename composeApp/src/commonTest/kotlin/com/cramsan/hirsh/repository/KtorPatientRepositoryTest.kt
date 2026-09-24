@@ -311,7 +311,6 @@ class KtorPatientRepositoryTest {
             phone = "555-0100",
             sex = Sex.MALE,
             bloodType = "",
-            allergies = "Ninguna",
         )
 
         val createRequest = recorded.single { it.method == HttpMethod.Post }
@@ -320,45 +319,7 @@ class KtorPatientRepositoryTest {
         assertTrue("\"phone\":\"555-0100\"" in createRequest.body, "the phone collected at registration must be sent")
         assertEquals("8f14e45f-9c4b-4d1e-8a2f-6b3c5d7e9a10", created.id)
         assertEquals("555-0100", created.phone)
-        assertEquals(1, recorded.size, "a blank/\"Ninguna\" allergies field must not trigger the allergies follow-up call")
-    }
-
-    @Test
-    fun `addPatient makes one follow-up allergies call when the free-text field is non-blank`() = runTest {
-        val recorded = mutableListOf<RecordedRequest>()
-        val client = mockClient(recorded) { request ->
-            when {
-                request.method == HttpMethod.Post && request.url.encodedPath == "/api/v1/patients" ->
-                    jsonResponse(HttpStatusCode.Created, patientResponseJson(allergiesJson = "[]"))
-                request.method == HttpMethod.Post && request.url.encodedPath.endsWith("/allergies") ->
-                    jsonResponse(
-                        HttpStatusCode.Created,
-                        """{"id":"a1","allergyType":"OTHER","description":"Penicilina"}""",
-                    )
-                else -> jsonResponse(HttpStatusCode.NotFound, "{}")
-            }
-        }
-        val repository = KtorPatientRepository(client)
-
-        val created = repository.addPatient(
-            medicalRecordNumber = "HC-2026-004312",
-            firstName = "Luis",
-            lastName = "Ramos",
-            secondLastName = "",
-            documentType = DocumentType.NID,
-            documentNumber = "45821337",
-            birthDate = "12/04/1991",
-            phone = "",
-            sex = Sex.MALE,
-            bloodType = "",
-            allergies = "Penicilina",
-        )
-
-        val allergyRequest = recorded.single { it.path.endsWith("/allergies") }
-        assertEquals("/api/v1/patients/8f14e45f-9c4b-4d1e-8a2f-6b3c5d7e9a10/allergies", allergyRequest.path)
-        assertTrue("Penicilina" in allergyRequest.body)
-        assertEquals(1, created.allergies.size)
-        assertEquals("Penicilina", created.allergies.single().description)
+        assertEquals(1, recorded.size, "addPatient must not make any follow-up call -- allergies are posted separately")
     }
 
     @Test
@@ -378,7 +339,6 @@ class KtorPatientRepositoryTest {
                 phone = "",
                 sex = Sex.MALE,
                 bloodType = "",
-                allergies = "",
             )
         }
     }

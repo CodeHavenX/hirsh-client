@@ -95,7 +95,6 @@ private class FakePatientRepository(patients: List<Patient> = listOf(existingPat
         phone: String,
         sex: Sex,
         bloodType: String,
-        allergies: String,
     ): Patient = error("not used by EditPatientViewModel")
 
     /** When set, every allergy call throws this instead of succeeding. */

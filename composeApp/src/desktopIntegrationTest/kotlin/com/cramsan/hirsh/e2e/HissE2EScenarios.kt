@@ -5,6 +5,7 @@ import org.junit.FixMethodOrder
 import org.junit.Ignore
 import org.junit.Test
 import org.junit.runners.MethodSorters
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -235,6 +236,57 @@ abstract class HissE2EScenarios {
         assertTrue(hierarchy.containsText(newName), "a successful registration must land on the new patient's own record")
         assertTrue(hierarchy.containsText(mrn), "the medicalRecordNumber entered at registration must round-trip through the real backend")
         assertTrue(hierarchy.containsText("555-0100"), "the phone entered at registration must round-trip through the real backend")
+    }
+
+    @Test
+    fun test11b_registerPatient_withAllergies_savesEachOnTheNewRecord() {
+        // HISS-625: allergies entered at registration stay local until the patient exists, then
+        // each is posted to the real /patients/{id}/allergies sub-resource as its own entry.
+        driver.loginAsAdmin()
+        driver.clickTag("nav_patients")
+        driver.clickTag("patient_register_button")
+        driver.waitForTag("register_mrn_field")
+        val suffix = System.nanoTime().toString().takeLast(9)
+        val medication = "E2E medicamento $suffix"
+        val food = "E2E alimento $suffix"
+        driver.type("register_mrn_field", "HC-E2E-$suffix")
+        driver.type("register_first_name_field", "Zzz")
+        driver.type("register_last_name_field", "E2E")
+        driver.type("register_second_last_name_field", "Allergies")
+        driver.type("register_dni_field", "E2E-$suffix")
+        driver.type("register_dob_field", "01/01/1990")
+        driver.type("register_phone_field", "555-0100")
+
+        driver.clickTag("allergy_add_button")
+        driver.waitForTag("allergy_description_field")
+        driver.selectOption("allergy_type_field", 0) // Medicamento
+        driver.type("allergy_description_field", medication)
+        driver.selectOption("allergy_severity_field", 3) // Sin graduar, Leve, Moderada, Severa
+        driver.clickTag("allergy_save_button")
+        driver.waitUntil { it.containsText(medication) && !it.containsTag("allergy_form") }
+
+        driver.clickTag("allergy_add_button")
+        driver.waitForTag("allergy_description_field")
+        driver.selectOption("allergy_type_field", 1) // Alimento
+        driver.type("allergy_description_field", food)
+        driver.clickTag("allergy_save_button")
+        driver.waitUntil { it.containsText(food) && !it.containsTag("allergy_form") }
+
+        driver.scrollDown("screen_scroll_container")
+        driver.selectOption("register_sex_field", 0)
+        driver.clickTag("register_submit_button")
+        driver.waitForTag("record_edit_button")
+        // Same exit-transition gap as test11: the departing form still renders both local entries.
+        driver.waitUntil { !it.containsTag("register_phone_field") }
+        driver.waitUntil { it.containsText(medication) && it.containsText(food) }
+        val hierarchy = driver.getHierarchy()
+        assertTrue(hierarchy.containsText("Severa"), "the medication's severity must round-trip through the real backend")
+        assertTrue(hierarchy.containsText("Sin graduar"), "an allergy left ungraded must stay ungraded, not default to a real grade")
+        assertEquals(
+            "allergy_row_0",
+            hierarchy.tagOfNodeContaining(medication, "allergy_row_"),
+            "the record lists allergies newest first, so registration must post them in reverse to keep entry order",
+        )
     }
 
     @Test

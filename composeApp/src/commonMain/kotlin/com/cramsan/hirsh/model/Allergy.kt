@@ -38,15 +38,3 @@ fun Severity?.toDisplayLabel(): String = when (this) {
 
 /** Single free-text summary, used by the change-log diff and anywhere a one-line rendering fits. */
 fun List<Allergy>.summary(): String = joinToString(", ") { it.description }.ifEmpty { "Ninguna" }
-
-/**
- * Wraps a free-text allergies field into (at most) one [AllergyType.OTHER] entry. Only
- * patient registration still collects allergies as free text (per-allergy entry there is out of
- * HISS-623's scope); left ungraded rather than inventing a severity it has no source for.
- */
-fun singleAllergyFromText(text: String): List<Allergy> =
-    if (text.isBlank() || text == "Ninguna") {
-        emptyList()
-    } else {
-        listOf(Allergy(id = "allergy_$text", allergyType = AllergyType.OTHER, description = text, severity = null))
-    }
