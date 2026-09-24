@@ -275,6 +275,10 @@ abstract class HissE2EScenarios {
         driver.waitForTag("record_edit_button")
         driver.waitUntil { it.containsText(agent) }
         assertTrue(driver.getHierarchy().containsText("Severa"), "the allergy's severity must round-trip through the real backend")
+        // The outgoing edit screen stays in the tree for its exit transition: until it's gone, a
+        // "record_edit_button" click can be dropped, and a wait for "edit_phone_field" below would
+        // match the OLD, departing screen instead of the new one (confirmed via a live run).
+        driver.waitUntil { !it.containsTag("edit_phone_field") }
 
         driver.clickTag("record_edit_button")
         driver.waitForTag("edit_phone_field")
