@@ -12,6 +12,7 @@ import com.cramsan.hirsh.network.ApiError
 import com.cramsan.hirsh.network.ApiException
 import com.cramsan.hirsh.repository.PatientRepository
 import com.cramsan.hirsh.repository.SessionRepository
+import com.cramsan.hirsh.ui.components.AllergyDraft
 import com.cramsan.hirsh.util.Clock
 import com.cramsan.hirsh.util.formatDate
 import com.cramsan.hirsh.util.formatTime
@@ -46,26 +47,6 @@ data class EditPatientUiState(
     val isSaving: Boolean = false,
     val saved: Boolean = false,
 )
-
-/**
- * The open allergy form. [editingId] null means a new allergy; otherwise only [severity]/
- * [observations] are editable -- the real `PatchAllergyRequest` can't change the agent itself
- * (see [Allergy]'s doc comment).
- */
-data class AllergyDraft(
-    val editingId: String? = null,
-    val allergyType: AllergyType? = null,
-    val description: String = "",
-    val severity: Severity? = null,
-    val observations: String = "",
-    /**
-     * The edited allergy's severity as loaded. Once graded, a PATCH can't reset it back to
-     * ungraded (a null field means "unchanged" server-side), so the form doesn't offer that.
-     */
-    val originalSeverity: Severity? = null,
-) {
-    val isNew: Boolean get() = editingId == null
-}
 
 /**
  * Pre-fills the form from a one-shot [PatientRepository.getPatient] fetch, not a

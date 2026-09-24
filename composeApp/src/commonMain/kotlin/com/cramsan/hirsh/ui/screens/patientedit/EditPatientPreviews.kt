@@ -7,6 +7,8 @@ import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.Severity
 import com.cramsan.hirsh.model.Sex
+import com.cramsan.hirsh.ui.components.AllergyActions
+import com.cramsan.hirsh.ui.components.AllergyDraft
 import com.cramsan.hirsh.ui.preview.PreviewResponsive
 import com.cramsan.hirsh.ui.theme.HirshTheme
 

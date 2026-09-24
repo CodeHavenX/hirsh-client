@@ -25,6 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cramsan.hirsh.model.toDisplayLabel
+import com.cramsan.hirsh.ui.components.AllergyActions
 import com.cramsan.hirsh.ui.components.FieldFontSize
 import com.cramsan.hirsh.ui.components.FormSectionCaption
 import com.cramsan.hirsh.ui.components.ReadOnlyField
