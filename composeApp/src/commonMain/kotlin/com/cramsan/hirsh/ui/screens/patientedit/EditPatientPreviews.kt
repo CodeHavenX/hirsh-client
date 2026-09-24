@@ -1,11 +1,12 @@
 package com.cramsan.hirsh.ui.screens.patientedit
 
 import androidx.compose.runtime.Composable
+import com.cramsan.hirsh.model.Allergy
+import com.cramsan.hirsh.model.AllergyType
 import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.Patient
+import com.cramsan.hirsh.model.Severity
 import com.cramsan.hirsh.model.Sex
-import com.cramsan.hirsh.model.singleAllergyFromText
-import com.cramsan.hirsh.model.summary
 import com.cramsan.hirsh.ui.preview.PreviewResponsive
 import com.cramsan.hirsh.ui.theme.HirshTheme
 
@@ -21,7 +22,10 @@ private val previewPatient = Patient(
     birthDate = "14/03/1989",
     phone = "987-654-321",
     bloodType = "O+",
-    allergies = singleAllergyFromText("Penicilina"),
+    allergies = listOf(
+        Allergy("a1", AllergyType.MEDICATION, "Penicilina", Severity.SEVERE, "Urticaria generalizada tras la primera dosis, 2019."),
+        Allergy("a2", AllergyType.FOOD, "Mariscos", severity = null),
+    ),
     sex = Sex.FEMALE,
 )
 
@@ -36,7 +40,7 @@ private val previewUiState = EditPatientUiState(
     phone = previewPatient.phone,
     sex = previewPatient.sex,
     bloodType = previewPatient.bloodType,
-    allergies = previewPatient.allergies.summary(),
+    allergies = previewPatient.allergies,
 )
 
 @PreviewResponsive
@@ -53,6 +57,28 @@ private fun EditPatientScreenPreview() {
             onPhoneChange = {},
             onBloodTypeChange = {},
             onSave = {},
+            allergyActions = AllergyActions(),
+        )
+    }
+}
+
+@PreviewResponsive
+@Composable
+private fun EditPatientScreenAddingAllergyPreview() {
+    HirshTheme {
+        EditPatientScreenContent(
+            uiState = previewUiState.copy(
+                allergyDraft = AllergyDraft(allergyType = AllergyType.MEDICATION, description = "Ibuprofeno"),
+            ),
+            patientId = previewPatient.id,
+            onCancel = {},
+            onFirstNameChange = {},
+            onLastNameChange = {},
+            onSecondLastNameChange = {},
+            onPhoneChange = {},
+            onBloodTypeChange = {},
+            onSave = {},
+            allergyActions = AllergyActions(),
         )
     }
 }

@@ -1,6 +1,8 @@
 package com.cramsan.hirsh.ui.screens.patientrecord
 
 import androidx.compose.runtime.Composable
+import com.cramsan.hirsh.model.Allergy
+import com.cramsan.hirsh.model.AllergyType
 import com.cramsan.hirsh.model.Diagnostico
 import com.cramsan.hirsh.model.EstadoHospitalizacion
 import com.cramsan.hirsh.model.FieldChange
@@ -11,8 +13,8 @@ import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.PatientChangeLogEntry
 import com.cramsan.hirsh.model.Plan
+import com.cramsan.hirsh.model.Severity
 import com.cramsan.hirsh.model.Sex
-import com.cramsan.hirsh.model.singleAllergyFromText
 import com.cramsan.hirsh.ui.preview.PreviewResponsive
 import com.cramsan.hirsh.ui.theme.HirshTheme
 
@@ -26,7 +28,10 @@ private val previewPatients = listOf(
         birthDate = "14/03/1989",
         phone = "987-654-321",
         bloodType = "O+",
-        allergies = singleAllergyFromText("Penicilina"),
+        allergies = listOf(
+            Allergy("a1", AllergyType.MEDICATION, "Penicilina", Severity.SEVERE, "Urticaria generalizada tras la primera dosis, 2019."),
+            Allergy("a2", AllergyType.FOOD, "Mariscos", severity = null),
+        ),
         sex = Sex.FEMALE,
     ),
     Patient(
