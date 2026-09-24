@@ -288,7 +288,7 @@ class KtorPatientRepositoryTest {
         val client = mockClient(recorded) { request ->
             when {
                 request.method == HttpMethod.Post && request.url.encodedPath == "/api/v1/patients" ->
-                    jsonResponse(HttpStatusCode.Created, patientResponseJson())
+                    jsonResponse(HttpStatusCode.Created, patientResponseJson(phone = "555-0100"))
                 else -> jsonResponse(HttpStatusCode.NotFound, "{}")
             }
         }
@@ -302,7 +302,7 @@ class KtorPatientRepositoryTest {
             documentType = DocumentType.NID,
             documentNumber = "45821337",
             birthDate = "12/04/1991",
-            phone = "",
+            phone = "555-0100",
             sex = Sex.MALE,
             bloodType = "",
             allergies = "Ninguna",
@@ -311,7 +311,10 @@ class KtorPatientRepositoryTest {
         val createRequest = recorded.single { it.method == HttpMethod.Post }
         assertTrue("HC-2026-004312" in createRequest.body)
         assertTrue("1991-04-12" in createRequest.body, "birthDate must convert dd/MM/yyyy -> ISO on the wire")
+        // HISS-626: registration collects a required phone, and it used to be dropped silently.
+        assertTrue("\"phone\":\"555-0100\"" in createRequest.body, "the phone collected at registration must be sent")
         assertEquals("8f14e45f-9c4b-4d1e-8a2f-6b3c5d7e9a10", created.id)
+        assertEquals("555-0100", created.phone)
         assertEquals(1, recorded.size, "a blank/\"Ninguna\" allergies field must not trigger the allergies follow-up call")
     }
 

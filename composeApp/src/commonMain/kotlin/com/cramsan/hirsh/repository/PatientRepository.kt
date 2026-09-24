@@ -461,6 +461,7 @@ class KtorPatientRepository(
                     birthDate = birthDate.displayDateToIso(),
                     sex = sex.toDto(),
                     bloodType = bloodType,
+                    phone = phone,
                 ),
             )
         }.body<PatientResponse>()
