@@ -234,7 +234,6 @@ abstract class HissE2EScenarios {
         val hierarchy = driver.getHierarchy()
         assertTrue(hierarchy.containsText(newName), "a successful registration must land on the new patient's own record")
         assertTrue(hierarchy.containsText(mrn), "the medicalRecordNumber entered at registration must round-trip through the real backend")
-        // HISS-626: the phone used to be dropped from the create request entirely.
         assertTrue(hierarchy.containsText("555-0100"), "the phone entered at registration must round-trip through the real backend")
     }
 
