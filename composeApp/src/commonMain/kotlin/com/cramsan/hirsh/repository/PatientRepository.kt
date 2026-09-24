@@ -3,13 +3,9 @@ package com.cramsan.hirsh.repository
 import com.cramsan.hirsh.model.Allergy
 import com.cramsan.hirsh.model.AllergyType
 import com.cramsan.hirsh.model.DocumentType
-import com.cramsan.hirsh.model.FieldChange
 import com.cramsan.hirsh.model.Patient
-import com.cramsan.hirsh.model.PatientChangeLogEntry
 import com.cramsan.hirsh.model.Severity
 import com.cramsan.hirsh.model.Sex
-import com.cramsan.hirsh.model.summary
-import com.cramsan.hirsh.model.toDisplayLabel
 import com.cramsan.hirsh.network.ApiError
 import com.cramsan.hirsh.network.ApiException
 import com.cramsan.hirsh.network.dto.AllergySummary
@@ -40,7 +36,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlin.uuid.ExperimentalUuidApi
@@ -63,17 +58,11 @@ interface PatientRepository {
     suspend fun refresh()
 
     fun getPatient(id: String): Flow<Patient?>
-    fun getChangeLog(patientId: String): Flow<List<PatientChangeLogEntry>>
 
     /**
-     * Diffs [newValues] against the current patient and appends one log entry
-     * grouping every field that actually changed -- a no-op save (nothing
-     * differs) does not append an empty entry, matching the prototype's own
-     * logPatientChange()'s `if (!fieldsChanged.length) return`. [changedBy],
-     * [fecha], [hora] are supplied by the caller rather than read from
-     * session/clock state here -- this repository stays session- and
-     * clock-agnostic (see HISS-108's explicit-parameter rule; HISS-110's Clock
-     * abstraction doesn't exist yet, and isn't this ticket's dependency).
+     * Saves [newValues] over the patient's editable fields. No author/time is passed: the backend
+     * stamps its own audit block and records the edit in the access trail as `PATIENT_MODIFIED`
+     * (see [AccessLogRepository]), which is the only per-edit history there is (HISS-624).
      *
      * [newValues.jpaVersion][Patient.jpaVersion] carries the version the caller last read (see
      * [EditPatientViewModel][com.cramsan.hirsh.ui.screens.patientedit.EditPatientViewModel]'s
@@ -82,7 +71,7 @@ interface PatientRepository {
      * [com.cramsan.hirsh.network.ApiError.Conflict] instead of silently overwriting a concurrent
      * edit (HISS-604).
      */
-    suspend fun updatePatient(id: String, newValues: Patient, changedBy: String, fecha: String, hora: String)
+    suspend fun updatePatient(id: String, newValues: Patient)
 
     /**
      * Creates a new patient. [Patient.id] is a fresh UUID, matching the backend's opaque row
@@ -240,113 +229,15 @@ class InMemoryPatientRepository : PatientRepository {
 
     override fun getPatient(id: String): Flow<Patient?> = patients.map { list -> list.find { it.id == id } }
 
-    private val _changeLog = MutableStateFlow(
-        mapOf(
-            "07c98942-3654-4034-b960-f3265814e214" to listOf(
-                PatientChangeLogEntry(
-                    changedBy = "apatel",
-                    fecha = "05 May 2026",
-                    hora = "11:20",
-                    fields = listOf(
-                        FieldChange(
-                            field = "allergies",
-                            label = "Alergias conocidas",
-                            oldValue = "Ninguna",
-                            newValue = "Penicilina",
-                        ),
-                    ),
-                ),
-                PatientChangeLogEntry(
-                    changedBy = "mreyes",
-                    fecha = "13 Abr 2026",
-                    hora = "08:30",
-                    fields = listOf(
-                        FieldChange(
-                            field = "phone",
-                            label = "Telefono de contacto",
-                            oldValue = "987-654-320",
-                            newValue = "987-654-321",
-                        ),
-                    ),
-                ),
-            ),
-            "caaedede-5d72-4a52-bb72-7532d7cdda83" to listOf(
-                PatientChangeLogEntry(
-                    changedBy = "admin",
-                    fecha = "16 Jun 2026",
-                    hora = "09:00",
-                    fields = listOf(
-                        FieldChange(
-                            field = "district",
-                            label = "Distrito",
-                            oldValue = "—",
-                            newValue = "San Martin de Porres",
-                        ),
-                    ),
-                ),
-                PatientChangeLogEntry(
-                    changedBy = "mreyes",
-                    fecha = "15 Jun 2026",
-                    hora = "20:00",
-                    fields = listOf(
-                        FieldChange(
-                            field = "bloodType",
-                            label = "Grupo sanguineo",
-                            oldValue = "—",
-                            newValue = "AB+",
-                        ),
-                    ),
-                ),
-            ),
-            "a21f8bfa-299c-42db-9681-c84f87a90ce4" to listOf(
-                PatientChangeLogEntry(
-                    changedBy = "slin",
-                    fecha = "14 Jun 2026",
-                    hora = "10:30",
-                    fields = listOf(
-                        FieldChange(
-                            field = "documentNumber",
-                            label = "DNI",
-                            oldValue = "09147785",
-                            newValue = "09147875",
-                        ),
-                    ),
-                ),
-            ),
-        ),
-    )
-
-    override fun getChangeLog(patientId: String): Flow<List<PatientChangeLogEntry>> =
-        _changeLog.map { it[patientId].orEmpty() }
-
-    override suspend fun updatePatient(
-        id: String,
-        newValues: Patient,
-        changedBy: String,
-        fecha: String,
-        hora: String,
-    ) {
+    override suspend fun updatePatient(id: String, newValues: Patient) {
         val current = _patients.value.find { it.id == id } ?: return
         if (current.jpaVersion != newValues.jpaVersion) {
             throw ApiException(ApiError.Conflict(id))
         }
-        val changedFields = buildList {
-            diff(current.fullName, newValues.fullName, "fullName", "Nombre completo")?.let(::add)
-            diff(current.documentType.toDisplayLabel(), newValues.documentType.toDisplayLabel(), "documentType", "Tipo de documento")?.let(::add)
-            diff(current.documentNumber, newValues.documentNumber, "documentNumber", "DNI")?.let(::add)
-            diff(current.birthDate, newValues.birthDate, "birthDate", "Fecha de nacimiento")?.let(::add)
-            diff(current.phone, newValues.phone, "phone", "Telefono de contacto")?.let(::add)
-            diff(current.sex.toDisplayLabel(), newValues.sex.toDisplayLabel(), "sex", "Sexo")?.let(::add)
-            diff(current.bloodType, newValues.bloodType, "bloodType", "Grupo sanguineo")?.let(::add)
-            diff(current.allergies.summary(), newValues.allergies.summary(), "allergies", "Alergias conocidas")?.let(::add)
-        }
-        if (changedFields.isEmpty()) return
+        // A save that changes nothing doesn't bump the version.
+        if (newValues == current) return
 
         _patients.update { list -> list.map { if (it.id == id) newValues.copy(jpaVersion = current.jpaVersion + 1) else it } }
-        _changeLog.update { log ->
-            val entry = PatientChangeLogEntry(changedBy = changedBy, fecha = fecha, hora = hora, fields = changedFields)
-            log + (id to (listOf(entry) + log[id].orEmpty()))
-        }
     }
 
     override suspend fun addPatient(
@@ -451,16 +342,9 @@ class InMemoryPatientRepository : PatientRepository {
  * re-fetch (HISS-623). [_details] is kept separate from [_patients] so a concurrent [refresh]
  * replacing the list wholesale can never make an open record flip to "not found".
  *
- * [updatePatient]'s [changedBy]/[fecha]/[hora] params go unused: the real `PATCH` endpoint doesn't
- * accept them (the server stamps its own audit block), and `PatientService.patch()` has no
- * optimistic-lock check at all (confirmed reading the backend source) -- a stale [Patient.jpaVersion]
- * can never actually produce a `409` for this endpoint. They stay on the shared interface only
- * because [InMemoryPatientRepository]'s own change-log feature still needs them.
- *
- * [getChangeLog] has no real equivalent yet -- the real audit trail is a differently-shaped
- * `AccessLogController`; HISS-624 ("degrade to access-log view") is the ticket that migrates
- * [PatientHistoryScreen][com.cramsan.hirsh.ui.screens.patienthistory.PatientHistoryScreen] onto it.
- * Returns an always-empty flow here rather than guessing at a mapping.
+ * [updatePatient] sends no author/time: the real `PATCH` endpoint stamps its own audit block, and
+ * `PatientService.patch()` has no optimistic-lock check at all (confirmed reading the backend source)
+ * -- a stale [Patient.jpaVersion] can never actually produce a `409` for this endpoint.
  */
 class KtorPatientRepository(
     private val httpClient: HttpClient,
@@ -523,15 +407,7 @@ class KtorPatientRepository(
         emitAll(_details.map { it[id] }.distinctUntilChanged())
     }
 
-    override fun getChangeLog(patientId: String): Flow<List<PatientChangeLogEntry>> = flowOf(emptyList())
-
-    override suspend fun updatePatient(
-        id: String,
-        newValues: Patient,
-        changedBy: String,
-        fecha: String,
-        hora: String,
-    ) {
+    override suspend fun updatePatient(id: String, newValues: Patient) {
         val updated = httpClient.patch("/api/v1/patients/$id") {
             contentType(ContentType.Application.Json)
             setBody(
@@ -639,5 +515,3 @@ class KtorPatientRepository(
 internal fun assembleFullName(firstName: String, lastName: String, secondLastName: String): String =
     listOf(firstName, lastName, secondLastName).filter { it.isNotBlank() }.joinToString(" ")
 
-private fun diff(oldValue: String, newValue: String, field: String, label: String): FieldChange? =
-    if (oldValue == newValue) null else FieldChange(field, label, oldValue, newValue)

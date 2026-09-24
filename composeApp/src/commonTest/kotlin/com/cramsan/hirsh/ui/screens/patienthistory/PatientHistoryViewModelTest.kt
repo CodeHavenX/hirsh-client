@@ -8,7 +8,6 @@ import com.cramsan.hirsh.model.Allergy
 import com.cramsan.hirsh.model.AllergyType
 import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.Patient
-import com.cramsan.hirsh.model.PatientChangeLogEntry
 import com.cramsan.hirsh.model.Severity
 import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.network.ApiError
@@ -22,7 +21,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -57,15 +55,8 @@ private class FakePatientRepository(patients: List<Patient> = listOf(samplePatie
     override val patients: StateFlow<List<Patient>> = _patients.asStateFlow()
     override suspend fun refresh() = Unit
     override fun getPatient(id: String): Flow<Patient?> = patients.map { list -> list.find { it.id == id } }
-    override fun getChangeLog(patientId: String): Flow<List<PatientChangeLogEntry>> = flowOf(emptyList())
 
-    override suspend fun updatePatient(
-        id: String,
-        newValues: Patient,
-        changedBy: String,
-        fecha: String,
-        hora: String,
-    ) = Unit
+    override suspend fun updatePatient(id: String, newValues: Patient) = Unit
 
     override suspend fun addPatient(
         medicalRecordNumber: String,

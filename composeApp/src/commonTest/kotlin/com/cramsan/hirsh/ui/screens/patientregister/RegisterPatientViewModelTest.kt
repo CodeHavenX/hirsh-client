@@ -5,7 +5,6 @@ import com.cramsan.hirsh.model.Allergy
 import com.cramsan.hirsh.model.AllergyType
 import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.Patient
-import com.cramsan.hirsh.model.PatientChangeLogEntry
 import com.cramsan.hirsh.model.Severity
 import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.repository.PatientRepository
@@ -47,16 +46,8 @@ private class FakePatientRepository(patients: List<Patient> = listOf(existingPat
     override val patients: StateFlow<List<Patient>> = _patients.asStateFlow()
     override suspend fun refresh() = Unit
     override fun getPatient(id: String): Flow<Patient?> = patients.map { list -> list.find { it.id == id } }
-    override fun getChangeLog(patientId: String): Flow<List<PatientChangeLogEntry>> =
-        MutableStateFlow(emptyList<PatientChangeLogEntry>())
 
-    override suspend fun updatePatient(
-        id: String,
-        newValues: Patient,
-        changedBy: String,
-        fecha: String,
-        hora: String,
-    ) {
+    override suspend fun updatePatient(id: String, newValues: Patient) {
         _patients.update { list -> list.map { if (it.id == id) newValues else it } }
     }
 

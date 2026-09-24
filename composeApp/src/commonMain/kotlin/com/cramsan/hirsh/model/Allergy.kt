@@ -35,6 +35,3 @@ fun Severity?.toDisplayLabel(): String = when (this) {
     Severity.SEVERE -> "Severa"
     null -> "Sin graduar"
 }
-
-/** Single free-text summary, used by the change-log diff and anywhere a one-line rendering fits. */
-fun List<Allergy>.summary(): String = joinToString(", ") { it.description }.ifEmpty { "Ninguna" }

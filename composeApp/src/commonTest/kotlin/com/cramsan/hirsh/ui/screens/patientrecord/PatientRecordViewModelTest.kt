@@ -6,12 +6,10 @@ import com.cramsan.hirsh.model.AllergyType
 import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.EstadoHospitalizacion
 import com.cramsan.hirsh.model.Evolucion
-import com.cramsan.hirsh.model.FieldChange
 import com.cramsan.hirsh.model.HcSectionKey
 import com.cramsan.hirsh.model.HistoriaClinica
 import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.Patient
-import com.cramsan.hirsh.model.PatientChangeLogEntry
 import com.cramsan.hirsh.model.Severity
 import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.repository.HospitalizationRepository
@@ -21,7 +19,6 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -64,22 +61,13 @@ private fun sampleHospitalization(id: String, patientId: String) = Hospitalizaci
     evoluciones = emptyList(),
 )
 
-private class FakePatientRepository(patients: List<Patient>, changeLog: List<PatientChangeLogEntry> = emptyList()) :
-    PatientRepository {
+private class FakePatientRepository(patients: List<Patient>) : PatientRepository {
     private val _patients = MutableStateFlow(patients)
-    private val _changeLog = MutableStateFlow(changeLog)
     override val patients: StateFlow<List<Patient>> = _patients.asStateFlow()
     override suspend fun refresh() = Unit
     override fun getPatient(id: String): Flow<Patient?> = patients.map { list -> list.find { it.id == id } }
-    override fun getChangeLog(patientId: String): Flow<List<PatientChangeLogEntry>> = _changeLog.asStateFlow()
 
-    override suspend fun updatePatient(
-        id: String,
-        newValues: Patient,
-        changedBy: String,
-        fecha: String,
-        hora: String,
-    ) {
+    override suspend fun updatePatient(id: String, newValues: Patient) {
         _patients.update { list -> list.map { if (it.id == id) newValues else it } }
     }
 
