@@ -41,6 +41,9 @@ private val existingPatient = Patient(
     medicalRecordNumber = "HC-00142",
     documentType = DocumentType.NID,
     documentNumber = "45678901",
+    firstName = "Maria",
+    lastName = "Gonzalez",
+    secondLastName = "Huerta",
     fullName = "Maria Gonzalez Huerta",
     birthDate = "14/03/1989",
     phone = "987-654-321",
@@ -52,6 +55,7 @@ private val existingPatient = Patient(
 private class FakePatientRepository(patients: List<Patient> = listOf(existingPatient)) : PatientRepository {
     private val _patients = MutableStateFlow(patients)
     override val patients: StateFlow<List<Patient>> = _patients.asStateFlow()
+    override suspend fun refresh() = Unit
     override fun getPatient(id: String): Flow<Patient?> = patients.map { list -> list.find { it.id == id } }
     override fun getChangeLog(patientId: String): Flow<List<PatientChangeLogEntry>> =
         MutableStateFlow(emptyList<PatientChangeLogEntry>())
@@ -80,7 +84,10 @@ private class FakePatientRepository(patients: List<Patient> = listOf(existingPat
     }
 
     override suspend fun addPatient(
-        name: String,
+        medicalRecordNumber: String,
+        firstName: String,
+        lastName: String,
+        secondLastName: String,
         documentType: DocumentType,
         documentNumber: String,
         birthDate: String,
@@ -134,7 +141,9 @@ class EditPatientViewModelTest {
             viewModel.load(existingPatient.id)
             val state = awaitItem()
             assertEquals(existingPatient, state.patient)
-            assertEquals(existingPatient.fullName, state.fullName)
+            assertEquals(existingPatient.firstName, state.firstName)
+            assertEquals(existingPatient.lastName, state.lastName)
+            assertEquals(existingPatient.secondLastName, state.secondLastName)
             assertEquals(existingPatient.documentNumber, state.documentNumber)
             assertEquals(existingPatient.birthDate, state.birthDate)
             assertEquals(existingPatient.phone, state.phone)
@@ -170,7 +179,7 @@ class EditPatientViewModelTest {
             awaitItem()
             viewModel.load(existingPatient.id)
             awaitItem()
-            viewModel.onNameChange("")
+            viewModel.onFirstNameChange("")
             awaitItem()
             viewModel.save()
             val state = awaitItem()
@@ -208,26 +217,27 @@ class EditPatientViewModelTest {
     }
 
     @Test
-    fun `save preserves id and converts the free-text allergies field back into a list`() = runTest(dispatcher) {
-        val repository = FakePatientRepository()
-        val viewModel = EditPatientViewModel(repository, FakeSessionRepository(), FakeClock())
+    fun `save preserves id and leaves allergies untouched -- this repository doesn't reconcile them on update yet`() =
+        runTest(dispatcher) {
+            val repository = FakePatientRepository()
+            val viewModel = EditPatientViewModel(repository, FakeSessionRepository(), FakeClock())
 
-        viewModel.uiState.test {
-            awaitItem()
-            viewModel.load(existingPatient.id)
-            awaitItem()
-            viewModel.onAllergiesChange("Ninguna")
-            awaitItem()
-            viewModel.save()
-            awaitItem()
-            awaitItem()
-            cancelAndIgnoreRemainingEvents()
+            viewModel.uiState.test {
+                awaitItem()
+                viewModel.load(existingPatient.id)
+                awaitItem()
+                viewModel.onPhoneChange("999-999-999")
+                awaitItem()
+                viewModel.save()
+                awaitItem()
+                awaitItem()
+                cancelAndIgnoreRemainingEvents()
+            }
+
+            val update = repository.lastUpdate
+            assertEquals(existingPatient.id, update?.newValues?.id)
+            assertEquals(existingPatient.allergies, update?.newValues?.allergies)
         }
-
-        val update = repository.lastUpdate
-        assertEquals(existingPatient.id, update?.newValues?.id)
-        assertEquals(emptyList(), update?.newValues?.allergies)
-    }
 
     @Test
     fun `save against a stale jpaVersion surfaces a distinct conflict message, not the generic one`() =

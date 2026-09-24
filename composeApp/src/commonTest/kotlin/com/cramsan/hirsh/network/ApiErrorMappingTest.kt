@@ -84,6 +84,15 @@ class ApiErrorMappingTest {
     }
 
     @Test
+    fun notFoundMapsToNotFoundRegardlessOfBody() = runTest {
+        val client = buildClient(HttpStatusCode.NotFound, """{"title": "Not Found"}""")
+
+        val exception = assertFailsWith<ApiException> { client.get("http://localhost/x") }
+
+        assertEquals(ApiError.NotFound(), exception.error)
+    }
+
+    @Test
     fun badRequestWithFieldErrorsMapsToValidation() = runTest {
         val client = buildClient(
             HttpStatusCode.BadRequest,

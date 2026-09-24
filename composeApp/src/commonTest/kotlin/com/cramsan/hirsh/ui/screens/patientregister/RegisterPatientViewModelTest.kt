@@ -7,6 +7,7 @@ import com.cramsan.hirsh.model.PatientChangeLogEntry
 import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.model.singleAllergyFromText
 import com.cramsan.hirsh.repository.PatientRepository
+import com.cramsan.hirsh.repository.assembleFullName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -41,6 +42,7 @@ private val existingPatient = Patient(
 private class FakePatientRepository(patients: List<Patient> = listOf(existingPatient)) : PatientRepository {
     private val _patients = MutableStateFlow(patients)
     override val patients: StateFlow<List<Patient>> = _patients.asStateFlow()
+    override suspend fun refresh() = Unit
     override fun getPatient(id: String): Flow<Patient?> = patients.map { list -> list.find { it.id == id } }
     override fun getChangeLog(patientId: String): Flow<List<PatientChangeLogEntry>> =
         MutableStateFlow(emptyList<PatientChangeLogEntry>())
@@ -59,7 +61,10 @@ private class FakePatientRepository(patients: List<Patient> = listOf(existingPat
         private set
 
     override suspend fun addPatient(
-        name: String,
+        medicalRecordNumber: String,
+        firstName: String,
+        lastName: String,
+        secondLastName: String,
         documentType: DocumentType,
         documentNumber: String,
         birthDate: String,
@@ -71,10 +76,13 @@ private class FakePatientRepository(patients: List<Patient> = listOf(existingPat
         addPatientCalls++
         val created = Patient(
             id = "new-patient-id",
-            medicalRecordNumber = "HC-00200",
+            medicalRecordNumber = medicalRecordNumber,
             documentType = documentType,
             documentNumber = documentNumber,
-            fullName = name,
+            firstName = firstName,
+            lastName = lastName,
+            secondLastName = secondLastName,
+            fullName = assembleFullName(firstName, lastName, secondLastName),
             birthDate = birthDate,
             phone = phone,
             bloodType = bloodType,
@@ -102,7 +110,9 @@ class RegisterPatientViewModelTest {
     }
 
     private fun fillRequiredFields(viewModel: RegisterPatientViewModel) {
-        viewModel.onNameChange("Nuevo Paciente")
+        viewModel.onMedicalRecordNumberChange("HC-2027-000001")
+        viewModel.onFirstNameChange("Nuevo")
+        viewModel.onLastNameChange("Paciente")
         viewModel.onNationalIdChange("11223344")
         viewModel.onDateOfBirthChange("01/01/2000")
         viewModel.onPhoneChange("999-999-999")
@@ -114,7 +124,7 @@ class RegisterPatientViewModelTest {
         val repository = FakePatientRepository()
         val viewModel = RegisterPatientViewModel(repository)
         fillRequiredFields(viewModel)
-        viewModel.onNameChange("")
+        viewModel.onFirstNameChange("")
 
         viewModel.uiState.test {
             skipItems(1)
@@ -131,7 +141,9 @@ class RegisterPatientViewModelTest {
     fun `register blocks save when sex is not selected`() = runTest(dispatcher) {
         val repository = FakePatientRepository()
         val viewModel = RegisterPatientViewModel(repository)
-        viewModel.onNameChange("Nuevo Paciente")
+        viewModel.onMedicalRecordNumberChange("HC-2027-000001")
+        viewModel.onFirstNameChange("Nuevo")
+        viewModel.onLastNameChange("Paciente")
         viewModel.onNationalIdChange("11223344")
         viewModel.onDateOfBirthChange("01/01/2000")
         viewModel.onPhoneChange("999-999-999")
@@ -177,7 +189,7 @@ class RegisterPatientViewModelTest {
     @Test
     fun `checkDuplicate flags a name substring match`() = runTest(dispatcher) {
         val viewModel = RegisterPatientViewModel(FakePatientRepository())
-        viewModel.onNameChange("gonzalez")
+        viewModel.onFirstNameChange("gonzalez")
 
         viewModel.uiState.test {
             skipItems(1)
@@ -203,12 +215,12 @@ class RegisterPatientViewModelTest {
     @Test
     fun `checkDuplicate clears a previously-set warning when nothing matches anymore`() = runTest(dispatcher) {
         val viewModel = RegisterPatientViewModel(FakePatientRepository())
-        viewModel.onNameChange("gonzalez")
+        viewModel.onFirstNameChange("gonzalez")
         viewModel.checkDuplicate()
 
         viewModel.uiState.test {
             assertEquals(existingPatient, awaitItem().duplicateWarning)
-            viewModel.onNameChange("Someone Else Entirely")
+            viewModel.onFirstNameChange("Someone Else Entirely")
             awaitItem()
             viewModel.checkDuplicate()
             assertNull(awaitItem().duplicateWarning)

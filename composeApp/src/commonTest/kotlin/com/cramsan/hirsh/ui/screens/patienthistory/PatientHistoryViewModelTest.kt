@@ -45,6 +45,7 @@ private class FakePatientRepository(
     private val _patients = MutableStateFlow(patients)
     private val _changeLog = MutableStateFlow(changeLog)
     override val patients: StateFlow<List<Patient>> = _patients.asStateFlow()
+    override suspend fun refresh() = Unit
     override fun getPatient(id: String): Flow<Patient?> = patients.map { list -> list.find { it.id == id } }
     override fun getChangeLog(patientId: String): Flow<List<PatientChangeLogEntry>> = _changeLog.asStateFlow()
 
@@ -61,7 +62,10 @@ private class FakePatientRepository(
     ) = Unit
 
     override suspend fun addPatient(
-        name: String,
+        medicalRecordNumber: String,
+        firstName: String,
+        lastName: String,
+        secondLastName: String,
         documentType: DocumentType,
         documentNumber: String,
         birthDate: String,

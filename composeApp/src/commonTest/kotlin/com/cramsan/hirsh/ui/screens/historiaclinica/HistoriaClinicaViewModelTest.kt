@@ -86,6 +86,7 @@ private fun sampleHospitalization(id: String, patientId: String, historiaClinica
 private class FakePatientRepository(patients: List<Patient>) : PatientRepository {
     private val _patients = MutableStateFlow(patients)
     override val patients: StateFlow<List<Patient>> = _patients.asStateFlow()
+    override suspend fun refresh() = Unit
     override fun getPatient(id: String): Flow<Patient?> = patients.map { list -> list.find { it.id == id } }
     override fun getChangeLog(patientId: String): Flow<List<PatientChangeLogEntry>> = MutableStateFlow(emptyList())
 
@@ -98,7 +99,10 @@ private class FakePatientRepository(patients: List<Patient>) : PatientRepository
     ) = Unit
 
     override suspend fun addPatient(
-        name: String,
+        medicalRecordNumber: String,
+        firstName: String,
+        lastName: String,
+        secondLastName: String,
         documentType: DocumentType,
         documentNumber: String,
         birthDate: String,

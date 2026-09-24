@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 data class PatientListUiState(
     val isLoading: Boolean = true,
@@ -19,6 +20,14 @@ data class PatientListUiState(
 class PatientListViewModel(private val patientRepository: PatientRepository) : ViewModel() {
 
     private val query = MutableStateFlow("")
+
+    init {
+        // No-op for InMemoryPatientRepository (already fully populated); for KtorPatientRepository
+        // this is what actually fetches the list from the real backend -- see
+        // PatientRepository.refresh()'s own doc comment for why this is an explicit call here
+        // rather than the repository launching its own background work.
+        viewModelScope.launch { patientRepository.refresh() }
+    }
 
     val uiState: StateFlow<PatientListUiState> = combine(patientRepository.patients, query) { patients, query ->
         val filtered = if (query.isBlank()) {
