@@ -227,9 +227,15 @@ abstract class HissE2EScenarios {
         driver.selectOption("register_sex_field", 0)
         driver.clickTag("register_submit_button")
         driver.waitForTag("record_edit_button")
+        // The outgoing register form stays in the tree during its exit transition, still holding
+        // the typed MRN/phone -- asserting before it's gone would pass even if the backend never
+        // stored them (confirmed: the phone check below passed with HISS-626's fix reverted).
+        driver.waitUntil { !it.containsTag("register_phone_field") }
         val hierarchy = driver.getHierarchy()
         assertTrue(hierarchy.containsText(newName), "a successful registration must land on the new patient's own record")
         assertTrue(hierarchy.containsText(mrn), "the medicalRecordNumber entered at registration must round-trip through the real backend")
+        // HISS-626: the phone used to be dropped from the create request entirely.
+        assertTrue(hierarchy.containsText("555-0100"), "the phone entered at registration must round-trip through the real backend")
     }
 
     @Test
