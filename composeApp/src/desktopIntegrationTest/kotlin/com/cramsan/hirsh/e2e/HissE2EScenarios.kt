@@ -246,6 +246,9 @@ abstract class HissE2EScenarios {
         driver.type("edit_phone_field", "555-9999")
         driver.clickTag("edit_save_button")
         driver.waitForTag("record_edit_button")
+        // Same exit-transition gap as test12b: until the edit form leaves the tree, its field still
+        // holds the typed phone, and the check below passed with the phone dropped from the PATCH.
+        driver.waitUntil { !it.containsTag("edit_phone_field") }
         assertTrue(driver.getHierarchy().containsText("555-9999"), "the edited phone number must show back on the record screen")
     }
 
