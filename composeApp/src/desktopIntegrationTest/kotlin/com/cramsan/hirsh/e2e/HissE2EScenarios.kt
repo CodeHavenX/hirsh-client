@@ -246,7 +246,82 @@ abstract class HissE2EScenarios {
         driver.type("edit_phone_field", "555-9999")
         driver.clickTag("edit_save_button")
         driver.waitForTag("record_edit_button")
+        // Same exit-transition gap as test12b: until the edit form leaves the tree, its field still
+        // holds the typed phone, and the check below passed with the phone dropped from the PATCH.
+        driver.waitUntil { !it.containsTag("edit_phone_field") }
         assertTrue(driver.getHierarchy().containsText("555-9999"), "the edited phone number must show back on the record screen")
+    }
+
+    @Test
+    fun test12b_editPatient_addsEditsAndRemovesAllergy_reflectedOnRecord() {
+        // HISS-623: each allergy action saves immediately against the real
+        // /patients/{id}/allergies sub-resource -- "Cancelar" (not "Guardar cambios") is used to
+        // leave the edit screen below precisely to prove the allergy was saved on its own.
+        driver.loginAsAdmin()
+        driver.registerE2eTestPatient()
+        val suffix = System.nanoTime().toString().takeLast(9)
+        val agent = "E2E alergia $suffix"
+        val observations = "E2E revisado $suffix"
+
+        driver.clickTag("record_edit_button")
+        driver.waitForTag("edit_phone_field")
+        driver.scrollDown("screen_scroll_container")
+        driver.clickTag("allergy_add_button")
+        driver.waitForTag("allergy_description_field")
+        driver.selectOption("allergy_type_field", 0) // Medicamento
+        driver.type("allergy_description_field", agent)
+        driver.scrollDown("screen_scroll_container")
+        driver.selectOption("allergy_severity_field", 3) // Sin graduar, Leve, Moderada, Severa
+        driver.clickTag("allergy_save_button")
+        driver.waitUntil { it.containsText(agent) && !it.containsTag("allergy_form") }
+
+        driver.scrollDown("screen_scroll_container")
+        driver.clickTag("edit_cancel_button")
+        driver.waitForTag("record_edit_button")
+        driver.waitUntil { it.containsText(agent) }
+        assertTrue(driver.getHierarchy().containsText("Severa"), "the allergy's severity must round-trip through the real backend")
+        // The outgoing edit screen stays in the tree for its exit transition: until it's gone, a
+        // "record_edit_button" click can be dropped, and a wait for "edit_phone_field" below would
+        // match the OLD, departing screen instead of the new one (confirmed via a live run).
+        driver.waitUntil { !it.containsTag("edit_phone_field") }
+
+        // Edit: the only PATCH-able fields are severity and observations (see Allergy's doc
+        // comment) -- this is the one step that exercises the real PatchAllergyRequest.
+        driver.clickTag("record_edit_button")
+        driver.waitForTag("edit_phone_field")
+        driver.scrollDown("screen_scroll_container")
+        driver.clickTag("allergy_edit_0")
+        driver.waitUntil { it.containsTag("allergy_form") }
+        driver.scrollDown("screen_scroll_container")
+        // Already graded, so "Sin graduar" isn't offered here: Leve, Moderada, Severa.
+        driver.selectOption("allergy_severity_field", 0) // Leve
+        driver.type("allergy_observations_field", observations)
+        driver.scrollDown("screen_scroll_container")
+        driver.clickTag("allergy_save_button")
+        driver.waitUntil { it.containsText(observations) && !it.containsTag("allergy_form") }
+
+        driver.scrollDown("screen_scroll_container")
+        driver.clickTag("edit_cancel_button")
+        driver.waitForTag("record_edit_button")
+        driver.waitUntil { it.containsText(observations) }
+        val afterEdit = driver.getHierarchy()
+        assertTrue(afterEdit.containsText(agent), "editing must not change the agent itself")
+        assertTrue(afterEdit.containsText("Leve"), "the revised severity must round-trip through the real backend")
+        assertFalse(afterEdit.containsText("Severa"), "the old severity must be gone after the PATCH")
+        driver.waitUntil { !it.containsTag("edit_phone_field") }
+
+        driver.clickTag("record_edit_button")
+        driver.waitForTag("edit_phone_field")
+        driver.scrollDown("screen_scroll_container")
+        driver.clickTag("allergy_delete_0")
+        driver.clickTag("allergy_confirm_delete_0")
+        driver.waitUntil { !it.containsText(agent) }
+
+        driver.scrollDown("screen_scroll_container")
+        driver.clickTag("edit_cancel_button")
+        driver.waitForTag("record_edit_button")
+        driver.waitUntil { !it.containsText(agent) }
+        assertFalse(driver.getHierarchy().containsText(agent), "a removed allergy must no longer show on the record")
     }
 
     // --- Hospitalization: read-only empty-state variant --------------------------------------

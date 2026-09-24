@@ -1,5 +1,6 @@
 package com.cramsan.hirsh.repository
 
+import app.cash.turbine.test
 import com.cramsan.hirsh.model.AllergyType
 import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.Patient
@@ -29,6 +30,11 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+
+private const val PATIENT_ID = "8f14e45f-9c4b-4d1e-8a2f-6b3c5d7e9a10"
+
+private const val ALLERGY_A1_JSON =
+    """[{"id":"a1","allergyType":"MEDICATION","description":"Penicilina","severity":"SEVERE"}]"""
 
 /** One recorded request, for assertions on the outgoing method/path/body without a real server. */
 private data class RecordedRequest(val method: HttpMethod, val path: String, val body: String)
@@ -375,6 +381,130 @@ class KtorPatientRepositoryTest {
                 allergies = "",
             )
         }
+    }
+
+    // --- getPatient keeps observing ------------------------------------------------------------
+
+    @Test
+    fun `getPatient keeps emitting after its fetch, reflecting a later mutation without a re-fetch`() = runTest {
+        val recorded = mutableListOf<RecordedRequest>()
+        val client = mockClient(recorded) { request ->
+            if (request.method == HttpMethod.Post) {
+                jsonResponse(HttpStatusCode.Created, """{"id":"a2","allergyType":"FOOD","description":"Mariscos"}""")
+            } else {
+                jsonResponse(HttpStatusCode.OK, patientResponseJson(allergiesJson = ALLERGY_A1_JSON))
+            }
+        }
+        val repository = KtorPatientRepository(client)
+
+        repository.getPatient(PATIENT_ID).test {
+            assertEquals(listOf("a1"), awaitItem()?.allergies?.map { it.id })
+
+            repository.addAllergy(PATIENT_ID, AllergyType.FOOD, "Mariscos", severity = null, observations = "")
+
+            assertEquals(listOf("a2", "a1"), awaitItem()?.allergies?.map { it.id }, "newest first, like the real list endpoint")
+            cancelAndIgnoreRemainingEvents()
+        }
+        assertEquals(1, recorded.count { it.method == HttpMethod.Get }, "the second emission must come from the cache, not a re-fetch")
+    }
+
+    // --- allergies ------------------------------------------------------------------------------
+
+    @Test
+    fun `addAllergy posts CreateAllergyRequest to the sub-resource and maps the 201 response`() = runTest {
+        val recorded = mutableListOf<RecordedRequest>()
+        val client = mockClient(recorded) {
+            jsonResponse(
+                HttpStatusCode.Created,
+                """{"id":"a2","allergyType":"MEDICATION","description":"Ibuprofeno","severity":"MODERATE","observations":"Rash"}""",
+            )
+        }
+        val repository = KtorPatientRepository(client)
+
+        val allergy = repository.addAllergy(PATIENT_ID, AllergyType.MEDICATION, "  Ibuprofeno ", Severity.MODERATE, "Rash")
+
+        val post = recorded.single()
+        assertEquals(HttpMethod.Post, post.method)
+        assertEquals("/api/v1/patients/$PATIENT_ID/allergies", post.path)
+        assertTrue("\"allergyType\":\"MEDICATION\"" in post.body)
+        assertTrue("\"description\":\"Ibuprofeno\"" in post.body, "description is trimmed before sending")
+        assertTrue("\"severity\":\"MODERATE\"" in post.body)
+        assertEquals("a2", allergy.id)
+        assertEquals(Severity.MODERATE, allergy.severity)
+        assertEquals("Rash", allergy.observations)
+    }
+
+    @Test
+    fun `addAllergy leaves severity and observations out of the body when ungraded and blank`() = runTest {
+        val recorded = mutableListOf<RecordedRequest>()
+        val client = mockClient(recorded) {
+            jsonResponse(HttpStatusCode.Created, """{"id":"a2","allergyType":"OTHER","description":"Latex"}""")
+        }
+        val repository = KtorPatientRepository(client)
+
+        val allergy = repository.addAllergy(PATIENT_ID, AllergyType.OTHER, "Latex", severity = null, observations = " ")
+
+        assertTrue("\"severity\":\"" !in recorded.single().body)
+        assertTrue("\"observations\":\"" !in recorded.single().body)
+        assertNull(allergy.severity, "an ungraded allergy stays ungraded -- never defaulted to MILD")
+    }
+
+    @Test
+    fun `updateAllergy patches only severity and observations, never the agent itself`() = runTest {
+        val recorded = mutableListOf<RecordedRequest>()
+        val client = mockClient(recorded) { request ->
+            if (request.method == HttpMethod.Patch) {
+                jsonResponse(
+                    HttpStatusCode.OK,
+                    """{"id":"a1","allergyType":"MEDICATION","description":"Penicilina","severity":"MILD","observations":"Revisado"}""",
+                )
+            } else {
+                jsonResponse(HttpStatusCode.OK, patientResponseJson(allergiesJson = ALLERGY_A1_JSON))
+            }
+        }
+        val repository = KtorPatientRepository(client)
+        flowFirst(repository.getPatient(PATIENT_ID))
+
+        val updated = repository.updateAllergy(PATIENT_ID, "a1", Severity.MILD, "Revisado")
+
+        val patch = recorded.single { it.method == HttpMethod.Patch }
+        assertEquals("/api/v1/patients/$PATIENT_ID/allergies/a1", patch.path)
+        assertTrue("\"severity\":\"MILD\"" in patch.body)
+        assertTrue("\"observations\":\"Revisado\"" in patch.body)
+        assertTrue("description" !in patch.body)
+        assertTrue("allergyType" !in patch.body)
+        assertEquals(Severity.MILD, updated.severity)
+    }
+
+    @Test
+    fun `deleteAllergy sends DELETE, accepts a bodyless 204, and drops the allergy from the cache`() = runTest {
+        val recorded = mutableListOf<RecordedRequest>()
+        val client = mockClient(recorded) { request ->
+            if (request.method == HttpMethod.Delete) {
+                respond("", HttpStatusCode.NoContent)
+            } else {
+                jsonResponse(HttpStatusCode.OK, patientResponseJson(allergiesJson = ALLERGY_A1_JSON))
+            }
+        }
+        val repository = KtorPatientRepository(client)
+
+        repository.getPatient(PATIENT_ID).test {
+            assertEquals(1, awaitItem()?.allergies?.size)
+
+            repository.deleteAllergy(PATIENT_ID, "a1")
+
+            assertEquals(emptyList(), awaitItem()?.allergies)
+            cancelAndIgnoreRemainingEvents()
+        }
+        assertEquals("/api/v1/patients/$PATIENT_ID/allergies/a1", recorded.single { it.method == HttpMethod.Delete }.path)
+    }
+
+    @Test
+    fun `updateAllergy propagates a 404 as ApiException`() = runTest {
+        val client = mockClient { jsonResponse(HttpStatusCode.NotFound, """{"title":"Not Found"}""") }
+        val repository = KtorPatientRepository(client)
+
+        assertFailsWith<ApiException> { repository.updateAllergy(PATIENT_ID, "gone", Severity.MILD, "") }
     }
 
     // --- getChangeLog ------------------------------------------------------------------------

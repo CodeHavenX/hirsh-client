@@ -1,10 +1,12 @@
 package com.cramsan.hirsh.repository
 
 import com.cramsan.hirsh.model.Allergy
+import com.cramsan.hirsh.model.AllergyType
 import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.FieldChange
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.PatientChangeLogEntry
+import com.cramsan.hirsh.model.Severity
 import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.model.singleAllergyFromText
 import com.cramsan.hirsh.model.summary
@@ -16,6 +18,7 @@ import com.cramsan.hirsh.network.dto.AllergyTypeDto
 import com.cramsan.hirsh.network.dto.CreateAllergyRequest
 import com.cramsan.hirsh.network.dto.CreatePatientRequest
 import com.cramsan.hirsh.network.dto.PageResponse
+import com.cramsan.hirsh.network.dto.PatchAllergyRequest
 import com.cramsan.hirsh.network.dto.PatchPatientRequest
 import com.cramsan.hirsh.network.dto.PatientResponse
 import com.cramsan.hirsh.network.dto.displayDateToIso
@@ -23,6 +26,7 @@ import com.cramsan.hirsh.network.dto.toDomain
 import com.cramsan.hirsh.network.dto.toDto
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.client.request.patch
@@ -35,6 +39,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -88,8 +94,9 @@ interface PatientRepository {
      * collects it as a real required field. [firstName]/[lastName] are required, [secondLastName]
      * optional, matching `CreatePatientRequest`'s exact shape; implementations assemble [Patient.fullName]
      * themselves when there's no server response to take it from. [allergies] stays a single
-     * free-text field at the call boundary (HISS-621 defers the real per-allergy CRUD UI to
-     * HISS-623): a non-blank, non-"Ninguna" value becomes one synthetic [Allergy] entry. No
+     * free-text field at the call boundary -- per-allergy entry on registration is HISS-625 (the
+     * edit screen got it in HISS-623): a non-blank, non-"Ninguna" value becomes one synthetic
+     * [Allergy] entry. No
      * change-log entry: the prototype's own registerPatient() doesn't call logPatientChange either,
      * registration isn't an edit.
      */
@@ -106,6 +113,31 @@ interface PatientRepository {
         bloodType: String,
         allergies: String,
     ): Patient
+
+    /**
+     * Records one allergy on [patientId] (`POST .../allergies`) and returns it as stored. Every
+     * allergy call below is its own request against the sub-resource, saved immediately --
+     * independent of [updatePatient], which never touches [Patient.allergies] (HISS-623). All
+     * three keep [patients]/[getPatient] in sync with the change, so a screen observing the same
+     * patient reflects it without re-fetching.
+     */
+    suspend fun addAllergy(
+        patientId: String,
+        allergyType: AllergyType,
+        description: String,
+        severity: Severity?,
+        observations: String,
+    ): Allergy
+
+    /**
+     * Revises an allergy's [severity]/[observations] -- the only two fields the real
+     * `PatchAllergyRequest` accepts (see [Allergy]'s doc comment on why type/description are
+     * immutable).
+     */
+    suspend fun updateAllergy(patientId: String, allergyId: String, severity: Severity?, observations: String): Allergy
+
+    /** Removes an allergy recorded in error (a logical delete server-side). */
+    suspend fun deleteAllergy(patientId: String, allergyId: String)
 }
 
 /**
@@ -127,7 +159,14 @@ class InMemoryPatientRepository : PatientRepository {
                 birthDate = "14/03/1989",
                 phone = "987-654-321",
                 bloodType = "O+",
-                allergies = singleAllergyFromText("Penicilina"),
+                allergies = listOf(
+                    Allergy(
+                        id = "5b0f6c52-3a8e-4f4e-9d62-1c7a2e8b9f10",
+                        allergyType = AllergyType.MEDICATION,
+                        description = "Penicilina",
+                        severity = Severity.SEVERE,
+                    ),
+                ),
                 sex = Sex.FEMALE,
             ),
             Patient(
@@ -163,7 +202,14 @@ class InMemoryPatientRepository : PatientRepository {
                 birthDate = "29/01/1943",
                 phone = "998-765-432",
                 bloodType = "AB+",
-                allergies = singleAllergyFromText("Sulfas"),
+                allergies = listOf(
+                    Allergy(
+                        id = "c3d1e9a4-7b25-4c0e-8f3a-6d9e2b1a4c77",
+                        allergyType = AllergyType.MEDICATION,
+                        description = "Sulfas",
+                        severity = null,
+                    ),
+                ),
                 sex = Sex.FEMALE,
             ),
             Patient(
@@ -322,7 +368,7 @@ class InMemoryPatientRepository : PatientRepository {
         allergies: String,
     ): Patient {
         val newPatient = Patient(
-            id = nextPatientId(),
+            id = nextId(),
             medicalRecordNumber = medicalRecordNumber,
             documentType = documentType,
             documentNumber = documentNumber,
@@ -340,9 +386,56 @@ class InMemoryPatientRepository : PatientRepository {
         return newPatient
     }
 
+    override suspend fun addAllergy(
+        patientId: String,
+        allergyType: AllergyType,
+        description: String,
+        severity: Severity?,
+        observations: String,
+    ): Allergy {
+        requirePatient(patientId)
+        val allergy = Allergy(
+            id = nextId(),
+            allergyType = allergyType,
+            description = description.trim(),
+            severity = severity,
+            observations = observations,
+        )
+        // Newest first, matching the real list endpoint's `ORDER BY created_at DESC`.
+        updateAllergies(patientId) { listOf(allergy) + it }
+        return allergy
+    }
+
+    override suspend fun updateAllergy(
+        patientId: String,
+        allergyId: String,
+        severity: Severity?,
+        observations: String,
+    ): Allergy {
+        val current = requirePatient(patientId).allergies.find { it.id == allergyId }
+            ?: throw ApiException(ApiError.NotFound(allergyId))
+        val updated = current.copy(severity = severity, observations = observations)
+        updateAllergies(patientId) { list -> list.map { if (it.id == allergyId) updated else it } }
+        return updated
+    }
+
+    override suspend fun deleteAllergy(patientId: String, allergyId: String) {
+        if (requirePatient(patientId).allergies.none { it.id == allergyId }) {
+            throw ApiException(ApiError.NotFound(allergyId))
+        }
+        updateAllergies(patientId) { list -> list.filterNot { it.id == allergyId } }
+    }
+
+    private fun requirePatient(patientId: String): Patient =
+        _patients.value.find { it.id == patientId } ?: throw ApiException(ApiError.NotFound(patientId))
+
+    private fun updateAllergies(patientId: String, transform: (List<Allergy>) -> List<Allergy>) {
+        _patients.update { list -> list.map { if (it.id == patientId) it.copy(allergies = transform(it.allergies)) else it } }
+    }
+
     /** A real UUID, matching the backend's opaque row identifier (HISS-621) -- never `#XXXXX`. */
     @OptIn(ExperimentalUuidApi::class)
-    private fun nextPatientId(): String = Uuid.random().toString()
+    private fun nextId(): String = Uuid.random().toString()
 }
 
 /**
@@ -359,6 +452,10 @@ class InMemoryPatientRepository : PatientRepository {
  * [getPatient] makes its own `GET /{patientId}` call every time it's collected, rather than
  * filtering [patients]'s "fetch all pages" cache -- the ticket lists it as its own endpoint, and a
  * real deployment could have more patients than any single "fetch all" pass caps at ([PAGE_SIZE]).
+ * After that fetch it keeps observing [_details], so a later mutation through this repository
+ * (an edit, an allergy add/update/delete) reaches an already-open record screen without a
+ * re-fetch (HISS-623). [_details] is kept separate from [_patients] so a concurrent [refresh]
+ * replacing the list wholesale can never make an open record flip to "not found".
  *
  * [updatePatient]'s [changedBy]/[fecha]/[hora] params go unused: the real `PATCH` endpoint doesn't
  * accept them (the server stamps its own audit block), and `PatientService.patch()` has no
@@ -378,8 +475,25 @@ class KtorPatientRepository(
     private val _patients = MutableStateFlow<List<Patient>>(emptyList())
     override val patients: StateFlow<List<Patient>> = _patients.asStateFlow()
 
+    /** Per-patient cache backing [getPatient]; see the class doc comment. */
+    private val _details = MutableStateFlow<Map<String, Patient>>(emptyMap())
+
     override suspend fun refresh() {
         _patients.value = fetchAllPages()
+    }
+
+    /** Writes [patient] through to both caches -- [_patients] only if it's already listed there. */
+    private fun cache(patient: Patient) {
+        _patients.update { list -> list.map { if (it.id == patient.id) patient else it } }
+        _details.update { it + (patient.id to patient) }
+    }
+
+    private fun updateAllergies(patientId: String, transform: (List<Allergy>) -> List<Allergy>) {
+        _patients.update { list -> list.map { if (it.id == patientId) it.copy(allergies = transform(it.allergies)) else it } }
+        _details.update { details ->
+            val patient = details[patientId] ?: return@update details
+            details + (patientId to patient.copy(allergies = transform(patient.allergies)))
+        }
     }
 
     private suspend fun fetchAllPages(): List<Patient> {
@@ -400,15 +514,19 @@ class KtorPatientRepository(
         }.body()
 
     override fun getPatient(id: String): Flow<Patient?> = flow {
-        emit(
-            try {
-                httpClient.get("/api/v1/patients/$id").body<PatientResponse>().toDomain()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: ApiException) {
-                if (e.error is ApiError.NotFound) null else throw e
-            },
-        )
+        val fetched = try {
+            httpClient.get("/api/v1/patients/$id").body<PatientResponse>().toDomain()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: ApiException) {
+            if (e.error is ApiError.NotFound) null else throw e
+        }
+        if (fetched == null) {
+            emit(null)
+            return@flow
+        }
+        cache(fetched)
+        emitAll(_details.map { it[id] }.distinctUntilChanged())
     }
 
     override fun getChangeLog(patientId: String): Flow<List<PatientChangeLogEntry>> = flowOf(emptyList())
@@ -432,7 +550,7 @@ class KtorPatientRepository(
                 ),
             )
         }.body<PatientResponse>().toDomain()
-        _patients.update { list -> list.map { if (it.id == id) updated else it } }
+        cache(updated)
     }
 
     override suspend fun addPatient(
@@ -475,6 +593,55 @@ class KtorPatientRepository(
         }
         _patients.update { list -> list + created }
         return created
+    }
+
+    override suspend fun addAllergy(
+        patientId: String,
+        allergyType: AllergyType,
+        description: String,
+        severity: Severity?,
+        observations: String,
+    ): Allergy {
+        val allergy = httpClient.post("/api/v1/patients/$patientId/allergies") {
+            contentType(ContentType.Application.Json)
+            setBody(
+                CreateAllergyRequest(
+                    allergyType = allergyType.toDto(),
+                    description = description.trim(),
+                    severity = severity?.toDto(),
+                    observations = observations.ifBlank { null },
+                ),
+            )
+        }.body<AllergySummary>().toDomain()
+        // Newest first, matching the real list endpoint's `ORDER BY created_at DESC`.
+        updateAllergies(patientId) { listOf(allergy) + it }
+        return allergy
+    }
+
+    /**
+     * Sends both fields every time rather than only the changed ones: a null field means "leave
+     * unchanged" server-side, so this is the only way the form's current values are what's stored.
+     * A known limit of the real endpoint: a severity can't be reset back to ungraded (null) once
+     * set, and observations can't be cleared to null (blank is sent as `""` instead).
+     */
+    override suspend fun updateAllergy(
+        patientId: String,
+        allergyId: String,
+        severity: Severity?,
+        observations: String,
+    ): Allergy {
+        val updated = httpClient.patch("/api/v1/patients/$patientId/allergies/$allergyId") {
+            contentType(ContentType.Application.Json)
+            setBody(PatchAllergyRequest(severity = severity?.toDto(), observations = observations))
+        }.body<AllergySummary>().toDomain()
+        updateAllergies(patientId) { list -> list.map { if (it.id == allergyId) updated else it } }
+        return updated
+    }
+
+    /** `204 No Content` -- deliberately no `.body()` call, there's nothing to deserialize. */
+    override suspend fun deleteAllergy(patientId: String, allergyId: String) {
+        httpClient.delete("/api/v1/patients/$patientId/allergies/$allergyId")
+        updateAllergies(patientId) { list -> list.filterNot { it.id == allergyId } }
     }
 
     private companion object {

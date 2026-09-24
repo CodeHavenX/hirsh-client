@@ -11,6 +11,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.cramsan.hirsh.model.Allergy
+import com.cramsan.hirsh.model.AllergyType
+import com.cramsan.hirsh.model.Severity
 import com.cramsan.hirsh.ui.preview.PreviewComponent
 import com.cramsan.hirsh.ui.preview.PreviewResponsive
 import com.cramsan.hirsh.ui.theme.HirshTheme
@@ -161,5 +164,24 @@ private fun EncounterTopBarPreview() {
                 StatusBadge("En progreso", BadgeTone.Progress)
             },
         )
+    }
+}
+
+private val sampleAllergies = listOf(
+    Allergy("a1", AllergyType.MEDICATION, "Penicilina", Severity.SEVERE, "Urticaria generalizada tras la primera dosis, 2019."),
+    Allergy("a2", AllergyType.FOOD, "Mariscos", severity = null),
+)
+
+@PreviewComponent
+@Composable
+private fun AllergyListPreview() {
+    HirshTheme {
+        Column {
+            AllergyList(allergies = sampleAllergies)
+            Spacer(Modifier.height(12.dp))
+            AllergyList(allergies = sampleAllergies, onEdit = {}, onRequestDelete = {}, confirmingDeleteId = "a2", onConfirmDelete = {}, onCancelDelete = {})
+            Spacer(Modifier.height(12.dp))
+            AllergyList(allergies = emptyList())
+        }
     }
 }

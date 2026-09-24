@@ -1,15 +1,20 @@
 package com.cramsan.hirsh.model
 
 /**
- * Mirrors the backend's `AllergySummary` (HISS-621) -- one recorded allergy of a patient. The
- * dedicated CRUD UI for these (add/edit/remove) is HISS-623's job; this client currently only
- * displays them, derived into a single summary string on `PatientRecordScreen`.
+ * Mirrors the backend's `AllergySummary` (HISS-621) -- one recorded allergy of a patient, its own
+ * sub-resource (`/api/v1/patients/{patientId}/allergies`) rather than a field saved with the rest
+ * of the patient. Per-allergy add/edit/remove lives on `EditPatientScreen` (HISS-623).
+ *
+ * [allergyType]/[description] are immutable once recorded -- the real `PatchAllergyRequest` only
+ * accepts [severity]/[observations] (a wrong agent "is a different allergy, recorded as its own
+ * entry"), so correcting one means removing it and adding a new one.
  */
 data class Allergy(
     val id: String,
     val allergyType: AllergyType,
     val description: String,
-    val severity: Severity,
+    /** Null when not yet graded -- the backend's own semantics, never defaulted to a real grade. */
+    val severity: Severity?,
     val observations: String = "",
 )
 
@@ -17,17 +22,31 @@ enum class AllergyType { MEDICATION, FOOD, ENVIRONMENTAL, OTHER }
 
 enum class Severity { MILD, MODERATE, SEVERE }
 
-/** Single free-text summary for display, matching the form-level representation until HISS-623. */
+fun AllergyType.toDisplayLabel(): String = when (this) {
+    AllergyType.MEDICATION -> "Medicamento"
+    AllergyType.FOOD -> "Alimento"
+    AllergyType.ENVIRONMENTAL -> "Ambiental"
+    AllergyType.OTHER -> "Otro"
+}
+
+fun Severity?.toDisplayLabel(): String = when (this) {
+    Severity.MILD -> "Leve"
+    Severity.MODERATE -> "Moderada"
+    Severity.SEVERE -> "Severa"
+    null -> "Sin graduar"
+}
+
+/** Single free-text summary, used by the change-log diff and anywhere a one-line rendering fits. */
 fun List<Allergy>.summary(): String = joinToString(", ") { it.description }.ifEmpty { "Ninguna" }
 
 /**
- * Inverse of [summary] -- wraps a form's free-text allergies field into (at most) one synthetic
- * [Allergy] entry. `severity`/`allergyType` are placeholders with no real source until HISS-623
- * gives this a proper per-allergy form.
+ * Wraps a free-text allergies field into (at most) one [AllergyType.OTHER] entry. Only
+ * patient registration still collects allergies as free text (per-allergy entry there is out of
+ * HISS-623's scope); left ungraded rather than inventing a severity it has no source for.
  */
 fun singleAllergyFromText(text: String): List<Allergy> =
     if (text.isBlank() || text == "Ninguna") {
         emptyList()
     } else {
-        listOf(Allergy(id = "allergy_$text", allergyType = AllergyType.OTHER, description = text, severity = Severity.MILD))
+        listOf(Allergy(id = "allergy_$text", allergyType = AllergyType.OTHER, description = text, severity = null))
     }

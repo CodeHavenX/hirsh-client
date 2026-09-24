@@ -40,6 +40,7 @@ import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.PatientChangeLogEntry
 import com.cramsan.hirsh.model.calculateAge
 import com.cramsan.hirsh.model.toDisplayLabel
+import com.cramsan.hirsh.ui.components.AllergyList
 import com.cramsan.hirsh.ui.components.BadgeTone
 import com.cramsan.hirsh.ui.components.KeyValueRow
 import com.cramsan.hirsh.ui.components.StatusBadge
@@ -204,10 +205,19 @@ private fun ProfileCard(
             KeyValueRow("Sexo", patient.sex.toDisplayLabel())
             KeyValueRow("Telefono", patient.phone)
             KeyValueRow("Grupo sanguineo", patient.bloodType)
+            // The mock's single warn/off badge (record.html's renderKV('Alergias', ...)) stays as the
+            // row's summary; each recorded allergy is listed under it read-only (HISS-623) --
+            // adding/editing/removing happens on EditPatientScreen.
             KeyValueRow("Alergias") {
-                val allergiesSummary = patient.allergies.joinToString(", ") { it.description }.ifEmpty { "Ninguna" }
-                val tone = if (patient.allergies.isNotEmpty()) BadgeTone.Warn else BadgeTone.Off
-                StatusBadge(text = allergiesSummary, tone = tone)
+                if (patient.allergies.isEmpty()) {
+                    StatusBadge(text = "Ninguna", tone = BadgeTone.Off)
+                } else {
+                    val count = patient.allergies.size
+                    StatusBadge(text = if (count == 1) "1 registrada" else "$count registradas", tone = BadgeTone.Warn)
+                }
+            }
+            if (patient.allergies.isNotEmpty()) {
+                AllergyList(allergies = patient.allergies, modifier = Modifier.testTag("record_allergy_list"))
             }
             Column(
                 modifier = Modifier.fillMaxWidth().dashedTopBorder(HissFaint).padding(top = 8.dp),

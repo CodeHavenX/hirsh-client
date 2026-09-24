@@ -1,6 +1,8 @@
 package com.cramsan.hirsh.ui.screens.patientrecord
 
 import app.cash.turbine.test
+import com.cramsan.hirsh.model.Allergy
+import com.cramsan.hirsh.model.AllergyType
 import com.cramsan.hirsh.model.EstadoHospitalizacion
 import com.cramsan.hirsh.model.Evolucion
 import com.cramsan.hirsh.model.FieldChange
@@ -10,6 +12,7 @@ import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.PatientChangeLogEntry
+import com.cramsan.hirsh.model.Severity
 import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.model.singleAllergyFromText
 import com.cramsan.hirsh.repository.HospitalizationRepository
@@ -112,6 +115,23 @@ private class FakePatientRepository(patients: List<Patient>, changeLog: List<Pat
         _patients.update { list -> list + created }
         return created
     }
+
+    override suspend fun addAllergy(
+        patientId: String,
+        allergyType: AllergyType,
+        description: String,
+        severity: Severity?,
+        observations: String,
+    ): Allergy {
+        val allergy = Allergy("allergy-new", allergyType, description, severity, observations)
+        _patients.update { list -> list.map { if (it.id == patientId) it.copy(allergies = listOf(allergy) + it.allergies) else it } }
+        return allergy
+    }
+
+    override suspend fun updateAllergy(patientId: String, allergyId: String, severity: Severity?, observations: String): Allergy =
+        error("not used by this test")
+
+    override suspend fun deleteAllergy(patientId: String, allergyId: String) = error("not used by this test")
 }
 
 private class FakeHospitalizationRepository(hospitalizations: List<Hospitalizacion> = emptyList()) :
@@ -271,6 +291,23 @@ class PatientRecordViewModelTest {
             hospitalizationRepository.discharge("h1", jpaVersion = 0L)
 
             assertEquals(EstadoHospitalizacion.ALTA, awaitItem().hospitalizations.single().estado)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `an allergy added through the repository is reflected without calling load again`() = runTest(dispatcher) {
+        val patientRepository = FakePatientRepository(listOf(samplePatient))
+        val viewModel = PatientRecordViewModel(patientRepository, FakeHospitalizationRepository())
+
+        viewModel.uiState.test {
+            awaitItem()
+            viewModel.load(samplePatient.id)
+            assertEquals(listOf("Penicilina"), awaitItem().patient?.allergies?.map { it.description })
+
+            patientRepository.addAllergy(samplePatient.id, AllergyType.FOOD, "Mariscos", Severity.MODERATE, "")
+
+            assertEquals(listOf("Mariscos", "Penicilina"), awaitItem().patient?.allergies?.map { it.description })
             cancelAndIgnoreRemainingEvents()
         }
     }

@@ -63,6 +63,19 @@ fun EditPatientScreen(
         onPhoneChange = viewModel::onPhoneChange,
         onBloodTypeChange = viewModel::onBloodTypeChange,
         onSave = viewModel::save,
+        allergyActions = AllergyActions(
+            onStartAdd = viewModel::onStartAddAllergy,
+            onStartEdit = viewModel::onStartEditAllergy,
+            onTypeChange = viewModel::onAllergyTypeChange,
+            onDescriptionChange = viewModel::onAllergyDescriptionChange,
+            onSeverityChange = viewModel::onAllergySeverityChange,
+            onObservationsChange = viewModel::onAllergyObservationsChange,
+            onCancelDraft = viewModel::onCancelAllergyDraft,
+            onSaveDraft = viewModel::saveAllergyDraft,
+            onRequestDelete = viewModel::onRequestDeleteAllergy,
+            onConfirmDelete = viewModel::confirmDeleteAllergy,
+            onCancelDelete = viewModel::onCancelDeleteAllergy,
+        ),
     )
 }
 
@@ -78,6 +91,7 @@ internal fun EditPatientScreenContent(
     onPhoneChange: (String) -> Unit,
     onBloodTypeChange: (String) -> Unit,
     onSave: () -> Unit,
+    allergyActions: AllergyActions,
 ) {
     val patient = uiState.patient
     Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp).testTag("screen_scroll_container")) {
@@ -94,6 +108,7 @@ internal fun EditPatientScreenContent(
                 onPhoneChange = onPhoneChange,
                 onBloodTypeChange = onBloodTypeChange,
                 onSave = onSave,
+                allergyActions = allergyActions,
             )
         }
     }
@@ -110,6 +125,7 @@ private fun EditPatientForm(
     onPhoneChange: (String) -> Unit,
     onBloodTypeChange: (String) -> Unit,
     onSave: () -> Unit,
+    allergyActions: AllergyActions,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
         Column {
@@ -175,9 +191,7 @@ private fun EditPatientForm(
                     selected = uiState.bloodType,
                     onSelect = onBloodTypeChange,
                 )
-                // Allergies are read-only here too: this repository doesn't reconcile the free-text
-                // field against the real allergies sub-resource on update yet -- that's HISS-623's job.
-                ReadOnlyField("Alergias conocidas", uiState.allergies)
+                AllergySection(uiState = uiState, actions = allergyActions)
             }
         }
 

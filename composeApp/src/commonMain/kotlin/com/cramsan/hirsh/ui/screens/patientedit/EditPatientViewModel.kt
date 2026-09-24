@@ -2,9 +2,11 @@ package com.cramsan.hirsh.ui.screens.patientedit
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.cramsan.hirsh.model.Allergy
+import com.cramsan.hirsh.model.AllergyType
 import com.cramsan.hirsh.model.Patient
+import com.cramsan.hirsh.model.Severity
 import com.cramsan.hirsh.model.Sex
-import com.cramsan.hirsh.model.summary
 import com.cramsan.hirsh.repository.assembleFullName
 import com.cramsan.hirsh.network.ApiError
 import com.cramsan.hirsh.network.ApiException
@@ -34,11 +36,36 @@ data class EditPatientUiState(
     val phone: String = "",
     val sex: Sex? = null,
     val bloodType: String = "",
-    val allergies: String = "",
+    val allergies: List<Allergy> = emptyList(),
+    val allergyDraft: AllergyDraft? = null,
+    /** The allergy whose "Quitar" is awaiting its inline confirmation. */
+    val confirmingDeleteId: String? = null,
+    val allergyError: String? = null,
+    val isAllergyBusy: Boolean = false,
     val error: String? = null,
     val isSaving: Boolean = false,
     val saved: Boolean = false,
 )
+
+/**
+ * The open allergy form. [editingId] null means a new allergy; otherwise only [severity]/
+ * [observations] are editable -- the real `PatchAllergyRequest` can't change the agent itself
+ * (see [Allergy]'s doc comment).
+ */
+data class AllergyDraft(
+    val editingId: String? = null,
+    val allergyType: AllergyType? = null,
+    val description: String = "",
+    val severity: Severity? = null,
+    val observations: String = "",
+    /**
+     * The edited allergy's severity as loaded. Once graded, a PATCH can't reset it back to
+     * ungraded (a null field means "unchanged" server-side), so the form doesn't offer that.
+     */
+    val originalSeverity: Severity? = null,
+) {
+    val isNew: Boolean get() = editingId == null
+}
 
 /**
  * Pre-fills the form from a one-shot [PatientRepository.getPatient] fetch, not a
@@ -76,7 +103,7 @@ class EditPatientViewModel(
                     phone = patient.phone,
                     sex = patient.sex,
                     bloodType = patient.bloodType,
-                    allergies = patient.allergies.summary(),
+                    allergies = patient.allergies,
                 )
             }
         }
@@ -89,12 +116,12 @@ class EditPatientViewModel(
     fun onBloodTypeChange(value: String) = _uiState.update { it.copy(bloodType = value) }
 
     /**
-     * [documentNumber]/[birthDate]/[sex] and [allergies] have no setters -- the real
-     * `PatchPatientRequest` doesn't accept the identity fields at all (HISS-622, confirmed
-     * against the backend source: they're immutable post-registration), and allergies is a
-     * separate sub-resource this repository doesn't reconcile on update yet (HISS-623's job).
-     * `EditPatientScreen` renders all four read-only rather than showing an editable field that
-     * silently wouldn't save.
+     * [documentNumber]/[birthDate]/[sex] have no setters -- the real `PatchPatientRequest` doesn't
+     * accept the identity fields at all (HISS-622, confirmed against the backend source: they're
+     * immutable post-registration), so `EditPatientScreen` renders them read-only rather than
+     * showing an editable field that silently wouldn't save. Allergies aren't part of this save
+     * either: each add/edit/remove below is its own immediate call against the allergies
+     * sub-resource (HISS-623), so "Guardar cambios" only ever covers demographics.
      */
     fun save() {
         val state = _uiState.value
@@ -119,6 +146,9 @@ class EditPatientViewModel(
                     fullName = assembleFullName(state.firstName, state.lastName, state.secondLastName),
                     phone = state.phone,
                     bloodType = state.bloodType,
+                    // [original] was loaded before any immediate allergy change on this screen;
+                    // an implementation that stores the whole Patient would otherwise revert them.
+                    allergies = state.allergies,
                 )
                 patientRepository.updatePatient(original.id, newValues, changedBy, fecha, hora)
                 _uiState.update { it.copy(isSaving = false, saved = true) }
@@ -133,6 +163,107 @@ class EditPatientViewModel(
                 _uiState.update { it.copy(isSaving = false, error = message) }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isSaving = false, error = "No se pudo guardar los cambios") }
+            }
+        }
+    }
+
+    fun onStartAddAllergy() = _uiState.update {
+        it.copy(allergyDraft = AllergyDraft(), confirmingDeleteId = null, allergyError = null)
+    }
+
+    fun onStartEditAllergy(allergy: Allergy) = _uiState.update {
+        it.copy(
+            allergyDraft = AllergyDraft(
+                editingId = allergy.id,
+                allergyType = allergy.allergyType,
+                description = allergy.description,
+                severity = allergy.severity,
+                observations = allergy.observations,
+                originalSeverity = allergy.severity,
+            ),
+            confirmingDeleteId = null,
+            allergyError = null,
+        )
+    }
+
+    fun onAllergyTypeChange(value: AllergyType) = updateDraft { if (it.isNew) it.copy(allergyType = value) else it }
+    fun onAllergyDescriptionChange(value: String) = updateDraft { if (it.isNew) it.copy(description = value) else it }
+    fun onAllergySeverityChange(value: Severity?) = updateDraft { it.copy(severity = value) }
+    fun onAllergyObservationsChange(value: String) = updateDraft { it.copy(observations = value) }
+
+    fun onCancelAllergyDraft() = _uiState.update { it.copy(allergyDraft = null, allergyError = null) }
+
+    /** Saves the open [AllergyDraft] immediately -- independent of [save]. */
+    fun saveAllergyDraft() {
+        val state = _uiState.value
+        val patientId = state.patient?.id ?: return
+        val draft = state.allergyDraft ?: return
+        if (state.isAllergyBusy) return
+        val type = draft.allergyType
+        if (type == null || draft.description.isBlank()) {
+            _uiState.update { it.copy(allergyError = "Indica el tipo y la descripcion de la alergia") }
+            return
+        }
+
+        runAllergyCall(failureMessage = "No se pudo guardar la alergia") {
+            if (draft.isNew) {
+                val added = patientRepository.addAllergy(patientId, type, draft.description, draft.severity, draft.observations)
+                _uiState.update { it.copy(allergies = listOf(added) + it.allergies, allergyDraft = null) }
+            } else {
+                val editingId = draft.editingId ?: return@runAllergyCall
+                val updated = patientRepository.updateAllergy(patientId, editingId, draft.severity, draft.observations)
+                _uiState.update { current ->
+                    current.copy(allergies = current.allergies.map { if (it.id == updated.id) updated else it }, allergyDraft = null)
+                }
+            }
+        }
+    }
+
+    fun onRequestDeleteAllergy(allergy: Allergy) = _uiState.update {
+        it.copy(confirmingDeleteId = allergy.id, allergyDraft = null, allergyError = null)
+    }
+
+    fun onCancelDeleteAllergy() = _uiState.update { it.copy(confirmingDeleteId = null) }
+
+    fun confirmDeleteAllergy() {
+        val state = _uiState.value
+        val patientId = state.patient?.id ?: return
+        val allergyId = state.confirmingDeleteId ?: return
+        if (state.isAllergyBusy) return
+
+        runAllergyCall(failureMessage = "No se pudo quitar la alergia") {
+            patientRepository.deleteAllergy(patientId, allergyId)
+            _uiState.update { current ->
+                current.copy(allergies = current.allergies.filterNot { it.id == allergyId }, confirmingDeleteId = null)
+            }
+        }
+    }
+
+    private fun updateDraft(transform: (AllergyDraft) -> AllergyDraft) = _uiState.update { state ->
+        state.allergyDraft?.let { state.copy(allergyDraft = transform(it)) } ?: state
+    }
+
+    /**
+     * Shared busy/error handling for the allergy calls. On failure the draft (or pending delete)
+     * stays open so nothing typed is lost; a 404 means someone else already removed it.
+     */
+    private fun runAllergyCall(failureMessage: String, call: suspend () -> Unit) {
+        _uiState.update { it.copy(isAllergyBusy = true, allergyError = null) }
+        viewModelScope.launch {
+            try {
+                call()
+                _uiState.update { it.copy(isAllergyBusy = false) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: ApiException) {
+                val message = if (e.error is ApiError.NotFound) {
+                    "Esta alergia ya no existe. Recarga la pagina para ver la lista actual."
+                } else {
+                    failureMessage
+                }
+                _uiState.update { it.copy(isAllergyBusy = false, allergyError = message) }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isAllergyBusy = false, allergyError = failureMessage) }
             }
         }
     }

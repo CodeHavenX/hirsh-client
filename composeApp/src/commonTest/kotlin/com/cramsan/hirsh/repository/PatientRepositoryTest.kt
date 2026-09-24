@@ -1,8 +1,10 @@
 package com.cramsan.hirsh.repository
 
 import app.cash.turbine.test
+import com.cramsan.hirsh.model.AllergyType
 import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.Patient
+import com.cramsan.hirsh.model.Severity
 import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.network.ApiError
 import com.cramsan.hirsh.network.ApiException
@@ -10,9 +12,16 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 private const val PATIENT_ID = "07c98942-3654-4034-b960-f3265814e214"
+
+/** A different seeded patient, with no allergies of its own. */
+private const val OTHER_PATIENT_ID = "a21f8bfa-299c-42db-9681-c84f87a90ce4"
+
+/** [PATIENT_ID]'s seeded Penicilina allergy. */
+private const val PENICILINA_ID = "5b0f6c52-3a8e-4f4e-9d62-1c7a2e8b9f10"
 
 class PatientRepositoryTest {
 
@@ -287,5 +296,73 @@ class PatientRepositoryTest {
         )
 
         assertTrue(first.id != second.id)
+    }
+
+    // --- allergies (HISS-623) ---------------------------------------------------------------
+
+    private fun InMemoryPatientRepository.allergiesOf(patientId: String) =
+        patients.value.single { it.id == patientId }.allergies
+
+    @Test
+    fun `addAllergy prepends the new allergy, trimmed, newest first`() = runTest {
+        val repository = InMemoryPatientRepository()
+
+        val added = repository.addAllergy(PATIENT_ID, AllergyType.FOOD, "  Mariscos ", severity = null, observations = "")
+
+        assertEquals("Mariscos", added.description)
+        assertEquals(listOf(added.id, PENICILINA_ID), repository.allergiesOf(PATIENT_ID).map { it.id })
+    }
+
+    @Test
+    fun `addAllergy for an unknown patient throws NotFound`() = runTest {
+        val repository = InMemoryPatientRepository()
+
+        val error = assertFailsWith<ApiException> {
+            repository.addAllergy("does-not-exist", AllergyType.FOOD, "Mariscos", severity = null, observations = "")
+        }
+        assertIs<ApiError.NotFound>(error.error)
+    }
+
+    @Test
+    fun `updateAllergy revises only severity and observations`() = runTest {
+        val repository = InMemoryPatientRepository()
+
+        repository.updateAllergy(PATIENT_ID, PENICILINA_ID, Severity.MILD, "Revisado")
+
+        val updated = repository.allergiesOf(PATIENT_ID).single()
+        assertEquals(Severity.MILD, updated.severity)
+        assertEquals("Revisado", updated.observations)
+        assertEquals(AllergyType.MEDICATION, updated.allergyType)
+        assertEquals("Penicilina", updated.description)
+    }
+
+    @Test
+    fun `updateAllergy under the wrong patient throws NotFound and leaves the real owner untouched`() = runTest {
+        val repository = InMemoryPatientRepository()
+
+        val error = assertFailsWith<ApiException> {
+            repository.updateAllergy(OTHER_PATIENT_ID, PENICILINA_ID, Severity.MILD, "")
+        }
+        assertIs<ApiError.NotFound>(error.error)
+        assertEquals(Severity.SEVERE, repository.allergiesOf(PATIENT_ID).single().severity)
+    }
+
+    @Test
+    fun `deleteAllergy removes only that allergy`() = runTest {
+        val repository = InMemoryPatientRepository()
+        val added = repository.addAllergy(PATIENT_ID, AllergyType.FOOD, "Mariscos", severity = null, observations = "")
+
+        repository.deleteAllergy(PATIENT_ID, PENICILINA_ID)
+
+        assertEquals(listOf(added.id), repository.allergiesOf(PATIENT_ID).map { it.id })
+    }
+
+    @Test
+    fun `deleteAllergy under the wrong patient throws NotFound and deletes nothing`() = runTest {
+        val repository = InMemoryPatientRepository()
+
+        val error = assertFailsWith<ApiException> { repository.deleteAllergy(OTHER_PATIENT_ID, PENICILINA_ID) }
+        assertIs<ApiError.NotFound>(error.error)
+        assertEquals(listOf(PENICILINA_ID), repository.allergiesOf(PATIENT_ID).map { it.id })
     }
 }
