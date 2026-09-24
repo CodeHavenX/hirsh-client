@@ -2,6 +2,7 @@ package com.cramsan.hirsh.e2e
 
 import com.cramsan.cmpbridge.HierarchyNode
 import com.cramsan.cmpbridge.driver.BridgeDriver
+import com.cramsan.cmpbridge.driver.BridgeTimeoutException
 import com.cramsan.cmpbridge.driver.TagVisibility
 import kotlinx.coroutines.runBlocking
 import kotlin.time.Duration.Companion.milliseconds
@@ -220,11 +221,36 @@ fun BridgeDriver.reopenPatientRecord(patient: RegisteredE2ePatient) {
     clickTag("nav_patients")
     waitForTag("patient_search_field")
     type("patient_search_field", patient.medicalRecordNumber)
-    val patientRowTag = checkNotNull(
-        getHierarchy().tagOfNodeContaining(patient.medicalRecordNumber, "patient_row_"),
-    ) { "expected exactly one patient_row_* tag rendering \"${patient.medicalRecordNumber}\"" }
-    clickTag(patientRowTag)
-    waitForTag("record_edit_button")
+    // Don't resolve the row until the search has actually filtered the list down to just this
+    // patient -- reading the hierarchy the instant after typing can still see the unfiltered list.
+    waitUntil(timeoutMs = 15_000) { tree ->
+        val rows = tree.tagsWithPrefix("patient_row_")
+        rows.size == 1 && tree.tagOfNodeContaining(patient.medicalRecordNumber, "patient_row_") == rows.single()
+    }
+    val patientRowTag = checkNotNull(getHierarchy().tagOfNodeContaining(patient.medicalRecordNumber, "patient_row_"))
+    // A click that lands while the list is still recomposing can be swallowed; retry it rather
+    // than failing on the first miss, and dump what's on screen if it never navigates.
+    repeat(3) { attempt ->
+        if (getHierarchy().containsTag(patientRowTag)) clickTag(patientRowTag)
+        try {
+            waitForTag("record_edit_button", timeoutMs = 5_000)
+            return
+        } catch (e: BridgeTimeoutException) {
+            if (attempt == 2) {
+                throw AssertionError(
+                    "record_edit_button never appeared after clicking $patientRowTag; on screen: " +
+                        getHierarchy().allTexts(),
+                    e,
+                )
+            }
+        }
+    }
+}
+
+/** Every testTag in this tree starting with [prefix], depth-first. */
+fun HierarchyNode.tagsWithPrefix(prefix: String): List<String> = buildList {
+    testTag?.takeIf { it.startsWith(prefix) }?.let(::add)
+    children.forEach { addAll(it.tagsWithPrefix(prefix)) }
 }
 
 /**

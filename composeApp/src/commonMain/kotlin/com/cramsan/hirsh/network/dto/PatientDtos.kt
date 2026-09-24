@@ -26,6 +26,7 @@ data class CreatePatientRequest(
     val birthDate: String,
     val sex: PatientSexDto,
     val bloodType: String? = null,
+    val phone: String? = null,
 )
 
 /**
