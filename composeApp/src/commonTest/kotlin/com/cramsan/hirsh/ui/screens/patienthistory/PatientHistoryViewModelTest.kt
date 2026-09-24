@@ -1,6 +1,9 @@
 package com.cramsan.hirsh.ui.screens.patienthistory
 
 import app.cash.turbine.test
+import com.cramsan.hirsh.model.Severity
+import com.cramsan.hirsh.model.AllergyType
+import com.cramsan.hirsh.model.Allergy
 import com.cramsan.hirsh.model.FieldChange
 import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.Patient
@@ -74,6 +77,19 @@ private class FakePatientRepository(
         bloodType: String,
         allergies: String,
     ): Patient = error("not used by PatientHistoryViewModel")
+
+    override suspend fun addAllergy(
+        patientId: String,
+        allergyType: AllergyType,
+        description: String,
+        severity: Severity?,
+        observations: String,
+    ): Allergy = error("not used by this test")
+
+    override suspend fun updateAllergy(patientId: String, allergyId: String, severity: Severity?, observations: String): Allergy =
+        error("not used by this test")
+
+    override suspend fun deleteAllergy(patientId: String, allergyId: String) = error("not used by this test")
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)

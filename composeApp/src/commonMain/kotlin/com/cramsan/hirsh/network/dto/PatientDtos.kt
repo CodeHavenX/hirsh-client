@@ -53,6 +53,18 @@ data class CreateAllergyRequest(
 )
 
 /**
+ * `PATCH /api/v1/patients/{patientId}/allergies/{allergyId}`'s body -- schema `PatchAllergyRequest`.
+ * Only the grading and notes are revisable; the agent itself ([AllergySummary.allergyType]/
+ * [AllergySummary.description]) is corrected by deleting and re-recording (confirmed against the
+ * backend's `AllergyService.patch`). A null field is left unchanged server-side.
+ */
+@Serializable
+data class PatchAllergyRequest(
+    val severity: AllergySeverityDto? = null,
+    val observations: String? = null,
+)
+
+/**
  * 200/201 body shared by every patient-returning endpoint -- schema `PatientResponse`. [age] is
  * server-computed and intentionally not mapped into [Patient] (which still derives it client-side
  * via [com.cramsan.hirsh.model.calculateAge] -- see `model/Patient.kt`'s doc comment);
@@ -211,7 +223,7 @@ fun AllergySummary.toDomain(): Allergy = Allergy(
     id = id,
     allergyType = allergyType.toDomain(),
     description = description,
-    severity = severity?.toDomain() ?: Severity.MILD,
+    severity = severity?.toDomain(),
     observations = observations.orEmpty(),
 )
 

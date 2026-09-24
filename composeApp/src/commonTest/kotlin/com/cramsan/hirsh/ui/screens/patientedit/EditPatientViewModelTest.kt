@@ -1,10 +1,13 @@
 package com.cramsan.hirsh.ui.screens.patientedit
 
 import app.cash.turbine.test
+import com.cramsan.hirsh.model.Allergy
+import com.cramsan.hirsh.model.AllergyType
 import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.PatientChangeLogEntry
 import com.cramsan.hirsh.model.Session
+import com.cramsan.hirsh.model.Severity
 import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.model.singleAllergyFromText
 import com.cramsan.hirsh.model.summary
@@ -96,6 +99,45 @@ private class FakePatientRepository(patients: List<Patient> = listOf(existingPat
         bloodType: String,
         allergies: String,
     ): Patient = error("not used by EditPatientViewModel")
+
+    /** When set, every allergy call throws this instead of succeeding. */
+    var allergyFailure: ApiException? = null
+    var allergyCalls = 0
+        private set
+    private var nextAllergyId = 1
+
+    override suspend fun addAllergy(
+        patientId: String,
+        allergyType: AllergyType,
+        description: String,
+        severity: Severity?,
+        observations: String,
+    ): Allergy {
+        allergyCalls++
+        allergyFailure?.let { throw it }
+        val allergy = Allergy("allergy-${nextAllergyId++}", allergyType, description, severity, observations)
+        updateAllergies(patientId) { listOf(allergy) + it }
+        return allergy
+    }
+
+    override suspend fun updateAllergy(patientId: String, allergyId: String, severity: Severity?, observations: String): Allergy {
+        allergyCalls++
+        allergyFailure?.let { throw it }
+        val current = _patients.value.first { it.id == patientId }.allergies.first { it.id == allergyId }
+        val updated = current.copy(severity = severity, observations = observations)
+        updateAllergies(patientId) { list -> list.map { if (it.id == allergyId) updated else it } }
+        return updated
+    }
+
+    override suspend fun deleteAllergy(patientId: String, allergyId: String) {
+        allergyCalls++
+        allergyFailure?.let { throw it }
+        updateAllergies(patientId) { list -> list.filterNot { it.id == allergyId } }
+    }
+
+    private fun updateAllergies(patientId: String, transform: (List<Allergy>) -> List<Allergy>) {
+        _patients.update { list -> list.map { if (it.id == patientId) it.copy(allergies = transform(it.allergies)) else it } }
+    }
 }
 
 private data class Quad(val id: String, val newValues: Patient, val changedBy: String, val fecha: String, val hora: String)

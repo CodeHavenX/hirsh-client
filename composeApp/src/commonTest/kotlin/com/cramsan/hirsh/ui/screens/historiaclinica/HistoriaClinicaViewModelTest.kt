@@ -1,6 +1,9 @@
 package com.cramsan.hirsh.ui.screens.historiaclinica
 
 import app.cash.turbine.test
+import com.cramsan.hirsh.model.Severity
+import com.cramsan.hirsh.model.AllergyType
+import com.cramsan.hirsh.model.Allergy
 import com.cramsan.hirsh.model.Diagnostico
 import com.cramsan.hirsh.model.EnfermedadActual
 import com.cramsan.hirsh.model.EstadoHospitalizacion
@@ -111,6 +114,19 @@ private class FakePatientRepository(patients: List<Patient>) : PatientRepository
         bloodType: String,
         allergies: String,
     ): Patient = error("not used by this test")
+
+    override suspend fun addAllergy(
+        patientId: String,
+        allergyType: AllergyType,
+        description: String,
+        severity: Severity?,
+        observations: String,
+    ): Allergy = error("not used by this test")
+
+    override suspend fun updateAllergy(patientId: String, allergyId: String, severity: Severity?, observations: String): Allergy =
+        error("not used by this test")
+
+    override suspend fun deleteAllergy(patientId: String, allergyId: String) = error("not used by this test")
 }
 
 private class FakeHospitalizationRepository(hospitalizations: List<Hospitalizacion> = emptyList()) :
