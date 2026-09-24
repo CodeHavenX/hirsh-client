@@ -25,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -122,6 +123,8 @@ internal fun RegisterPatientScreenContent(
 ) {
     // Once the patient exists (only some allergies failed), nothing on the form can change it anymore.
     val editable = !uiState.isLocked
+    // Unspecified inherits the field's own (disabled) content color, the way RequiredFieldLabel already does.
+    val optionalLabelColor = if (editable) HissInk2 else Color.Unspecified
     Column(
         modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp).testTag("screen_scroll_container"),
         verticalArrangement = Arrangement.spacedBy(18.dp),
@@ -181,7 +184,7 @@ internal fun RegisterPatientScreenContent(
                 OutlinedTextField(
                     value = uiState.secondLastName,
                     onValueChange = onSecondLastNameChange,
-                    label = { Text("Apellido materno", fontSize = 12.sp, color = HissInk2) },
+                    label = { Text("Apellido materno", fontSize = 12.sp, color = optionalLabelColor) },
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
                     shape = fieldShape,
                     enabled = editable,
@@ -229,7 +232,7 @@ internal fun RegisterPatientScreenContent(
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 FormSectionCaption("Datos medicos (opcional)")
                 SelectField(
-                    label = { Text("Grupo sanguineo", fontSize = 12.sp, color = HissInk2) },
+                    label = { Text("Grupo sanguineo", fontSize = 12.sp, color = optionalLabelColor) },
                     options = bloodTypeOptions,
                     selected = uiState.bloodType,
                     onSelect = onBloodTypeChange,
