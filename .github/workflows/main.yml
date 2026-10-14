@@ -3,6 +3,7 @@ name: Main
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 concurrency:
   group: main-${{ github.workflow }}-${{ github.ref }}
