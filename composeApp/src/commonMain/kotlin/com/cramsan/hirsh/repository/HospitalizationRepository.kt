@@ -23,11 +23,29 @@ import com.cramsan.hirsh.model.UserRef
 import com.cramsan.hirsh.model.Vitals
 import com.cramsan.hirsh.network.ApiError
 import com.cramsan.hirsh.network.ApiException
+import com.cramsan.hirsh.network.dto.CreateEpisodeRequest
+import com.cramsan.hirsh.network.dto.EpisodeResponse
+import com.cramsan.hirsh.network.dto.EpisodeSummary
+import com.cramsan.hirsh.network.dto.EpisodeTypeDto
+import com.cramsan.hirsh.network.dto.PageResponse
+import com.cramsan.hirsh.network.dto.toDomain
 import com.cramsan.hirsh.util.Clock
+import io.ktor.client.HttpClient
+import io.ktor.client.call.body
+import io.ktor.client.request.get
+import io.ktor.client.request.parameter
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.http.ContentType
+import io.ktor.http.contentType
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlin.time.Instant
@@ -83,8 +101,8 @@ interface HospitalizationRepository {
 /**
  * In-memory stand-in, seeded from prototype/shared/data.js's HOSPITALIZATIONS, so
  * hospitalization/evolucion/Historia Clinica screens are demonstrable before the
- * backend service (separate repo) exists. Replace with an implementation backed by
- * [io.ktor.client.HttpClient] once that service exposes a hospitalizations endpoint.
+ * backend service (separate repo) exists. Still the bound implementation: its real counterpart,
+ * [KtorHospitalizationRepository], only covers the episode half so far (see its doc comment).
  *
  * A single flat [MutableStateFlow] rather than one per patient or a separate store
  * for evoluciones -- every mutating call updates this same backing state via
@@ -176,6 +194,126 @@ class InMemoryHospitalizationRepository(
     }
 
     private fun nextId(prefix: String): String = prefix + clock.now().toEpochMilliseconds()
+}
+
+/**
+ * Real implementation of the episode half of [HospitalizationRepository], backed by the shared
+ * `HttpClient` (HISS-632). See `network/dto/EpisodeDtos.kt` for the DTOs mapped here.
+ *
+ * Only [getHospitalizations]/[getHospitalization]/[addHospitalization] have a real endpoint yet.
+ * The other four throw [UnsupportedOperationException]: discharge needs the real discharge form
+ * (HISS-633), and Historia Clinica/Evolucion have no API equivalent (HISS-641). Until those land,
+ * `di/AppModule.kt` keeps [InMemoryHospitalizationRepository] bound -- admission also still sends
+ * [PlaceholderCatalog] ids the backend would reject (HISS-634).
+ *
+ * Every read follows [KtorPatientRepository.getPatient]'s shape: fetch once per collection, write
+ * the result into a cache, then keep observing that cache, so [addHospitalization] reaches an
+ * already-open patient record without a re-fetch. Lists only ever hold `INPATIENT` episodes -- the
+ * backend's episode list also returns outpatient/emergency contacts, which aren't hospital stays.
+ */
+class KtorHospitalizationRepository(
+    private val httpClient: HttpClient,
+) : HospitalizationRepository {
+
+    /** Per-patient episode lists, newest first (the real endpoint's `ORDER BY startDate DESC`). */
+    private val _lists = MutableStateFlow<Map<String, List<Hospitalizacion>>>(emptyMap())
+
+    /** Per-episode cache backing [getHospitalization], kept apart from [_lists] like [KtorPatientRepository]'s `_details`. */
+    private val _details = MutableStateFlow<Map<String, Hospitalizacion>>(emptyMap())
+
+    override fun getHospitalizations(patientId: String): Flow<List<Hospitalizacion>> = flow {
+        val fetched = fetchAllPages(patientId)
+        _lists.update { it + (patientId to fetched) }
+        emitAll(_lists.map { it[patientId].orEmpty() }.distinctUntilChanged())
+    }
+
+    private suspend fun fetchAllPages(patientId: String): List<Hospitalizacion> {
+        val firstPage = fetchPage(patientId, 0)
+        val pages = buildList {
+            addAll(firstPage.content)
+            for (page in 1 until firstPage.page.totalPages) {
+                addAll(fetchPage(patientId, page).content)
+            }
+        }
+        return pages.map { it.toDomain() }
+    }
+
+    private suspend fun fetchPage(patientId: String, page: Int): PageResponse<EpisodeSummary> =
+        httpClient.get("/api/v1/patients/$patientId/episodes") {
+            parameter("episodeType", EpisodeTypeDto.INPATIENT)
+            parameter("page", page)
+            parameter("size", PAGE_SIZE)
+        }.body()
+
+    /**
+     * The real endpoint is keyed by episode id alone, so [patientId] is checked here against the
+     * response's patient header -- an episode of a different patient is not-found, never shown.
+     */
+    override fun getHospitalization(patientId: String, hospId: String): Flow<Hospitalizacion?> = flow {
+        val fetched = try {
+            httpClient.get("/api/v1/episodes/$hospId").body<EpisodeResponse>().toDomain()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: ApiException) {
+            if (e.error is ApiError.NotFound) null else throw e
+        }
+        if (fetched == null || fetched.patientId != patientId) {
+            emit(null)
+            return@flow
+        }
+        _details.update { it + (hospId to fetched) }
+        emitAll(_details.map { it[hospId] }.distinctUntilChanged())
+    }
+
+    override fun getEvolucion(hospId: String, evoId: String): Flow<Evolucion?> =
+        throw UnsupportedOperationException("Evoluciones have no backend endpoint yet (HISS-641)")
+
+    /**
+     * Opens an `INPATIENT` episode; the server stamps the start date. A patient who already has an
+     * open one gets [ApiException] wrapping [ApiError.Conflict] (the backend's `409`, carrying the
+     * open episode's id) -- callers check [getHospitalizations] for an [EpisodeStatus.ACTIVE] stay
+     * first rather than relying on it.
+     */
+    override suspend fun addHospitalization(
+        patientId: String,
+        service: ServiceRef,
+        bed: BedRef?,
+        attendingPhysician: UserRef,
+        admissionReason: String?,
+    ): Hospitalizacion {
+        val created = httpClient.post("/api/v1/episodes") {
+            contentType(ContentType.Application.Json)
+            setBody(
+                CreateEpisodeRequest(
+                    patientId = patientId,
+                    episodeType = EpisodeTypeDto.INPATIENT,
+                    attendingPhysicianId = attendingPhysician.id,
+                    serviceId = service.id,
+                    bedId = bed?.id,
+                    admissionReason = admissionReason,
+                ),
+            )
+        }.body<EpisodeResponse>().toDomain()
+        _details.update { it + (created.id to created) }
+        _lists.update { lists ->
+            val list = lists[patientId] ?: return@update lists
+            lists + (patientId to listOf(created) + list)
+        }
+        return created
+    }
+
+    override suspend fun discharge(hospId: String, jpaVersion: Long): Unit =
+        throw UnsupportedOperationException("Discharge needs the real discharge form (HISS-633)")
+
+    override suspend fun saveHistoriaClinicaSection(hospId: String, key: HcSectionKey, data: Any): Unit =
+        throw UnsupportedOperationException("Historia Clinica has no backend endpoint yet (HISS-641)")
+
+    override suspend fun addEvolucion(hospId: String, evolucion: Evolucion): Evolucion =
+        throw UnsupportedOperationException("Evoluciones have no backend endpoint yet (HISS-641)")
+
+    private companion object {
+        const val PAGE_SIZE = 100
+    }
 }
 
 private fun Hospitalizacion.withSection(key: HcSectionKey, data: Any): Hospitalizacion = copy(
