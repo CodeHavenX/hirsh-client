@@ -62,6 +62,11 @@ interface HospitalizationRepository {
      * [Hospitalizacion.startDate] is stamped to now (this repository's [Clock]) -- callers never
      * supply it. Takes references rather than bare ids so the in-memory implementation can show
      * names; the real `CreateEpisodeRequest` only sends their ids (HISS-632).
+     *
+     * A patient may have only one [EpisodeStatus.ACTIVE] stay: admitting a second throws
+     * [com.cramsan.hirsh.network.ApiException] wrapping
+     * [com.cramsan.hirsh.network.ApiError.Conflict] with the open stay's id, as the backend's `409`
+     * does.
      */
     suspend fun addHospitalization(
         patientId: String,
@@ -133,6 +138,9 @@ class InMemoryHospitalizationRepository(
         attendingPhysician: UserRef,
         admissionReason: String?,
     ): Hospitalizacion {
+        _hospitalizations.value.find { it.patientId == patientId && it.status == EpisodeStatus.ACTIVE }?.let {
+            throw ApiException(ApiError.Conflict(it.id))
+        }
         val newHospitalization = Hospitalizacion(
             id = nextId("h_"),
             patientId = patientId,
@@ -269,10 +277,9 @@ class KtorHospitalizationRepository(
         throw UnsupportedOperationException("Evoluciones have no backend endpoint yet (HISS-641)")
 
     /**
-     * Opens an `INPATIENT` episode; the server stamps the start date. A patient who already has an
-     * open one gets [ApiException] wrapping [ApiError.Conflict] (the backend's `409`, carrying the
-     * open episode's id) -- callers check [getHospitalizations] for an [EpisodeStatus.ACTIVE] stay
-     * first rather than relying on it.
+     * Opens an `INPATIENT` episode; the server stamps the start date. The backend also answers
+     * `409` for an occupied bed or one outside [service] -- those carry no conflicting resource id,
+     * unlike the already-open-stay conflict.
      */
     override suspend fun addHospitalization(
         patientId: String,
