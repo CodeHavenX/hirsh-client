@@ -2,6 +2,9 @@ package com.cramsan.hirsh.repository
 
 import app.cash.turbine.test
 import com.cramsan.hirsh.model.DiagnosticoCie10
+import com.cramsan.hirsh.model.DischargeCondition
+import com.cramsan.hirsh.model.DischargeDetails
+import com.cramsan.hirsh.model.DischargeType
 import com.cramsan.hirsh.model.EpisodeStatus
 import com.cramsan.hirsh.model.Evolucion
 import com.cramsan.hirsh.model.EvolucionResultado
@@ -24,6 +27,8 @@ import kotlin.time.Instant
 // than repeating the raw UUIDs) so it's still obvious at a glance which patient each test targets.
 private const val PATIENT_GONZALEZ_ID = "07c98942-3654-4034-b960-f3265814e214"
 private const val PATIENT_SANTIESTEBAN_ID = "a7efc7af-d998-43e8-8abd-d07c1155ef9f"
+private val DISCHARGE = DischargeDetails(DischargeType.MEDICAL, DischargeCondition.IMPROVED, "F32.2")
+
 private const val PATIENT_MENDOZA_ID = "1e0697d0-f3e4-4755-85ad-d888d2b15f9d"
 private const val PATIENT_VASQUEZ_ID = "caaedede-5d72-4a52-bb72-7532d7cdda83"
 
@@ -167,34 +172,44 @@ class HospitalizationRepositoryTest {
     }
 
     @Test
-    fun `discharge sets status to CLOSED and stamps endDate`() = runTest {
+    fun `discharge sets status to CLOSED, stamps endDate and records the details`() = runTest {
         val repository = InMemoryHospitalizationRepository(FakeClock())
 
-        repository.discharge("h_mendoza_1", jpaVersion = 0L)
+        repository.discharge("h_mendoza_1", DISCHARGE, jpaVersion = 0L)
 
         repository.getHospitalization(PATIENT_MENDOZA_ID, "h_mendoza_1").test {
             val hospitalization = awaitItem()
             assertEquals(EpisodeStatus.CLOSED, hospitalization?.status)
             assertEquals(FIXED_NOW, hospitalization?.endDate)
+            assertEquals(DISCHARGE, hospitalization?.discharge)
         }
     }
 
     @Test
-    fun `discharge is a no-op for an unknown hospId`() = runTest {
+    fun `a transfer discharge sets status to TRANSFERRED, as the backend does`() = runTest {
         val repository = InMemoryHospitalizationRepository(FakeClock())
 
-        repository.discharge("does-not-exist", jpaVersion = 0L)
+        repository.discharge("h_mendoza_1", DISCHARGE.copy(type = DischargeType.TRANSFER), jpaVersion = 0L)
 
-        repository.getHospitalizations(PATIENT_MENDOZA_ID).test {
-            assertEquals(EpisodeStatus.ACTIVE, awaitItem().single().status)
+        repository.getHospitalization(PATIENT_MENDOZA_ID, "h_mendoza_1").test {
+            assertEquals(EpisodeStatus.TRANSFERRED, awaitItem()?.status)
         }
+    }
+
+    @Test
+    fun `discharge of an unknown hospId throws NotFound, as the backend does`() = runTest {
+        val repository = InMemoryHospitalizationRepository(FakeClock())
+
+        val error = assertFailsWith<ApiException> { repository.discharge("does-not-exist", DISCHARGE, jpaVersion = 0L) }
+
+        assertEquals(ApiError.NotFound("does-not-exist"), error.error)
     }
 
     @Test
     fun `discharge bumps jpaVersion on success`() = runTest {
         val repository = InMemoryHospitalizationRepository(FakeClock())
 
-        repository.discharge("h_mendoza_1", jpaVersion = 0L)
+        repository.discharge("h_mendoza_1", DISCHARGE, jpaVersion = 0L)
 
         repository.getHospitalization(PATIENT_MENDOZA_ID, "h_mendoza_1").test {
             assertEquals(1L, awaitItem()?.jpaVersion)
@@ -207,7 +222,7 @@ class HospitalizationRepositoryTest {
             val repository = InMemoryHospitalizationRepository(FakeClock())
 
             val exception = assertFailsWith<ApiException> {
-                repository.discharge("h_mendoza_1", jpaVersion = 99L)
+                repository.discharge("h_mendoza_1", DISCHARGE, jpaVersion = 99L)
             }
 
             assertEquals(ApiError.Conflict("h_mendoza_1"), exception.error)

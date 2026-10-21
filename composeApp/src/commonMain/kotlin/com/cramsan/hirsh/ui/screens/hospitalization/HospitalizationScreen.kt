@@ -14,21 +14,16 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -76,6 +71,7 @@ fun HospitalizationScreen(
     onNewEvolucion: () -> Unit,
     onOpenHistoriaClinica: () -> Unit,
     onEvolucionSelected: (evoId: String) -> Unit,
+    onDischarge: () -> Unit,
     viewModel: HospitalizationViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -91,7 +87,7 @@ fun HospitalizationScreen(
         onNewEvolucion = onNewEvolucion,
         onOpenHistoriaClinica = onOpenHistoriaClinica,
         onEvolucionSelected = onEvolucionSelected,
-        onDischarge = viewModel::discharge,
+        onDischarge = onDischarge,
     )
 }
 
@@ -106,8 +102,6 @@ internal fun HospitalizationScreenContent(
     onEvolucionSelected: (evoId: String) -> Unit,
     onDischarge: () -> Unit,
 ) {
-    var showDischargeDialog by remember { mutableStateOf(false) }
-
     val patient = uiState.patient
     val hospitalizacion = uiState.hospitalizacion
 
@@ -121,13 +115,9 @@ internal fun HospitalizationScreenContent(
                 HospitalizationHeader(
                     title = "${hospitalizacion.serviceName} · ${patient.fullName}",
                     canDischarge = hospitalizacion.status == EpisodeStatus.ACTIVE,
-                    isDischarging = uiState.isDischarging,
                     onNewEvolucion = onNewEvolucion,
-                    onRequestDischarge = { showDischargeDialog = true },
+                    onDischarge = onDischarge,
                 )
-                uiState.error?.let { error ->
-                    Text(error, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp))
-                }
                 Column(
                     modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())
                         .testTag("screen_scroll_container"),
@@ -147,42 +137,14 @@ internal fun HospitalizationScreenContent(
             }
         }
     }
-
-    if (showDischargeDialog) {
-        AlertDialog(
-            onDismissRequest = { showDischargeDialog = false },
-            title = { Text("Dar de alta") },
-            text = { Text("¿Dar de alta a este paciente? La hospitalizacion pasara a estado Alta.") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showDischargeDialog = false
-                        onDischarge()
-                    },
-                    modifier = Modifier.testTag("hosp_discharge_confirm_button"),
-                ) {
-                    Text("Dar de alta")
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { showDischargeDialog = false },
-                    modifier = Modifier.testTag("hosp_discharge_cancel_button"),
-                ) {
-                    Text("Cancelar")
-                }
-            },
-        )
-    }
 }
 
 @Composable
 private fun HospitalizationHeader(
     title: String,
     canDischarge: Boolean,
-    isDischarging: Boolean,
     onNewEvolucion: () -> Unit,
-    onRequestDischarge: () -> Unit,
+    onDischarge: () -> Unit,
 ) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
         Text(
@@ -195,8 +157,7 @@ private fun HospitalizationHeader(
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (canDischarge) {
                 OutlinedButton(
-                    onClick = onRequestDischarge,
-                    enabled = !isDischarging,
+                    onClick = onDischarge,
                     shape = ButtonShape,
                     border = BorderStroke(1.5.dp, HissInk),
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
@@ -254,6 +215,13 @@ private fun InfoCard(patient: Patient, hospitalizacion: Hospitalizacion, modifie
             KeyValueRow("Fecha ingreso", formatDateTime(hospitalizacion.startDate))
             KeyValueRow("Fecha alta", hospitalizacion.endDate?.let { formatDateTime(it) } ?: "En curso")
             KeyValueRow("Estado") { EpisodeStatusBadge(hospitalizacion.status) }
+            hospitalizacion.discharge?.let { discharge ->
+                KeyValueRow("Tipo de alta", discharge.type.toDisplayLabel())
+                KeyValueRow("Condicion al alta", discharge.condition.toDisplayLabel())
+                KeyValueRow("Diagnostico de alta (CIE-10)", discharge.diagnosisIcd10)
+                KeyValueRow("Proxima cita", discharge.nextAppointmentDate ?: "—")
+                KeyValueRow("Plan de seguimiento", discharge.followUpPlan ?: "—")
+            }
             Column(modifier = Modifier.fillMaxWidth().dashedTopBorder(HissFaint).padding(top = 8.dp)) {
                 Text(
                     "Motivo de ingreso: ${hospitalizacion.admissionReason ?: "—"}",

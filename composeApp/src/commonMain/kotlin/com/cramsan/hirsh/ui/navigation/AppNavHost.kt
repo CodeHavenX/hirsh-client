@@ -26,6 +26,7 @@ import com.cramsan.hirsh.ui.components.AppScaffold
 import com.cramsan.hirsh.ui.components.NavItem
 import com.cramsan.hirsh.ui.screens.accounts.AccountsScreen
 import com.cramsan.hirsh.ui.screens.admision.AdmisionScreen
+import com.cramsan.hirsh.ui.screens.discharge.DischargeScreen
 import com.cramsan.hirsh.ui.screens.evolucionnew.NuevaEvolucionScreen
 import com.cramsan.hirsh.ui.screens.evolucionview.EvolucionViewScreen
 import com.cramsan.hirsh.ui.screens.historiaclinica.HistoriaClinicaScreen
@@ -250,6 +251,33 @@ fun AppNavHost(
                         onEvolucionSelected = { evoId ->
                             navController.navigate(Routes.evolucionView(patientId, hospId, evoId))
                         },
+                        onDischarge = { navController.navigate(Routes.discharge(patientId, hospId)) },
+                    )
+                }
+            }
+        }
+        composable(
+            route = Routes.DISCHARGE,
+            arguments = listOf(
+                navArgument("patientId") { type = NavType.StringType },
+                navArgument("hospId") { type = NavType.StringType },
+            ),
+        ) { backStackEntry ->
+            val patientId = decodeRouteSegment(backStackEntry.arguments?.read { getString("patientId") }.orEmpty())
+            val hospId = decodeRouteSegment(backStackEntry.arguments?.read { getString("hospId") }.orEmpty())
+            RequireSession(session, navController) {
+                AppScaffold(
+                    items = items,
+                    selectedDestination = Routes.PATIENTS,
+                    onNavigate = { destination -> navigateToSidebarItem(navController, destination) },
+                ) {
+                    // Back to the stay either way: it observes the repository, so it shows the
+                    // discharge without a reload.
+                    DischargeScreen(
+                        patientId = patientId,
+                        hospId = hospId,
+                        onDischarged = { navController.popBackStack() },
+                        onCancel = { navController.popBackStack() },
                     )
                 }
             }

@@ -4,6 +4,9 @@ import app.cash.turbine.test
 import com.cramsan.hirsh.model.Allergy
 import com.cramsan.hirsh.model.AllergyType
 import com.cramsan.hirsh.model.BedRef
+import com.cramsan.hirsh.model.DischargeCondition
+import com.cramsan.hirsh.model.DischargeDetails
+import com.cramsan.hirsh.model.DischargeType
 import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.EpisodeStatus
 import com.cramsan.hirsh.model.Evolucion
@@ -15,8 +18,6 @@ import com.cramsan.hirsh.model.ServiceRef
 import com.cramsan.hirsh.model.Severity
 import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.model.UserRef
-import com.cramsan.hirsh.network.ApiError
-import com.cramsan.hirsh.network.ApiException
 import com.cramsan.hirsh.repository.HospitalizationRepository
 import com.cramsan.hirsh.repository.PatientRepository
 import kotlinx.coroutines.Dispatchers
@@ -65,6 +66,8 @@ private fun sampleHospitalization(id: String, patientId: String) = Hospitalizaci
     evoluciones = emptyList(),
 )
 
+private val discharge = DischargeDetails(DischargeType.MEDICAL, DischargeCondition.IMPROVED, "F32.2")
+
 private class FakePatientRepository(patients: List<Patient>) : PatientRepository {
     private val _patients = MutableStateFlow(patients)
     override val patients: StateFlow<List<Patient>> = _patients.asStateFlow()
@@ -103,9 +106,6 @@ private class FakePatientRepository(patients: List<Patient>) : PatientRepository
 private class FakeHospitalizationRepository(hospitalizations: List<Hospitalizacion> = emptyList()) :
     HospitalizationRepository {
     private val _hospitalizations = MutableStateFlow(hospitalizations)
-    var dischargeCallCount = 0
-        private set
-    var throwOnDischarge: Exception? = null
 
     override fun getHospitalizations(patientId: String): Flow<List<Hospitalizacion>> =
         _hospitalizations.map { list -> list.filter { it.patientId == patientId } }
@@ -124,11 +124,9 @@ private class FakeHospitalizationRepository(hospitalizations: List<Hospitalizaci
         admissionReason: String?,
     ): Hospitalizacion = error("not used by this test")
 
-    override suspend fun discharge(hospId: String, jpaVersion: Long) {
-        dischargeCallCount++
-        throwOnDischarge?.let { throw it }
+    override suspend fun discharge(hospId: String, details: DischargeDetails, jpaVersion: Long) {
         _hospitalizations.update { list ->
-            list.map { if (it.id == hospId) it.copy(status = EpisodeStatus.CLOSED) else it }
+            list.map { if (it.id == hospId) it.copy(status = EpisodeStatus.CLOSED, discharge = details) else it }
         }
     }
 
@@ -206,99 +204,22 @@ class HospitalizationViewModelTest {
     }
 
     @Test
-    fun `discharge sets status to CLOSED and is reflected without calling load again`() = runTest(dispatcher) {
+    fun `a discharge through the repository reaches the open stay without calling load again`() = runTest(dispatcher) {
         val hospitalization = sampleHospitalization("h1", samplePatient.id)
-        val viewModel = HospitalizationViewModel(
-            FakePatientRepository(listOf(samplePatient)),
-            FakeHospitalizationRepository(listOf(hospitalization)),
-        )
+        val hospitalizationRepository = FakeHospitalizationRepository(listOf(hospitalization))
+        val viewModel = HospitalizationViewModel(FakePatientRepository(listOf(samplePatient)), hospitalizationRepository)
 
         viewModel.uiState.test {
             awaitItem()
             viewModel.load(samplePatient.id, hospitalization.id)
             assertEquals(EpisodeStatus.ACTIVE, awaitItem().hospitalizacion?.status)
 
-            viewModel.discharge()
+            hospitalizationRepository.discharge(hospitalization.id, discharge, jpaVersion = 0L)
 
-            // discharge() flips isDischarging, then mutates the repo, then flips isDischarging
-            // back -- several intermediate emissions before the settled ALTA/not-discharging state.
-            var settled = awaitItem()
-            while (settled.isDischarging || settled.hospitalizacion?.status != EpisodeStatus.CLOSED) {
-                settled = awaitItem()
-            }
-            assertEquals(EpisodeStatus.CLOSED, settled.hospitalizacion?.status)
-            assertEquals(false, settled.isDischarging)
+            val discharged = awaitItem().hospitalizacion
+            assertEquals(EpisodeStatus.CLOSED, discharged?.status)
+            assertEquals(discharge, discharged?.discharge)
             cancelAndIgnoreRemainingEvents()
         }
     }
-
-    @Test
-    fun `discharge ignores a second call while already discharging`() = runTest(dispatcher) {
-        val hospitalization = sampleHospitalization("h1", samplePatient.id)
-        val hospitalizationRepository = FakeHospitalizationRepository(listOf(hospitalization))
-        val viewModel = HospitalizationViewModel(FakePatientRepository(listOf(samplePatient)), hospitalizationRepository)
-        viewModel.load(samplePatient.id, hospitalization.id)
-        dispatcher.scheduler.advanceUntilIdle()
-
-        viewModel.discharge()
-        viewModel.discharge()
-        dispatcher.scheduler.advanceUntilIdle()
-
-        assertEquals(1, hospitalizationRepository.dischargeCallCount)
-        assertEquals(false, viewModel.uiState.value.isDischarging)
-    }
-
-    @Test
-    fun `discharge against a stale jpaVersion surfaces a distinct conflict message`() = runTest(dispatcher) {
-        val hospitalization = sampleHospitalization("h1", samplePatient.id)
-        val hospitalizationRepository = FakeHospitalizationRepository(listOf(hospitalization)).apply {
-            throwOnDischarge = ApiException(ApiError.Conflict(hospitalization.id))
-        }
-        val viewModel = HospitalizationViewModel(FakePatientRepository(listOf(samplePatient)), hospitalizationRepository)
-
-        viewModel.uiState.test {
-            awaitItem()
-            viewModel.load(samplePatient.id, hospitalization.id)
-            awaitItem()
-
-            viewModel.discharge()
-
-            var settled = awaitItem()
-            while (settled.isDischarging) {
-                settled = awaitItem()
-            }
-            assertEquals(EpisodeStatus.ACTIVE, settled.hospitalizacion?.status)
-            assertEquals(
-                "Esta hospitalizacion fue modificada por otro usuario. Recarga la pagina para ver los cambios recientes.",
-                settled.error,
-            )
-            cancelAndIgnoreRemainingEvents()
-        }
-    }
-
-    @Test
-    fun `discharge against a generic failure surfaces a generic message, not the conflict one`() =
-        runTest(dispatcher) {
-            val hospitalization = sampleHospitalization("h1", samplePatient.id)
-            val hospitalizationRepository = FakeHospitalizationRepository(listOf(hospitalization)).apply {
-                throwOnDischarge = IllegalStateException("boom")
-            }
-            val viewModel =
-                HospitalizationViewModel(FakePatientRepository(listOf(samplePatient)), hospitalizationRepository)
-
-            viewModel.uiState.test {
-                awaitItem()
-                viewModel.load(samplePatient.id, hospitalization.id)
-                awaitItem()
-
-                viewModel.discharge()
-
-                var settled = awaitItem()
-                while (settled.isDischarging) {
-                    settled = awaitItem()
-                }
-                assertEquals("No se pudo dar de alta al paciente", settled.error)
-                cancelAndIgnoreRemainingEvents()
-            }
-        }
 }
