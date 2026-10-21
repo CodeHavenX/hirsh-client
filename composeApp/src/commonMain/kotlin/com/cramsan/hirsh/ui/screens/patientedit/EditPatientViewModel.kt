@@ -11,11 +11,7 @@ import com.cramsan.hirsh.repository.assembleFullName
 import com.cramsan.hirsh.network.ApiError
 import com.cramsan.hirsh.network.ApiException
 import com.cramsan.hirsh.repository.PatientRepository
-import com.cramsan.hirsh.repository.SessionRepository
 import com.cramsan.hirsh.ui.components.AllergyDraft
-import com.cramsan.hirsh.util.Clock
-import com.cramsan.hirsh.util.formatDate
-import com.cramsan.hirsh.util.formatTime
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -23,8 +19,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 
 data class EditPatientUiState(
     val isLoading: Boolean = true,
@@ -56,8 +50,6 @@ data class EditPatientUiState(
  */
 class EditPatientViewModel(
     private val patientRepository: PatientRepository,
-    private val sessionRepository: SessionRepository,
-    private val clock: Clock,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(EditPatientUiState())
@@ -115,8 +107,6 @@ class EditPatientViewModel(
             return
         }
 
-        val changedBy = sessionRepository.session.value?.username.orEmpty()
-        val (fecha, hora) = nowFechaHora()
         _uiState.update { it.copy(isSaving = true, error = null) }
         viewModelScope.launch {
             try {
@@ -131,7 +121,7 @@ class EditPatientViewModel(
                     // an implementation that stores the whole Patient would otherwise revert them.
                     allergies = state.allergies,
                 )
-                patientRepository.updatePatient(original.id, newValues, changedBy, fecha, hora)
+                patientRepository.updatePatient(original.id, newValues)
                 _uiState.update { it.copy(isSaving = false, saved = true) }
             } catch (e: CancellationException) {
                 throw e
@@ -247,10 +237,5 @@ class EditPatientViewModel(
                 _uiState.update { it.copy(isAllergyBusy = false, allergyError = failureMessage) }
             }
         }
-    }
-
-    private fun nowFechaHora(): Pair<String, String> {
-        val now = clock.now().toLocalDateTime(TimeZone.currentSystemDefault())
-        return formatDate(now.date) to formatTime(now.time)
     }
 }

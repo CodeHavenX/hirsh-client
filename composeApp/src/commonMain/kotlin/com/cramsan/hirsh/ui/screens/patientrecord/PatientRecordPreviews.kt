@@ -5,13 +5,11 @@ import com.cramsan.hirsh.model.Allergy
 import com.cramsan.hirsh.model.AllergyType
 import com.cramsan.hirsh.model.Diagnostico
 import com.cramsan.hirsh.model.EstadoHospitalizacion
-import com.cramsan.hirsh.model.FieldChange
 import com.cramsan.hirsh.model.HcSection
 import com.cramsan.hirsh.model.HistoriaClinica
 import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.Patient
-import com.cramsan.hirsh.model.PatientChangeLogEntry
 import com.cramsan.hirsh.model.Plan
 import com.cramsan.hirsh.model.Severity
 import com.cramsan.hirsh.model.Sex
@@ -45,17 +43,6 @@ private val previewPatients = listOf(
         bloodType = "O-",
         allergies = emptyList(),
         sex = Sex.FEMALE,
-    ),
-)
-
-private val previewChangeLog = mapOf(
-    "07c98942-3654-4034-b960-f3265814e214" to listOf(
-        PatientChangeLogEntry(
-            changedBy = "apatel",
-            fecha = "05 May 2026",
-            hora = "11:20",
-            fields = listOf(FieldChange("allergies", "Alergias conocidas", "Ninguna", "Penicilina")),
-        ),
     ),
 )
 
@@ -102,7 +89,6 @@ private fun PatientRecordScreenPreview() {
                     previewHospitalization("h_gonzalez_2", "02 Feb 2026"),
                     previewHospitalization("h_gonzalez_3", "15 Nov 2025"),
                 ),
-                lastChange = previewChangeLog["07c98942-3654-4034-b960-f3265814e214"]?.firstOrNull(),
             ),
             patientId = "07c98942-3654-4034-b960-f3265814e214",
             onEditProfile = {},
@@ -123,7 +109,6 @@ private fun PatientRecordScreenEmptyHospitalizationsPreview() {
                 isLoading = false,
                 patient = previewPatients.first { it.id == "a7efc7af-d998-43e8-8abd-d07c1155ef9f" },
                 hospitalizations = emptyList(),
-                lastChange = previewChangeLog["a7efc7af-d998-43e8-8abd-d07c1155ef9f"]?.firstOrNull(),
             ),
             patientId = "a7efc7af-d998-43e8-8abd-d07c1155ef9f",
             onEditProfile = {},

@@ -146,12 +146,30 @@ abstract class HissE2EScenarios {
     }
 
     @Test
-    fun test08_patientRecord_viewHistory_navigatesAndBack() {
+    fun test08_patientRecord_viewAccessLog_showsRealTrailAndBack() {
+        // HISS-624: the history screen reads the backend's own access trail. Opening the record
+        // (a GET) and editing it (a PATCH) should each leave an entry the audit filter wrote --
+        // asserting both checks the client's action mapping against what the server really logs.
         driver.loginAsAdmin()
         val patient = driver.registerE2eTestPatient()
+        driver.clickTag("record_edit_button")
+        driver.waitForTag("edit_phone_field")
+        driver.type("edit_phone_field", "555-7777")
+        driver.clickTag("edit_save_button")
+        driver.waitForTag("record_edit_button")
+        // Same exit-transition gap as test12: wait for the edit form to leave before clicking on.
+        driver.waitUntil { !it.containsTag("edit_phone_field") }
+
         driver.clickTag("record_history_link")
         driver.waitForTag("history_back_button")
-        assertTrue(driver.getHierarchy().containsText(patient.fullName), "history screen must be scoped to the patient it was opened from")
+        driver.waitUntil { it.containsTag("history_empty") || it.tagsWithPrefix("history_row_").isNotEmpty() || it.containsTag("history_error") }
+        val hierarchy = driver.getHierarchy()
+        assertTrue(hierarchy.containsText(patient.fullName), "the access log must be scoped to the patient it was opened from")
+        assertFalse(hierarchy.containsTag("history_forbidden"), "an admin holds AUDIT_READ and must see the trail")
+        assertFalse(hierarchy.containsTag("history_error"), "the real access-log request must succeed")
+        assertTrue(hierarchy.containsText("Consulta del registro"), "opening the record must show up as a RECORD_READ entry")
+        assertTrue(hierarchy.containsText("Modificacion de datos"), "saving the edit must show up as a PATIENT_MODIFIED entry")
+
         driver.clickTag("history_back_button")
         driver.waitForTag("record_edit_button")
     }

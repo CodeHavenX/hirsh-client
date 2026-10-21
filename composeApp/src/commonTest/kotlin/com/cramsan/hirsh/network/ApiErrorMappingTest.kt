@@ -69,6 +69,19 @@ class ApiErrorMappingTest {
     }
 
     @Test
+    fun forbiddenMapsToForbiddenAndDoesNotInvokeOnUnauthorized() = runTest {
+        // A 403 is a missing permission on a live session, not an expired one -- it must not log
+        // the user out the way a 401 does.
+        var onUnauthorizedCalls = 0
+        val client = buildClient(HttpStatusCode.Forbidden, "{}", onUnauthorized = { onUnauthorizedCalls++ })
+
+        val exception = assertFailsWith<ApiException> { client.get("http://localhost/x") }
+
+        assertEquals(ApiError.Forbidden, exception.error)
+        assertEquals(0, onUnauthorizedCalls)
+    }
+
+    @Test
     fun conflictMapsToConflictWithResourceIdAndDoesNotInvokeOnUnauthorized() = runTest {
         var onUnauthorizedCalls = 0
         val client = buildClient(

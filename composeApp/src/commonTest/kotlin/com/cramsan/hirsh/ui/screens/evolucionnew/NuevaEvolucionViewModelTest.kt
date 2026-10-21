@@ -11,7 +11,6 @@ import com.cramsan.hirsh.model.HcSectionKey
 import com.cramsan.hirsh.model.HistoriaClinica
 import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.Patient
-import com.cramsan.hirsh.model.PatientChangeLogEntry
 import com.cramsan.hirsh.model.Pronostico
 import com.cramsan.hirsh.model.Session
 import com.cramsan.hirsh.model.Severity
@@ -77,15 +76,8 @@ private class FakePatientRepository(patients: List<Patient>) : PatientRepository
     override val patients: StateFlow<List<Patient>> = _patients.asStateFlow()
     override suspend fun refresh() = Unit
     override fun getPatient(id: String): Flow<Patient?> = patients.map { list -> list.find { it.id == id } }
-    override fun getChangeLog(patientId: String): Flow<List<PatientChangeLogEntry>> = MutableStateFlow(emptyList())
 
-    override suspend fun updatePatient(
-        id: String,
-        newValues: Patient,
-        changedBy: String,
-        fecha: String,
-        hora: String,
-    ) = Unit
+    override suspend fun updatePatient(id: String, newValues: Patient) = Unit
 
     override suspend fun addPatient(
         medicalRecordNumber: String,

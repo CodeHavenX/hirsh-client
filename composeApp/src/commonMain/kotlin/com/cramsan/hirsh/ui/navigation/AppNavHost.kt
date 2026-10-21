@@ -110,7 +110,13 @@ fun AppNavHost(
                         onHospitalizationSelected = { hospId ->
                             navController.navigate(Routes.hospitalization(patientId, hospId))
                         },
-                        onViewHistory = { navController.navigate(Routes.patientHistory(patientId)) },
+                        // The access trail requires AUDIT_READ (admins/auditors only); everyone else
+                        // gets no link rather than one that leads to a 403.
+                        onViewHistory = if (session?.can(Permission.AUDIT_READ) == true) {
+                            { navController.navigate(Routes.patientHistory(patientId)) }
+                        } else {
+                            null
+                        },
                     )
                 }
             }
@@ -178,15 +184,23 @@ fun AppNavHost(
         ) { backStackEntry ->
             val patientId = decodeRouteSegment(backStackEntry.arguments?.read { getString("patientId") }.orEmpty())
             RequireSession(session, navController) {
-                AppScaffold(
-                    items = items,
-                    selectedDestination = Routes.PATIENTS,
-                    onNavigate = { destination -> navigateToSidebarItem(navController, destination) },
-                ) {
-                    PatientHistoryScreen(
-                        patientId = patientId,
-                        onBack = { navController.popBackStack() },
-                    )
+                if (session?.can(Permission.AUDIT_READ) != true) {
+                    LaunchedEffect(Unit) {
+                        navController.navigate(Routes.PATIENTS) {
+                            popUpTo(0)
+                        }
+                    }
+                } else {
+                    AppScaffold(
+                        items = items,
+                        selectedDestination = Routes.PATIENTS,
+                        onNavigate = { destination -> navigateToSidebarItem(navController, destination) },
+                    ) {
+                        PatientHistoryScreen(
+                            patientId = patientId,
+                            onBack = { navController.popBackStack() },
+                        )
+                    }
                 }
             }
         }

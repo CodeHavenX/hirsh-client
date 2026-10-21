@@ -6,6 +6,9 @@ sealed interface ApiError {
     data class Conflict(val resourceId: String) : ApiError
     data class NotFound(val resourceId: String? = null) : ApiError
     data object Unauthorized : ApiError
+
+    /** Authenticated, but the session lacks the permission the endpoint requires (403). */
+    data object Forbidden : ApiError
     data class Unknown(val message: String?) : ApiError
 }
 

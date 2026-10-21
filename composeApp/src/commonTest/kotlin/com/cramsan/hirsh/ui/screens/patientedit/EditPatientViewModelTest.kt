@@ -5,15 +5,11 @@ import com.cramsan.hirsh.model.Allergy
 import com.cramsan.hirsh.model.AllergyType
 import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.Patient
-import com.cramsan.hirsh.model.PatientChangeLogEntry
-import com.cramsan.hirsh.model.Session
 import com.cramsan.hirsh.model.Severity
 import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.network.ApiError
 import com.cramsan.hirsh.network.ApiException
 import com.cramsan.hirsh.repository.PatientRepository
-import com.cramsan.hirsh.repository.SessionRepository
-import com.cramsan.hirsh.util.Clock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -26,16 +22,12 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
-import kotlinx.datetime.LocalDateTime
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toInstant
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
-import kotlin.time.Instant
 
 private val existingPatient = Patient(
     id = "07c98942-3654-4034-b960-f3265814e214",
@@ -58,10 +50,8 @@ private class FakePatientRepository(patients: List<Patient> = listOf(existingPat
     override val patients: StateFlow<List<Patient>> = _patients.asStateFlow()
     override suspend fun refresh() = Unit
     override fun getPatient(id: String): Flow<Patient?> = patients.map { list -> list.find { it.id == id } }
-    override fun getChangeLog(patientId: String): Flow<List<PatientChangeLogEntry>> =
-        MutableStateFlow(emptyList<PatientChangeLogEntry>())
 
-    var lastUpdate: Quad? = null
+    var lastUpdate: Pair<String, Patient>? = null
         private set
 
     /** Simulates a concurrent edit landing between this test's `load()` and `save()`. */
@@ -69,18 +59,12 @@ private class FakePatientRepository(patients: List<Patient> = listOf(existingPat
         _patients.update { list -> list.map { if (it.id == id) it.copy(jpaVersion = it.jpaVersion + 1) else it } }
     }
 
-    override suspend fun updatePatient(
-        id: String,
-        newValues: Patient,
-        changedBy: String,
-        fecha: String,
-        hora: String,
-    ) {
+    override suspend fun updatePatient(id: String, newValues: Patient) {
         val current = _patients.value.find { it.id == id }
         if (current != null && current.jpaVersion != newValues.jpaVersion) {
             throw ApiException(ApiError.Conflict(id))
         }
-        lastUpdate = Quad(id, newValues, changedBy, fecha, hora)
+        lastUpdate = id to newValues
         _patients.update { list -> list.map { if (it.id == id) newValues else it } }
     }
 
@@ -137,25 +121,6 @@ private class FakePatientRepository(patients: List<Patient> = listOf(existingPat
     }
 }
 
-private data class Quad(val id: String, val newValues: Patient, val changedBy: String, val fecha: String, val hora: String)
-
-private class FakeSessionRepository(username: String? = "apatel") : SessionRepository {
-    override val session: StateFlow<Session?> =
-        MutableStateFlow(username?.let { Session(username = it, displayName = it, roles = listOf("PSYCHIATRIST")) })
-    override val isRestoring: StateFlow<Boolean> = MutableStateFlow(false).asStateFlow()
-
-    override suspend fun login(username: String, password: String): Result<Session> = error("not used")
-    override suspend fun restore() = Unit
-    override suspend fun logout() = Unit
-    override fun forceLogout() = Unit
-}
-
-private val FIXED_NOW: Instant = LocalDateTime(2027, 1, 15, 10, 30).toInstant(TimeZone.currentSystemDefault())
-
-private class FakeClock(private val instant: Instant = FIXED_NOW) : Clock {
-    override fun now(): Instant = instant
-}
-
 @OptIn(ExperimentalCoroutinesApi::class)
 class EditPatientViewModelTest {
 
@@ -173,7 +138,7 @@ class EditPatientViewModelTest {
 
     @Test
     fun `load pre-fills all form fields from the existing patient`() = runTest(dispatcher) {
-        val viewModel = EditPatientViewModel(FakePatientRepository(), FakeSessionRepository(), FakeClock())
+        val viewModel = EditPatientViewModel(FakePatientRepository())
 
         viewModel.uiState.test {
             assertEquals(EditPatientUiState(), awaitItem())
@@ -196,7 +161,7 @@ class EditPatientViewModelTest {
 
     @Test
     fun `load for an unknown patient id leaves patient null and sets an error`() = runTest(dispatcher) {
-        val viewModel = EditPatientViewModel(FakePatientRepository(emptyList()), FakeSessionRepository(), FakeClock())
+        val viewModel = EditPatientViewModel(FakePatientRepository(emptyList()))
 
         viewModel.uiState.test {
             awaitItem()
@@ -212,7 +177,7 @@ class EditPatientViewModelTest {
     @Test
     fun `save blocks with a validation error when a required field is blank`() = runTest(dispatcher) {
         val repository = FakePatientRepository()
-        val viewModel = EditPatientViewModel(repository, FakeSessionRepository(), FakeClock())
+        val viewModel = EditPatientViewModel(repository)
 
         viewModel.uiState.test {
             awaitItem()
@@ -230,9 +195,9 @@ class EditPatientViewModelTest {
     }
 
     @Test
-    fun `save writes through updatePatient with the session username and clock timestamp`() = runTest(dispatcher) {
+    fun `save writes the edited fields through updatePatient`() = runTest(dispatcher) {
         val repository = FakePatientRepository()
-        val viewModel = EditPatientViewModel(repository, FakeSessionRepository("apatel"), FakeClock())
+        val viewModel = EditPatientViewModel(repository)
 
         viewModel.uiState.test {
             awaitItem()
@@ -248,18 +213,15 @@ class EditPatientViewModelTest {
         }
 
         val update = repository.lastUpdate
-        assertEquals("07c98942-3654-4034-b960-f3265814e214", update?.id)
-        assertEquals("999-999-999", update?.newValues?.phone)
-        assertEquals("apatel", update?.changedBy)
-        assertEquals("15 Jan 2027", update?.fecha)
-        assertEquals("10:30", update?.hora)
+        assertEquals("07c98942-3654-4034-b960-f3265814e214", update?.first)
+        assertEquals("999-999-999", update?.second?.phone)
     }
 
     @Test
     fun `save preserves id and never carries allergy changes -- those are saved separately, immediately`() =
         runTest(dispatcher) {
             val repository = FakePatientRepository()
-            val viewModel = EditPatientViewModel(repository, FakeSessionRepository(), FakeClock())
+            val viewModel = EditPatientViewModel(repository)
 
             viewModel.uiState.test {
                 awaitItem()
@@ -274,15 +236,15 @@ class EditPatientViewModelTest {
             }
 
             val update = repository.lastUpdate
-            assertEquals(existingPatient.id, update?.newValues?.id)
-            assertEquals(existingPatient.allergies, update?.newValues?.allergies)
+            assertEquals(existingPatient.id, update?.second?.id)
+            assertEquals(existingPatient.allergies, update?.second?.allergies)
         }
 
     @Test
     fun `save against a stale jpaVersion surfaces a distinct conflict message, not the generic one`() =
         runTest(dispatcher) {
             val repository = FakePatientRepository(listOf(existingPatient))
-            val viewModel = EditPatientViewModel(repository, FakeSessionRepository(), FakeClock())
+            val viewModel = EditPatientViewModel(repository)
 
             viewModel.uiState.test {
                 awaitItem()
@@ -311,7 +273,7 @@ class EditPatientViewModelTest {
     @Test
     fun `save ignores a second call while one is already in flight`() = runTest(dispatcher) {
         val repository = FakePatientRepository()
-        val viewModel = EditPatientViewModel(repository, FakeSessionRepository(), FakeClock())
+        val viewModel = EditPatientViewModel(repository)
 
         viewModel.load(existingPatient.id)
         dispatcher.scheduler.advanceUntilIdle()
@@ -327,7 +289,7 @@ class EditPatientViewModelTest {
 
     /** Loads [existingPatient] and settles, so each allergy test starts from a populated form. */
     private fun loadedViewModel(repository: FakePatientRepository = FakePatientRepository()): EditPatientViewModel {
-        val viewModel = EditPatientViewModel(repository, FakeSessionRepository(), FakeClock())
+        val viewModel = EditPatientViewModel(repository)
         viewModel.load(existingPatient.id)
         dispatcher.scheduler.advanceUntilIdle()
         return viewModel
@@ -368,7 +330,7 @@ class EditPatientViewModelTest {
         viewModel.save()
         dispatcher.scheduler.advanceUntilIdle()
 
-        assertEquals(listOf("Mariscos", "Penicilina"), repository.lastUpdate?.newValues?.allergies?.map { it.description })
+        assertEquals(listOf("Mariscos", "Penicilina"), repository.lastUpdate?.second?.allergies?.map { it.description })
         assertEquals(
             listOf("Mariscos", "Penicilina"),
             repository.patients.value.single { it.id == existingPatient.id }.allergies.map { it.description },

@@ -6,12 +6,10 @@ import com.cramsan.hirsh.model.AllergyType
 import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.EstadoHospitalizacion
 import com.cramsan.hirsh.model.Evolucion
-import com.cramsan.hirsh.model.FieldChange
 import com.cramsan.hirsh.model.HcSectionKey
 import com.cramsan.hirsh.model.HistoriaClinica
 import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.Patient
-import com.cramsan.hirsh.model.PatientChangeLogEntry
 import com.cramsan.hirsh.model.Severity
 import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.repository.HospitalizationRepository
@@ -21,7 +19,6 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -64,22 +61,13 @@ private fun sampleHospitalization(id: String, patientId: String) = Hospitalizaci
     evoluciones = emptyList(),
 )
 
-private class FakePatientRepository(patients: List<Patient>, changeLog: List<PatientChangeLogEntry> = emptyList()) :
-    PatientRepository {
+private class FakePatientRepository(patients: List<Patient>) : PatientRepository {
     private val _patients = MutableStateFlow(patients)
-    private val _changeLog = MutableStateFlow(changeLog)
     override val patients: StateFlow<List<Patient>> = _patients.asStateFlow()
     override suspend fun refresh() = Unit
     override fun getPatient(id: String): Flow<Patient?> = patients.map { list -> list.find { it.id == id } }
-    override fun getChangeLog(patientId: String): Flow<List<PatientChangeLogEntry>> = _changeLog.asStateFlow()
 
-    override suspend fun updatePatient(
-        id: String,
-        newValues: Patient,
-        changedBy: String,
-        fecha: String,
-        hora: String,
-    ) {
+    override suspend fun updatePatient(id: String, newValues: Patient) {
         _patients.update { list -> list.map { if (it.id == id) newValues else it } }
     }
 
@@ -234,42 +222,6 @@ class PatientRecordViewModelTest {
             awaitItem()
             viewModel.load(samplePatient.id)
             assertEquals(emptyList(), awaitItem().hospitalizations)
-            cancelAndIgnoreRemainingEvents()
-        }
-    }
-
-    @Test
-    fun `load populates lastChange from the newest change log entry`() = runTest(dispatcher) {
-        val entry = PatientChangeLogEntry(
-            changedBy = "apatel",
-            fecha = "05 May 2026",
-            hora = "11:20",
-            fields = listOf(FieldChange(field = "phone", label = "Telefono", oldValue = "1", newValue = "2")),
-        )
-        val viewModel = PatientRecordViewModel(
-            FakePatientRepository(listOf(samplePatient), changeLog = listOf(entry)),
-            FakeHospitalizationRepository(),
-        )
-
-        viewModel.uiState.test {
-            awaitItem()
-            viewModel.load(samplePatient.id)
-            assertEquals(entry, awaitItem().lastChange)
-            cancelAndIgnoreRemainingEvents()
-        }
-    }
-
-    @Test
-    fun `load leaves lastChange null when the change log is empty`() = runTest(dispatcher) {
-        val viewModel = PatientRecordViewModel(
-            FakePatientRepository(listOf(samplePatient)),
-            FakeHospitalizationRepository(),
-        )
-
-        viewModel.uiState.test {
-            awaitItem()
-            viewModel.load(samplePatient.id)
-            assertNull(awaitItem().lastChange)
             cancelAndIgnoreRemainingEvents()
         }
     }

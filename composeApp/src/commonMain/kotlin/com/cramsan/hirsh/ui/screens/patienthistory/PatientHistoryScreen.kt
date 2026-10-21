@@ -23,6 +23,10 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cramsan.hirsh.model.AccessLogEntry
+import com.cramsan.hirsh.model.shortUserId
+import com.cramsan.hirsh.model.toDisplayLabel
+import com.cramsan.hirsh.repository.ACCESS_LOG_PAGE_SIZE
 import com.cramsan.hirsh.ui.components.DataTable
 import com.cramsan.hirsh.ui.components.DataTableColumn
 import com.cramsan.hirsh.ui.theme.HissInk
@@ -78,7 +82,7 @@ internal fun PatientHistoryScreenContent(
                             color = HissInk2,
                         )
                         Text(
-                            "Historial de cambios · ${patient.fullName}",
+                            "Registro de accesos · ${patient.fullName}",
                             style = MaterialTheme.typography.headlineSmall.copy(fontSize = 20.sp, fontWeight = FontWeight.Bold),
                         )
                     }
@@ -93,34 +97,57 @@ internal fun PatientHistoryScreenContent(
                     }
                 }
 
-                Text("Cambios registrados", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text("Accesos registrados", fontSize = 16.sp, fontWeight = FontWeight.Bold)
 
-                if (uiState.rows.isEmpty()) {
-                    Text(
-                        "Sin cambios registrados.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = HissInk2,
+                when {
+                    uiState.error == AccessLogError.FORBIDDEN -> HistoryMessage(
+                        "No tienes permiso para ver el registro de accesos.",
+                        "history_forbidden",
                     )
-                } else {
-                    DataTable(columns = historyColumns(), rows = uiState.rows)
+                    uiState.error == AccessLogError.FAILED -> HistoryMessage(
+                        "No se pudo cargar el registro de accesos.",
+                        "history_error",
+                    )
+                    uiState.entries.isEmpty() -> HistoryMessage("Sin accesos registrados.", "history_empty")
+                    else -> {
+                        if (uiState.isTruncated) {
+                            Text(
+                                "Mostrando los $ACCESS_LOG_PAGE_SIZE accesos mas recientes de ${uiState.totalEntries}.",
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 11.sp,
+                                color = HissInk2,
+                                modifier = Modifier.testTag("history_truncated_note"),
+                            )
+                        }
+                        DataTable(
+                            columns = historyColumns(),
+                            rows = uiState.entries,
+                            rowTestTag = { entry -> "history_row_${entry.id}" },
+                        )
+                    }
                 }
             }
         }
     }
 }
 
-private fun historyColumns(): List<DataTableColumn<ChangeHistoryRow>> = listOf(
-    DataTableColumn(label = "Fecha / Hora", weight = 1.3f) { row ->
-        Text("${row.fecha} · ${row.hora}", fontFamily = FontFamily.Monospace, fontSize = 11.sp, color = HissInk2)
+@Composable
+private fun HistoryMessage(text: String, tag: String) {
+    Text(text, style = MaterialTheme.typography.bodyMedium, color = HissInk2, modifier = Modifier.testTag(tag))
+}
+
+// "Usuario" shows a shortened account id: names need USER_MANAGE and a real account repository.
+private fun historyColumns(): List<DataTableColumn<AccessLogEntry>> = listOf(
+    DataTableColumn(label = "Fecha / Hora", weight = 1.3f) { entry ->
+        Text(entry.occurredAt, fontFamily = FontFamily.Monospace, fontSize = 11.sp, color = HissInk2)
     },
-    DataTableColumn(label = "Usuario", weight = 0.8f) { row -> Text(row.changedBy, fontSize = CellFontSize) },
-    DataTableColumn(label = "Campo", weight = 1f) { row ->
-        Text(row.label, fontSize = CellFontSize, fontWeight = FontWeight.SemiBold)
+    DataTableColumn(label = "Usuario", weight = 0.8f) { entry ->
+        Text(entry.shortUserId(), fontFamily = FontFamily.Monospace, fontSize = CellFontSize)
     },
-    DataTableColumn(label = "Valor anterior", weight = 1f) { row ->
-        Text(row.oldValue.ifBlank { "—" }, fontSize = CellFontSize)
+    DataTableColumn(label = "Accion", weight = 1.4f) { entry ->
+        Text(entry.action.toDisplayLabel(), fontSize = CellFontSize, fontWeight = FontWeight.SemiBold)
     },
-    DataTableColumn(label = "Valor nuevo", weight = 1f) { row ->
-        Text(row.newValue.ifBlank { "—" }, fontSize = CellFontSize)
+    DataTableColumn(label = "IP", weight = 1f) { entry ->
+        Text(entry.sourceIp ?: "—", fontFamily = FontFamily.Monospace, fontSize = 11.sp, color = HissInk2)
     },
 )

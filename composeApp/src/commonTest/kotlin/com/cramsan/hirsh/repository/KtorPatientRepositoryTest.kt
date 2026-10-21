@@ -227,9 +227,6 @@ class KtorPatientRepositoryTest {
         repository.updatePatient(
             id = original.id,
             newValues = original.copy(phone = "999-999-999"),
-            changedBy = "unused",
-            fecha = "unused",
-            hora = "unused",
         )
 
         val patchRequest = recorded.single { it.method == HttpMethod.Patch }
@@ -255,9 +252,6 @@ class KtorPatientRepositoryTest {
         repository.updatePatient(
             id = "8f14e45f-9c4b-4d1e-8a2f-6b3c5d7e9a10",
             newValues = repository.patients.value.single().copy(phone = "999-999-999"),
-            changedBy = "unused",
-            fecha = "unused",
-            hora = "unused",
         )
 
         assertEquals("999-999-999", repository.patients.value.single().phone)
@@ -279,9 +273,6 @@ class KtorPatientRepositoryTest {
             repository.updatePatient(
                 id = original.id,
                 newValues = original.copy(phone = "999-999-999"),
-                changedBy = "unused",
-                fecha = "unused",
-                hora = "unused",
             )
         }
     }
@@ -465,14 +456,5 @@ class KtorPatientRepositoryTest {
         val repository = KtorPatientRepository(client)
 
         assertFailsWith<ApiException> { repository.updateAllergy(PATIENT_ID, "gone", Severity.MILD, "") }
-    }
-
-    // --- getChangeLog ------------------------------------------------------------------------
-
-    @Test
-    fun `getChangeLog is always empty -- no real endpoint exists yet (HISS-624)`() = runTest {
-        val repository = KtorPatientRepository(mockClient { jsonResponse(HttpStatusCode.OK, "{}") })
-
-        assertEquals(emptyList(), flowFirst(repository.getChangeLog("any-id")))
     }
 }

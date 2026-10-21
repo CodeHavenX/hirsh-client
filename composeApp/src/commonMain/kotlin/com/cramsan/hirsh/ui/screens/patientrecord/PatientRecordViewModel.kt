@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.Patient
-import com.cramsan.hirsh.model.PatientChangeLogEntry
 import com.cramsan.hirsh.repository.HospitalizationRepository
 import com.cramsan.hirsh.repository.PatientRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -20,7 +19,6 @@ data class PatientRecordUiState(
     val isLoading: Boolean = true,
     val patient: Patient? = null,
     val hospitalizations: List<Hospitalizacion> = emptyList(),
-    val lastChange: PatientChangeLogEntry? = null,
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -36,14 +34,12 @@ class PatientRecordViewModel(
             val patientId = id ?: return@flatMapLatest flowOf(PatientRecordUiState(isLoading = true))
             combine(
                 patientRepository.getPatient(patientId),
-                patientRepository.getChangeLog(patientId),
                 hospitalizationRepository.getHospitalizations(patientId),
-            ) { patient, changeLog, hospitalizations ->
+            ) { patient, hospitalizations ->
                 PatientRecordUiState(
                     isLoading = false,
                     patient = patient,
                     hospitalizations = hospitalizations,
-                    lastChange = changeLog.firstOrNull(),
                 )
             }
         }
