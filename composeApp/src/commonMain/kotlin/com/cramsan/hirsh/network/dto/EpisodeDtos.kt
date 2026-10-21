@@ -46,10 +46,11 @@ data class EpisodeResponse(
 )
 
 /**
- * One entry of `GET /api/v1/patients/{patientId}/episodes` -- schema `EpisodeSummary`. It carries
- * no narrative text and no audit block, so an episode mapped from it has no
- * [Hospitalizacion.admissionReason] and a placeholder [Hospitalizacion.jpaVersion]; anything that
- * writes against the version reads the full [EpisodeResponse] first.
+ * One entry of `GET /api/v1/patients/{patientId}/episodes` -- schema `EpisodeSummary`. Of the
+ * narrative text it carries only [admissionReason] (the list row's summary line, added for
+ * HCEM-73), and it has no audit block, so an episode mapped from it has a placeholder
+ * [Hospitalizacion.jpaVersion]; anything that writes against the version reads the full
+ * [EpisodeResponse] first.
  */
 @Serializable
 data class EpisodeSummary(
@@ -59,6 +60,7 @@ data class EpisodeSummary(
     val status: EpisodeStatusDto,
     val startDate: String,
     val endDate: String? = null,
+    val admissionReason: String? = null,
     val attendingPhysician: UserRefDto? = null,
     val currentService: ServiceRefDto? = null,
     val currentBed: BedRefDto? = null,
@@ -127,7 +129,7 @@ fun EpisodeResponse.toDomain(): Hospitalizacion = Hospitalizacion(
     jpaVersion = audit.jpaVersion,
 )
 
-/** See [EpisodeSummary]'s doc comment for the two fields it can't fill. */
+/** See [EpisodeSummary]'s doc comment for the field it can't fill. */
 fun EpisodeSummary.toDomain(): Hospitalizacion = Hospitalizacion(
     id = id,
     patientId = patient.id,
@@ -136,7 +138,7 @@ fun EpisodeSummary.toDomain(): Hospitalizacion = Hospitalizacion(
     attendingPhysician = attendingPhysician?.toDomain(),
     startDate = Instant.parse(startDate),
     endDate = endDate?.let(Instant::parse),
-    admissionReason = null,
+    admissionReason = admissionReason,
     status = status.toDomain(),
     historiaClinica = HistoriaClinica(),
     evoluciones = emptyList(),

@@ -138,10 +138,11 @@ class KtorHospitalizationRepositoryRealBackendTest {
         val listed = repository.getHospitalizations(patient.id).first()
         assertEquals(listOf(created.id), listed.map { it.id })
         assertEquals(bed, listed.single().currentBed)
+        assertEquals("Ingreso de prueba", listed.single().admissionReason)
 
         val fetched = assertNotNull(repository.getHospitalization(patient.id, created.id).first())
-        // Both come from a GET: the POST's own body has a stale jpaVersion once a bed is assigned,
-        // and nanoseconds Postgres doesn't keep -- see addHospitalization's doc comment.
+        // The POST's body must already be the stored episode: before HCEM-73 it carried a stale
+        // jpaVersion once a bed was assigned, and nanoseconds Postgres doesn't keep.
         assertEquals(created, fetched)
         assertNull(repository.getHospitalization(OTHER_PATIENT_ID, created.id).first())
 

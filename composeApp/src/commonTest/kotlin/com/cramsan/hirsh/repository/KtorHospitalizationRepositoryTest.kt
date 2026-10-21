@@ -100,6 +100,7 @@ private fun episodeSummaryJson(id: String, status: String = "CLOSED"): String = 
       "episodeType": "INPATIENT",
       "status": "$status",
       "startDate": "2026-06-01T10:00:00-05:00",
+      "admissionReason": "Ideacion suicida",
       $REFS_JSON
     }
 """.trimIndent()
@@ -131,7 +132,7 @@ class KtorHospitalizationRepositoryTest {
         assertEquals(ServiceRef("s1", "Psiquiatria"), episode.currentService)
         assertEquals(BedRef("b1", "12"), episode.currentBed)
         assertEquals(UserRef("u1", "Dra. Rosa Quispe"), episode.attendingPhysician)
-        assertNull(episode.admissionReason, "EpisodeSummary carries no narrative text")
+        assertEquals("Ideacion suicida", episode.admissionReason)
     }
 
     @Test
@@ -218,7 +219,7 @@ class KtorHospitalizationRepositoryTest {
             admissionReason = "Ideacion suicida",
         )
 
-        val request = sent.first()
+        val request = sent.single()
         assertEquals(HttpMethod.Post, request.method)
         assertEquals("/api/v1/episodes", request.path)
         val body = Json.parseToJsonElement(request.body).jsonObject
@@ -229,26 +230,6 @@ class KtorHospitalizationRepositoryTest {
         assertEquals("b1", body["bedId"]?.jsonPrimitive?.content)
         assertEquals("Ideacion suicida", body["admissionReason"]?.jsonPrimitive?.content)
         assertTrue("startDate" !in body, "the server stamps the start date")
-    }
-
-    @Test
-    fun `addHospitalization returns the episode as stored, not the POST's stale version`() = runTest {
-        val sent = mutableListOf<SentRequest>()
-        val client = episodeClient(sent) { request ->
-            if (request.method == HttpMethod.Post) {
-                json(HttpStatusCode.Created, episodeResponseJson(jpaVersion = 0))
-            } else {
-                json(HttpStatusCode.OK, episodeResponseJson(jpaVersion = 1))
-            }
-        }
-        val repository = KtorHospitalizationRepository(client)
-
-        val created = repository.addHospitalization(PATIENT_ID, ServiceRef("s1", "Psiquiatria"), BedRef("b1", "12"), UserRef("u1", "Dra. Rosa Quispe"), null)
-
-        assertEquals(listOf(HttpMethod.Post, HttpMethod.Get), sent.map { it.method })
-        assertEquals("/api/v1/episodes/$EPISODE_ID", sent.last().path)
-        assertEquals(EPISODE_ID, created.id)
-        assertEquals(1L, created.jpaVersion)
     }
 
     @Test
@@ -266,10 +247,10 @@ class KtorHospitalizationRepositoryTest {
     fun `addHospitalization reaches an already-collected list without a re-fetch`() = runTest {
         val sent = mutableListOf<SentRequest>()
         val client = episodeClient(sent) { request ->
-            when {
-                request.method == HttpMethod.Post -> json(HttpStatusCode.Created, episodeResponseJson())
-                request.url.encodedPath.startsWith("/api/v1/episodes/") -> json(HttpStatusCode.OK, episodeResponseJson())
-                else -> json(HttpStatusCode.OK, pageJson(listOf(episodeSummaryJson("older")), 0, 1))
+            if (request.method == HttpMethod.Post) {
+                json(HttpStatusCode.Created, episodeResponseJson())
+            } else {
+                json(HttpStatusCode.OK, pageJson(listOf(episodeSummaryJson("older")), 0, 1))
             }
         }
         val repository = KtorHospitalizationRepository(client)
@@ -281,7 +262,7 @@ class KtorHospitalizationRepositoryTest {
 
             assertEquals(listOf(EPISODE_ID, "older"), awaitItem().map { it.id }, "newest first, like the real list")
         }
-        assertEquals(1, sent.count { it.path == "/api/v1/patients/$PATIENT_ID/episodes" }, "the list is not re-fetched")
+        assertEquals(1, sent.count { it.method == HttpMethod.Get }, "the list is not re-fetched")
     }
 
     // --- not yet backed by the API ----------------------------------------------------------

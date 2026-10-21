@@ -280,11 +280,6 @@ class KtorHospitalizationRepository(
      * Opens an `INPATIENT` episode; the server stamps the start date. The backend also answers
      * `409` for an occupied bed or one outside [service] -- those carry no conflicting resource id,
      * unlike the already-open-stay conflict.
-     *
-     * The created episode is read back with a `GET` rather than taken from the `POST` response: when
-     * a bed is assigned, the backend saves the episode a second time after building that response,
-     * so its `jpaVersion` is already stale (found by `KtorHospitalizationRepositoryRealBackendTest`)
-     * and a discharge sent with it would be rejected as a concurrent edit.
      */
     override suspend fun addHospitalization(
         patientId: String,
@@ -293,7 +288,7 @@ class KtorHospitalizationRepository(
         attendingPhysician: UserRef,
         admissionReason: String?,
     ): Hospitalizacion {
-        val createdId = httpClient.post("/api/v1/episodes") {
+        val created = httpClient.post("/api/v1/episodes") {
             contentType(ContentType.Application.Json)
             setBody(
                 CreateEpisodeRequest(
@@ -305,8 +300,7 @@ class KtorHospitalizationRepository(
                     admissionReason = admissionReason,
                 ),
             )
-        }.body<EpisodeResponse>().id
-        val created = httpClient.get("/api/v1/episodes/$createdId").body<EpisodeResponse>().toDomain()
+        }.body<EpisodeResponse>().toDomain()
         _details.update { it + (created.id to created) }
         _lists.update { lists ->
             val list = lists[patientId] ?: return@update lists
