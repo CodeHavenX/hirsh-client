@@ -491,10 +491,18 @@ abstract class HissE2EScenarios {
         driver.clickTag("encounter_close_button")
         driver.waitForTag("hosp_discharge_button")
 
-        // Discharge: Activa -> Alta.
+        // Discharge: Activa -> Alta, through the discharge form. The diagnosis typeahead searches
+        // the backend's ICD-10 catalog (seeded with placeholder Chapter V codes for now).
         driver.clickTag("hosp_discharge_button")
-        driver.waitForTag("hosp_discharge_confirm_button")
-        driver.clickTag("hosp_discharge_confirm_button")
+        driver.waitForTag("discharge_submit_button")
+        driver.selectOption("discharge_type_field", 0)
+        driver.selectOption("discharge_condition_field", 0)
+        driver.type("discharge_diagnosis_field", "F32")
+        driver.waitForTag("discharge_diagnosis_option_0")
+        driver.clickTag("discharge_diagnosis_option_0")
+        driver.waitForTag("discharge_diagnosis_selected")
+        driver.clickTag("discharge_submit_button")
+        driver.waitForTag("hosp_open_hc_button")
         driver.waitUntil { !it.containsTag("hosp_discharge_button") }
         assertFalse(driver.getHierarchy().containsTag("hosp_discharge_button"), "a discharged hospitalization must be Alta and hide the discharge action")
     }
