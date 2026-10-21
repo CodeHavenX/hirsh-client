@@ -38,19 +38,23 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.cramsan.hirsh.model.EstadoHospitalizacion
+import com.cramsan.hirsh.model.EpisodeStatus
 import com.cramsan.hirsh.model.Evolucion
 import com.cramsan.hirsh.model.HistoriaClinica
 import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.Patient
+import com.cramsan.hirsh.model.bedNumber
 import com.cramsan.hirsh.model.completionCount
+import com.cramsan.hirsh.model.physicianName
+import com.cramsan.hirsh.model.serviceName
 import com.cramsan.hirsh.model.statusLabel
 import com.cramsan.hirsh.model.toDisplayLabel
 import com.cramsan.hirsh.ui.components.BadgeTone
+import com.cramsan.hirsh.ui.components.EpisodeStatusBadge
 import com.cramsan.hirsh.ui.components.KeyValueRow
 import com.cramsan.hirsh.ui.components.StatusBadge
 import com.cramsan.hirsh.ui.components.VisitCard
@@ -60,6 +64,7 @@ import com.cramsan.hirsh.ui.theme.HissFaint
 import com.cramsan.hirsh.ui.theme.HissInk
 import com.cramsan.hirsh.ui.theme.HissInk2
 import com.cramsan.hirsh.ui.theme.HissRadiusDefault
+import com.cramsan.hirsh.util.formatDateTime
 import org.koin.compose.viewmodel.koinViewModel
 
 private val ButtonShape = RoundedCornerShape(HissRadiusDefault)
@@ -114,8 +119,8 @@ internal fun HospitalizationScreenContent(
                 Text("Hospitalizacion no encontrada: $hospId", style = MaterialTheme.typography.bodyMedium)
             else -> {
                 HospitalizationHeader(
-                    title = "${hospitalizacion.servicio} · ${patient.fullName}",
-                    canDischarge = hospitalizacion.estado == EstadoHospitalizacion.ACTIVA,
+                    title = "${hospitalizacion.serviceName} · ${patient.fullName}",
+                    canDischarge = hospitalizacion.status == EpisodeStatus.ACTIVE,
                     isDischarging = uiState.isDischarging,
                     onNewEvolucion = onNewEvolucion,
                     onRequestDischarge = { showDischargeDialog = true },
@@ -243,18 +248,15 @@ private fun InfoCard(patient: Patient, hospitalizacion: Hospitalizacion, modifie
                 }
             }
             HorizontalDivider(color = HissFaint)
-            KeyValueRow("Servicio", hospitalizacion.servicio)
-            KeyValueRow("Cama", hospitalizacion.cama)
-            KeyValueRow("Medico responsable", hospitalizacion.medicoResponsable)
-            KeyValueRow("Fecha ingreso", "${hospitalizacion.fechaIngreso} · ${hospitalizacion.horaIngreso}")
-            KeyValueRow(
-                "Fecha alta",
-                if (hospitalizacion.fechaAlta != null) "${hospitalizacion.fechaAlta} · ${hospitalizacion.horaAlta}" else "En curso",
-            )
-            KeyValueRow("Estado") { EstadoBadge(hospitalizacion.estado) }
+            KeyValueRow("Servicio", hospitalizacion.serviceName)
+            KeyValueRow("Cama", hospitalizacion.bedNumber)
+            KeyValueRow("Medico responsable", hospitalizacion.physicianName)
+            KeyValueRow("Fecha ingreso", formatDateTime(hospitalizacion.startDate))
+            KeyValueRow("Fecha alta", hospitalizacion.endDate?.let { formatDateTime(it) } ?: "En curso")
+            KeyValueRow("Estado") { EpisodeStatusBadge(hospitalizacion.status) }
             Column(modifier = Modifier.fillMaxWidth().dashedTopBorder(HissFaint).padding(top = 8.dp)) {
                 Text(
-                    "Motivo de ingreso: ${hospitalizacion.motivoIngreso}",
+                    "Motivo de ingreso: ${hospitalizacion.admissionReason ?: "—"}",
                     style = MaterialTheme.typography.bodySmall,
                     color = HissInk2,
                 )
@@ -362,15 +364,6 @@ private fun EvolucionesSection(
             }
         }
     }
-}
-
-@Composable
-private fun EstadoBadge(estado: EstadoHospitalizacion) {
-    val (label, tone) = when (estado) {
-        EstadoHospitalizacion.ACTIVA -> "Activa" to BadgeTone.Progress
-        EstadoHospitalizacion.ALTA -> "Alta" to BadgeTone.Done
-    }
-    StatusBadge(text = label, tone = tone)
 }
 
 private fun initialsOf(name: String): String = name.split(' ').mapNotNull { it.firstOrNull() }.take(2).joinToString("")

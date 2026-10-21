@@ -3,8 +3,11 @@ package com.cramsan.hirsh.ui.screens.admision
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cramsan.hirsh.model.Patient
+import com.cramsan.hirsh.model.ServiceRef
+import com.cramsan.hirsh.model.UserRef
 import com.cramsan.hirsh.repository.HospitalizationRepository
 import com.cramsan.hirsh.repository.PatientRepository
+import com.cramsan.hirsh.repository.PlaceholderCatalog
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,9 +19,9 @@ import kotlinx.coroutines.launch
 data class AdmisionUiState(
     val isLoading: Boolean = true,
     val patient: Patient? = null,
-    val servicio: String = "",
+    val service: ServiceRef? = null,
     val cama: String = "",
-    val medicoResponsable: String = "",
+    val attendingPhysician: UserRef? = null,
     val motivo: String = "",
     val error: String? = null,
     val isSaving: Boolean = false,
@@ -51,16 +54,15 @@ class AdmisionViewModel(
         }
     }
 
-    fun onServicioChange(value: String) = _uiState.update { it.copy(servicio = value, error = null) }
+    fun onServicioChange(value: ServiceRef) = _uiState.update { it.copy(service = value, error = null) }
     fun onCamaChange(value: String) = _uiState.update { it.copy(cama = value, error = null) }
-    fun onMedicoResponsableChange(value: String) = _uiState.update { it.copy(medicoResponsable = value, error = null) }
+    fun onMedicoResponsableChange(value: UserRef) = _uiState.update { it.copy(attendingPhysician = value, error = null) }
     fun onMotivoChange(value: String) = _uiState.update { it.copy(motivo = value, error = null) }
 
     /**
-     * Mirrors the prototype's registerHospitalization(): servicio, cama, and
-     * medicoResponsable block submit; motivo does not -- a blank motivo is
-     * saved as "—" the same way the prototype's own
-     * `document.getElementById('adm-motivo').value || '—'` does.
+     * Mirrors the prototype's registerHospitalization(): service, cama, and
+     * attending physician block submit; motivo does not -- a blank motivo is
+     * saved as no admission reason (the backend's `admissionReason` is optional).
      */
     fun register() {
         val state = _uiState.value
@@ -69,7 +71,9 @@ class AdmisionViewModel(
         if (state.isSaving) {
             return
         }
-        if (state.servicio.isBlank() || state.cama.isBlank() || state.medicoResponsable.isBlank() || id == null) {
+        val service = state.service
+        val physician = state.attendingPhysician
+        if (service == null || state.cama.isBlank() || physician == null || id == null) {
             _uiState.update { it.copy(error = "Completa los campos requeridos") }
             return
         }
@@ -79,10 +83,10 @@ class AdmisionViewModel(
             try {
                 val created = hospitalizationRepository.addHospitalization(
                     patientId = id,
-                    servicio = state.servicio,
-                    cama = state.cama,
-                    medicoResponsable = state.medicoResponsable,
-                    motivoIngreso = state.motivo.ifBlank { "—" },
+                    service = service,
+                    bed = PlaceholderCatalog.bed(state.cama.trim()),
+                    attendingPhysician = physician,
+                    admissionReason = state.motivo.ifBlank { null },
                 )
                 _uiState.update { it.copy(isSaving = false, createdHospitalizationId = created.id) }
             } catch (e: CancellationException) {

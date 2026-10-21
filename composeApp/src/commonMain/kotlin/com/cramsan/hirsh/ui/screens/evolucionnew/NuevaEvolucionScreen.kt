@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cramsan.hirsh.model.EvolucionResultado
 import com.cramsan.hirsh.model.Pronostico
+import com.cramsan.hirsh.model.serviceName
 import com.cramsan.hirsh.model.toDisplayLabel
 import com.cramsan.hirsh.repository.SessionRepository
 import com.cramsan.hirsh.ui.components.BadgeTone
@@ -198,7 +199,7 @@ internal fun NuevaEvolucionScreenContent(
                     onClose = onClose,
                     meta = {
                         Chip("${uiState.openedFecha} · ${uiState.openedHora}")
-                        Chip(hospitalizacion.servicio)
+                        Chip(hospitalizacion.serviceName)
                         Chip(sessionDisplayName)
                         StatusBadge(text = "En progreso", tone = BadgeTone.Progress)
                     },

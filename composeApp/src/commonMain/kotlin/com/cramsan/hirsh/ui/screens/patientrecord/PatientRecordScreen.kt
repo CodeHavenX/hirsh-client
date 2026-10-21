@@ -34,13 +34,15 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.cramsan.hirsh.model.EstadoHospitalizacion
 import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.calculateAge
+import com.cramsan.hirsh.model.physicianName
+import com.cramsan.hirsh.model.serviceName
 import com.cramsan.hirsh.model.toDisplayLabel
 import com.cramsan.hirsh.ui.components.AllergyList
 import com.cramsan.hirsh.ui.components.BadgeTone
+import com.cramsan.hirsh.ui.components.EpisodeStatusBadge
 import com.cramsan.hirsh.ui.components.KeyValueRow
 import com.cramsan.hirsh.ui.components.StatusBadge
 import com.cramsan.hirsh.ui.components.VisitCard
@@ -50,12 +52,13 @@ import com.cramsan.hirsh.ui.theme.HissFaint
 import com.cramsan.hirsh.ui.theme.HissInk
 import com.cramsan.hirsh.ui.theme.HissInk2
 import com.cramsan.hirsh.ui.theme.HissRadiusDefault
+import com.cramsan.hirsh.util.formatDate
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
+import org.koin.compose.viewmodel.koinViewModel
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
-import org.koin.compose.viewmodel.koinViewModel
 
 private val ButtonShape = RoundedCornerShape(HissRadiusDefault)
 
@@ -263,28 +266,19 @@ private fun HospitalizationsSection(
             Column(modifier = Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 hospitalizations.forEachIndexed { index, hospitalization ->
                     VisitCard(
-                        title = hospitalization.servicio,
-                        meta = "${hospitalization.fechaIngreso} → ${hospitalization.fechaAlta ?: "En curso"} · " +
-                            hospitalization.medicoResponsable,
-                        summary = hospitalization.motivoIngreso,
+                        title = hospitalization.serviceName,
+                        meta = "${formatDate(hospitalization.startDate)} → " +
+                            "${hospitalization.endDate?.let { formatDate(it) } ?: "En curso"} · ${hospitalization.physicianName}",
+                        summary = hospitalization.admissionReason ?: "—",
                         active = index == 0,
                         onClick = { onHospitalizationSelected(hospitalization.id) },
-                        trailing = { EstadoBadge(hospitalization.estado) },
+                        trailing = { EpisodeStatusBadge(hospitalization.status) },
                         modifier = Modifier.testTag("hosp_card_${hospitalization.id}"),
                     )
                 }
             }
         }
     }
-}
-
-@Composable
-private fun EstadoBadge(estado: EstadoHospitalizacion) {
-    val (label, tone) = when (estado) {
-        EstadoHospitalizacion.ACTIVA -> "Activa" to BadgeTone.Progress
-        EstadoHospitalizacion.ALTA -> "Alta" to BadgeTone.Done
-    }
-    StatusBadge(text = label, tone = tone)
 }
 
 private fun initialsOf(name: String): String = name.split(' ').mapNotNull { it.firstOrNull() }.take(2).joinToString("")

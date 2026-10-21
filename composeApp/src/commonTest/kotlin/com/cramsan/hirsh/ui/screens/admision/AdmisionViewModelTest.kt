@@ -3,21 +3,21 @@ package com.cramsan.hirsh.ui.screens.admision
 import app.cash.turbine.test
 import com.cramsan.hirsh.model.Allergy
 import com.cramsan.hirsh.model.AllergyType
+import com.cramsan.hirsh.model.BedRef
 import com.cramsan.hirsh.model.DocumentType
-import com.cramsan.hirsh.model.EstadoHospitalizacion
+import com.cramsan.hirsh.model.EpisodeStatus
 import com.cramsan.hirsh.model.Evolucion
 import com.cramsan.hirsh.model.HcSectionKey
 import com.cramsan.hirsh.model.HistoriaClinica
 import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.Patient
+import com.cramsan.hirsh.model.ServiceRef
 import com.cramsan.hirsh.model.Severity
 import com.cramsan.hirsh.model.Sex
+import com.cramsan.hirsh.model.UserRef
 import com.cramsan.hirsh.repository.HospitalizationRepository
 import com.cramsan.hirsh.repository.PatientRepository
-import kotlin.test.AfterTest
-import kotlin.test.BeforeTest
-import kotlin.test.Test
-import kotlin.test.assertEquals
+import com.cramsan.hirsh.repository.PlaceholderCatalog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -29,6 +29,11 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.time.Instant
 
 private val samplePatient = Patient(
     id = "07c98942-3654-4034-b960-f3265814e214",
@@ -81,7 +86,13 @@ private class FakePatientRepository(patients: List<Patient> = listOf(samplePatie
 private class FakeHospitalizationRepository : HospitalizationRepository {
     var addHospitalizationCalls = 0
         private set
-    var lastMotivoIngreso: String? = null
+    var lastAdmissionReason: String? = null
+        private set
+    var lastService: ServiceRef? = null
+        private set
+    var lastBed: BedRef? = null
+        private set
+    var lastPhysician: UserRef? = null
         private set
 
     override fun getHospitalizations(patientId: String): Flow<List<Hospitalizacion>> =
@@ -94,25 +105,26 @@ private class FakeHospitalizationRepository : HospitalizationRepository {
 
     override suspend fun addHospitalization(
         patientId: String,
-        servicio: String,
-        cama: String,
-        medicoResponsable: String,
-        motivoIngreso: String,
+        service: ServiceRef,
+        bed: BedRef?,
+        attendingPhysician: UserRef,
+        admissionReason: String?,
     ): Hospitalizacion {
         addHospitalizationCalls++
-        lastMotivoIngreso = motivoIngreso
+        lastAdmissionReason = admissionReason
+        lastService = service
+        lastBed = bed
+        lastPhysician = attendingPhysician
         return Hospitalizacion(
             id = "h_new",
             patientId = patientId,
-            servicio = servicio,
-            cama = cama,
-            medicoResponsable = medicoResponsable,
-            fechaIngreso = "10 Abr 2026",
-            horaIngreso = "09:00",
-            fechaAlta = null,
-            horaAlta = null,
-            motivoIngreso = motivoIngreso,
-            estado = EstadoHospitalizacion.ACTIVA,
+            currentService = service,
+            currentBed = bed,
+            attendingPhysician = attendingPhysician,
+            startDate = Instant.parse("2026-04-10T09:00:00Z"),
+            endDate = null,
+            admissionReason = admissionReason,
+            status = EpisodeStatus.ACTIVE,
             historiaClinica = HistoriaClinica(),
             evoluciones = emptyList(),
         )
@@ -140,10 +152,14 @@ class AdmisionViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun fillRequiredFields(viewModel: AdmisionViewModel) {
-        viewModel.onServicioChange("Medicina General")
+    private fun fillRequiredFields(
+        viewModel: AdmisionViewModel,
+        service: Boolean = true,
+        physician: Boolean = true,
+    ) {
+        if (service) viewModel.onServicioChange(PlaceholderCatalog.service("Medicina General"))
         viewModel.onCamaChange("12")
-        viewModel.onMedicoResponsableChange("Dr. Patel")
+        if (physician) viewModel.onMedicoResponsableChange(PlaceholderCatalog.physician("Dr. Patel"))
     }
 
     @Test
@@ -188,13 +204,12 @@ class AdmisionViewModelTest {
     }
 
     @Test
-    fun `register blocks save when servicio is blank`() = runTest(dispatcher) {
+    fun `register blocks save when no servicio is chosen`() = runTest(dispatcher) {
         val repository = FakeHospitalizationRepository()
         val viewModel = AdmisionViewModel(FakePatientRepository(), repository)
         viewModel.load(samplePatient.id)
         dispatcher.scheduler.advanceUntilIdle()
-        fillRequiredFields(viewModel)
-        viewModel.onServicioChange("")
+        fillRequiredFields(viewModel, service = false)
 
         viewModel.register()
 
@@ -216,13 +231,12 @@ class AdmisionViewModelTest {
     }
 
     @Test
-    fun `register blocks save when medico responsable is blank`() = runTest(dispatcher) {
+    fun `register blocks save when no medico responsable is chosen`() = runTest(dispatcher) {
         val repository = FakeHospitalizationRepository()
         val viewModel = AdmisionViewModel(FakePatientRepository(), repository)
         viewModel.load(samplePatient.id)
         dispatcher.scheduler.advanceUntilIdle()
-        fillRequiredFields(viewModel)
-        viewModel.onMedicoResponsableChange("")
+        fillRequiredFields(viewModel, physician = false)
 
         viewModel.register()
 
@@ -230,7 +244,7 @@ class AdmisionViewModelTest {
     }
 
     @Test
-    fun `register defaults a blank motivo to an em dash`() = runTest(dispatcher) {
+    fun `register sends a blank motivo as no admission reason`() = runTest(dispatcher) {
         val repository = FakeHospitalizationRepository()
         val viewModel = AdmisionViewModel(FakePatientRepository(), repository)
         viewModel.load(samplePatient.id)
@@ -248,7 +262,7 @@ class AdmisionViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
         assertEquals(1, repository.addHospitalizationCalls)
-        assertEquals("—", repository.lastMotivoIngreso)
+        assertEquals(null, repository.lastAdmissionReason)
     }
 
     @Test
@@ -264,7 +278,10 @@ class AdmisionViewModelTest {
         dispatcher.scheduler.advanceUntilIdle()
 
         assertEquals(1, repository.addHospitalizationCalls)
-        assertEquals("Sintomas respiratorios", repository.lastMotivoIngreso)
+        assertEquals("Sintomas respiratorios", repository.lastAdmissionReason)
+        assertEquals(PlaceholderCatalog.service("Medicina General"), repository.lastService)
+        assertEquals("12", repository.lastBed?.number)
+        assertEquals(PlaceholderCatalog.physician("Dr. Patel"), repository.lastPhysician)
     }
 
     @Test

@@ -1,9 +1,10 @@
 package com.cramsan.hirsh.repository
 
+import com.cramsan.hirsh.model.BedRef
 import com.cramsan.hirsh.model.Diagnostico
 import com.cramsan.hirsh.model.DiagnosticoCie10
 import com.cramsan.hirsh.model.EnfermedadActual
-import com.cramsan.hirsh.model.EstadoHospitalizacion
+import com.cramsan.hirsh.model.EpisodeStatus
 import com.cramsan.hirsh.model.Evolucion
 import com.cramsan.hirsh.model.EvolucionResultado
 import com.cramsan.hirsh.model.Examen
@@ -17,20 +18,19 @@ import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.MotivoIngreso
 import com.cramsan.hirsh.model.Plan
 import com.cramsan.hirsh.model.Pronostico
+import com.cramsan.hirsh.model.ServiceRef
+import com.cramsan.hirsh.model.UserRef
 import com.cramsan.hirsh.model.Vitals
 import com.cramsan.hirsh.network.ApiError
 import com.cramsan.hirsh.network.ApiException
 import com.cramsan.hirsh.util.Clock
-import com.cramsan.hirsh.util.formatDate
-import com.cramsan.hirsh.util.formatTime
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Instant
 
 interface HospitalizationRepository {
     fun getHospitalizations(patientId: String): Flow<List<Hospitalizacion>>
@@ -40,18 +40,22 @@ interface HospitalizationRepository {
 
     fun getEvolucion(hospId: String, evoId: String): Flow<Evolucion?>
 
-    /** [fechaIngreso]/[horaIngreso] are stamped to now (this repository's [Clock]) -- callers never supply them. */
+    /**
+     * [Hospitalizacion.startDate] is stamped to now (this repository's [Clock]) -- callers never
+     * supply it. Takes references rather than bare ids so the in-memory implementation can show
+     * names; the real `CreateEpisodeRequest` only sends their ids (HISS-632).
+     */
     suspend fun addHospitalization(
         patientId: String,
-        servicio: String,
-        cama: String,
-        medicoResponsable: String,
-        motivoIngreso: String,
+        service: ServiceRef,
+        bed: BedRef?,
+        attendingPhysician: UserRef,
+        admissionReason: String?,
     ): Hospitalizacion
 
     /**
-     * Sets [Hospitalizacion.estado] to [EstadoHospitalizacion.ALTA] and stamps
-     * fechaAlta/horaAlta to now -- a deliberate fix over the prototype, whose own
+     * Sets [Hospitalizacion.status] to [EpisodeStatus.CLOSED] and stamps
+     * [Hospitalizacion.endDate] to now -- a deliberate fix over the prototype, whose own
      * dischargeHospitalization() never actually mutates the record. No-op for an
      * unknown [hospId].
      *
@@ -106,24 +110,21 @@ class InMemoryHospitalizationRepository(
 
     override suspend fun addHospitalization(
         patientId: String,
-        servicio: String,
-        cama: String,
-        medicoResponsable: String,
-        motivoIngreso: String,
+        service: ServiceRef,
+        bed: BedRef?,
+        attendingPhysician: UserRef,
+        admissionReason: String?,
     ): Hospitalizacion {
-        val (fecha, hora) = nowFechaHora()
         val newHospitalization = Hospitalizacion(
             id = nextId("h_"),
             patientId = patientId,
-            servicio = servicio,
-            cama = cama,
-            medicoResponsable = medicoResponsable,
-            fechaIngreso = fecha,
-            horaIngreso = hora,
-            fechaAlta = null,
-            horaAlta = null,
-            motivoIngreso = motivoIngreso,
-            estado = EstadoHospitalizacion.ACTIVA,
+            currentService = service,
+            currentBed = bed,
+            attendingPhysician = attendingPhysician,
+            startDate = clock.now(),
+            endDate = null,
+            admissionReason = admissionReason,
+            status = EpisodeStatus.ACTIVE,
             historiaClinica = HistoriaClinica(),
             evoluciones = emptyList(),
         )
@@ -136,16 +137,14 @@ class InMemoryHospitalizationRepository(
         if (current.jpaVersion != jpaVersion) {
             throw ApiException(ApiError.Conflict(hospId))
         }
-        val (fecha, hora) = nowFechaHora()
         _hospitalizations.update { list ->
             list.map { hospitalization ->
                 if (hospitalization.id != hospId) {
                     hospitalization
                 } else {
                     hospitalization.copy(
-                        estado = EstadoHospitalizacion.ALTA,
-                        fechaAlta = fecha,
-                        horaAlta = hora,
+                        status = EpisodeStatus.CLOSED,
+                        endDate = clock.now(),
                         jpaVersion = hospitalization.jpaVersion + 1,
                     )
                 }
@@ -176,11 +175,6 @@ class InMemoryHospitalizationRepository(
         return newEvolucion
     }
 
-    private fun nowFechaHora(): Pair<String, String> {
-        val now = clock.now().toLocalDateTime(TimeZone.currentSystemDefault())
-        return formatDate(now.date) to formatTime(now.time)
-    }
-
     private fun nextId(prefix: String): String = prefix + clock.now().toEpochMilliseconds()
 }
 
@@ -206,20 +200,21 @@ private fun Hospitalizacion.withSection(key: HcSectionKey, data: Any): Hospitali
     },
 )
 
-/** Ported 1:1 from prototype/shared/data.js's HOSPITALIZATIONS. */
+/**
+ * Ported 1:1 from prototype/shared/data.js's HOSPITALIZATIONS. Its dates are Lima wall-clock
+ * (UTC-5) and are stored here as the equivalent instants.
+ */
 private fun seedHospitalizations(): List<Hospitalizacion> = listOf(
     Hospitalizacion(
         id = "h_ricaldi_1",
         patientId = "30c14d79-8c7e-43f8-870c-f1dbc4c90247",
-        servicio = "Psiquiatria (UHSMA)",
-        cama = "01",
-        medicoResponsable = "Dr. Reyes",
-        fechaIngreso = "20 May 2026",
-        horaIngreso = "14:30",
-        fechaAlta = null,
-        horaAlta = null,
-        motivoIngreso = "Heteroagresividad, psicosis, adicciones",
-        estado = EstadoHospitalizacion.ACTIVA,
+        currentService = PlaceholderCatalog.service("Psiquiatria (UHSMA)"),
+        currentBed = PlaceholderCatalog.bed("01"),
+        attendingPhysician = PlaceholderCatalog.physician("Dr. Reyes"),
+        startDate = Instant.parse("2026-05-20T19:30:00Z"),
+        endDate = null,
+        admissionReason = "Heteroagresividad, psicosis, adicciones",
+        status = EpisodeStatus.ACTIVE,
         historiaClinica = HistoriaClinica(
             filiacion = HcSection(
                 complete = true,
@@ -312,15 +307,13 @@ private fun seedHospitalizations(): List<Hospitalizacion> = listOf(
     Hospitalizacion(
         id = "h_mendoza_1",
         patientId = "1e0697d0-f3e4-4755-85ad-d888d2b15f9d",
-        servicio = "Emergencia - Topico de Medicina",
-        cama = "0",
-        medicoResponsable = "Dr. Hirsh",
-        fechaIngreso = "15 Jun 2026",
-        horaIngreso = "12:50",
-        fechaAlta = null,
-        horaAlta = null,
-        motivoIngreso = "Sintomas respiratorios",
-        estado = EstadoHospitalizacion.ACTIVA,
+        currentService = PlaceholderCatalog.service("Emergencia - Topico de Medicina"),
+        currentBed = PlaceholderCatalog.bed("0"),
+        attendingPhysician = PlaceholderCatalog.physician("Dr. Hirsh"),
+        startDate = Instant.parse("2026-06-15T17:50:00Z"),
+        endDate = null,
+        admissionReason = "Sintomas respiratorios",
+        status = EpisodeStatus.ACTIVE,
         historiaClinica = HistoriaClinica(
             filiacion = HcSection(
                 complete = true,
@@ -472,15 +465,13 @@ private fun seedHospitalizations(): List<Hospitalizacion> = listOf(
     Hospitalizacion(
         id = "h_remon_1",
         patientId = "a21f8bfa-299c-42db-9681-c84f87a90ce4",
-        servicio = "Emergencia - Topico de Medicina",
-        cama = "0",
-        medicoResponsable = "Dr. Hirsh",
-        fechaIngreso = "14 Jun 2026",
-        horaIngreso = "09:15",
-        fechaAlta = null,
-        horaAlta = null,
-        motivoIngreso = "Hematemesis",
-        estado = EstadoHospitalizacion.ACTIVA,
+        currentService = PlaceholderCatalog.service("Emergencia - Topico de Medicina"),
+        currentBed = PlaceholderCatalog.bed("0"),
+        attendingPhysician = PlaceholderCatalog.physician("Dr. Hirsh"),
+        startDate = Instant.parse("2026-06-14T14:15:00Z"),
+        endDate = null,
+        admissionReason = "Hematemesis",
+        status = EpisodeStatus.ACTIVE,
         historiaClinica = HistoriaClinica(),
         evoluciones = listOf(
             Evolucion(
@@ -593,15 +584,13 @@ private fun seedHospitalizations(): List<Hospitalizacion> = listOf(
     Hospitalizacion(
         id = "h_vasquez_1",
         patientId = "caaedede-5d72-4a52-bb72-7532d7cdda83",
-        servicio = "Emergencia - Topico de Medicina",
-        cama = "0",
-        medicoResponsable = "Dr. Hirsh",
-        fechaIngreso = "15 Jun 2026",
-        horaIngreso = "19:20",
-        fechaAlta = null,
-        horaAlta = null,
-        motivoIngreso = "Insuficiencia respiratoria",
-        estado = EstadoHospitalizacion.ACTIVA,
+        currentService = PlaceholderCatalog.service("Emergencia - Topico de Medicina"),
+        currentBed = PlaceholderCatalog.bed("0"),
+        attendingPhysician = PlaceholderCatalog.physician("Dr. Hirsh"),
+        startDate = Instant.parse("2026-06-16T00:20:00Z"),
+        endDate = null,
+        admissionReason = "Insuficiencia respiratoria",
+        status = EpisodeStatus.ACTIVE,
         historiaClinica = HistoriaClinica(),
         evoluciones = listOf(
             Evolucion(
@@ -708,15 +697,13 @@ private fun seedHospitalizations(): List<Hospitalizacion> = listOf(
     Hospitalizacion(
         id = "h_gonzalez_1",
         patientId = "07c98942-3654-4034-b960-f3265814e214",
-        servicio = "Medicina General",
-        cama = "12",
-        medicoResponsable = "Dr. Patel",
-        fechaIngreso = "10 Abr 2026",
-        horaIngreso = "09:00",
-        fechaAlta = "12 Abr 2026",
-        horaAlta = "11:30",
-        motivoIngreso = "Tos productiva con fiebre",
-        estado = EstadoHospitalizacion.ALTA,
+        currentService = PlaceholderCatalog.service("Medicina General"),
+        currentBed = PlaceholderCatalog.bed("12"),
+        attendingPhysician = PlaceholderCatalog.physician("Dr. Patel"),
+        startDate = Instant.parse("2026-04-10T14:00:00Z"),
+        endDate = Instant.parse("2026-04-12T16:30:00Z"),
+        admissionReason = "Tos productiva con fiebre",
+        status = EpisodeStatus.CLOSED,
         historiaClinica = HistoriaClinica(
             filiacion = HcSection(
                 complete = true,
@@ -781,15 +768,13 @@ private fun seedHospitalizations(): List<Hospitalizacion> = listOf(
     Hospitalizacion(
         id = "h_gonzalez_2",
         patientId = "07c98942-3654-4034-b960-f3265814e214",
-        servicio = "Medicina General",
-        cama = "08",
-        medicoResponsable = "Dr. Patel",
-        fechaIngreso = "31 Ene 2026",
-        horaIngreso = "08:30",
-        fechaAlta = "02 Feb 2026",
-        horaAlta = "10:00",
-        motivoIngreso = "Control de hipertension arterial",
-        estado = EstadoHospitalizacion.ALTA,
+        currentService = PlaceholderCatalog.service("Medicina General"),
+        currentBed = PlaceholderCatalog.bed("08"),
+        attendingPhysician = PlaceholderCatalog.physician("Dr. Patel"),
+        startDate = Instant.parse("2026-01-31T13:30:00Z"),
+        endDate = Instant.parse("2026-02-02T15:00:00Z"),
+        admissionReason = "Control de hipertension arterial",
+        status = EpisodeStatus.CLOSED,
         historiaClinica = HistoriaClinica(),
         evoluciones = listOf(
             Evolucion(
@@ -832,15 +817,13 @@ private fun seedHospitalizations(): List<Hospitalizacion> = listOf(
     Hospitalizacion(
         id = "h_gonzalez_3",
         patientId = "07c98942-3654-4034-b960-f3265814e214",
-        servicio = "Medicina General",
-        cama = "08",
-        medicoResponsable = "Dr. Reyes",
-        fechaIngreso = "14 Nov 2025",
-        horaIngreso = "08:00",
-        fechaAlta = "15 Nov 2025",
-        horaAlta = "09:00",
-        motivoIngreso = "Examen fisico anual",
-        estado = EstadoHospitalizacion.ALTA,
+        currentService = PlaceholderCatalog.service("Medicina General"),
+        currentBed = PlaceholderCatalog.bed("08"),
+        attendingPhysician = PlaceholderCatalog.physician("Dr. Reyes"),
+        startDate = Instant.parse("2025-11-14T13:00:00Z"),
+        endDate = Instant.parse("2025-11-15T14:00:00Z"),
+        admissionReason = "Examen fisico anual",
+        status = EpisodeStatus.CLOSED,
         historiaClinica = HistoriaClinica(),
         evoluciones = listOf(
             Evolucion(

@@ -2,10 +2,8 @@ package com.cramsan.hirsh.network.dto
 
 import com.cramsan.hirsh.model.AccessAction
 import com.cramsan.hirsh.model.AccessLogEntry
-import com.cramsan.hirsh.util.formatDate
-import com.cramsan.hirsh.util.formatTime
+import com.cramsan.hirsh.util.formatDateTime
 import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.Serializable
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -26,13 +24,10 @@ data class AccessLogEntryDto(
 )
 
 @OptIn(ExperimentalTime::class)
-fun AccessLogEntryDto.toDomain(timeZone: TimeZone = TimeZone.currentSystemDefault()): AccessLogEntry {
-    val local = Instant.parse(occurredAt).toLocalDateTime(timeZone)
-    return AccessLogEntry(
-        id = id,
-        userId = userId,
-        action = AccessAction.entries.firstOrNull { it.name == action } ?: AccessAction.OTHER,
-        occurredAt = "${formatDate(local.date)} · ${formatTime(local.time)}",
-        sourceIp = sourceIp,
-    )
-}
+fun AccessLogEntryDto.toDomain(timeZone: TimeZone = TimeZone.currentSystemDefault()): AccessLogEntry = AccessLogEntry(
+    id = id,
+    userId = userId,
+    action = AccessAction.entries.firstOrNull { it.name == action } ?: AccessAction.OTHER,
+    occurredAt = formatDateTime(Instant.parse(occurredAt), timeZone),
+    sourceIp = sourceIp,
+)

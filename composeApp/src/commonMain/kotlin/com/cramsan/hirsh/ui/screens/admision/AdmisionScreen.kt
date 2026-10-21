@@ -24,6 +24,9 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cramsan.hirsh.model.ServiceRef
+import com.cramsan.hirsh.model.UserRef
+import com.cramsan.hirsh.repository.PlaceholderCatalog
 import com.cramsan.hirsh.ui.components.FieldFontSize
 import com.cramsan.hirsh.ui.components.FormSectionCaption
 import com.cramsan.hirsh.ui.components.RequiredFieldLabel
@@ -33,15 +36,9 @@ import com.cramsan.hirsh.ui.theme.HissInk
 import com.cramsan.hirsh.ui.theme.HissInk2
 import org.koin.compose.viewmodel.koinViewModel
 
-private val servicioOptions = listOf(
-    "Emergencia - Topico de Medicina",
-    "Medicina General",
-    "Psiquiatria (UHSMA)",
-    "Pediatria",
-    "Gineco-Obstetricia",
-    "Cirugia",
-)
-private val medicoOptions = listOf("Dr. Patel", "Dr. Reyes", "Dr. Lin", "Dr. Hirsh")
+// Placeholder choices until the real service/bed/physician pickers (HISS-634).
+private val serviceOptions = PlaceholderCatalog.services
+private val physicianOptions = PlaceholderCatalog.physicians
 
 @Composable
 fun AdmisionScreen(
@@ -77,9 +74,9 @@ internal fun AdmisionScreenContent(
     uiState: AdmisionUiState,
     patientId: String,
     onCancel: () -> Unit,
-    onServicioChange: (String) -> Unit,
+    onServicioChange: (ServiceRef) -> Unit,
     onCamaChange: (String) -> Unit,
-    onMedicoResponsableChange: (String) -> Unit,
+    onMedicoResponsableChange: (UserRef) -> Unit,
     onMotivoChange: (String) -> Unit,
     onRegister: () -> Unit,
 ) {
@@ -107,9 +104,9 @@ private fun AdmisionForm(
     uiState: AdmisionUiState,
     patientName: String,
     onCancel: () -> Unit,
-    onServicioChange: (String) -> Unit,
+    onServicioChange: (ServiceRef) -> Unit,
     onCamaChange: (String) -> Unit,
-    onMedicoResponsableChange: (String) -> Unit,
+    onMedicoResponsableChange: (UserRef) -> Unit,
     onMotivoChange: (String) -> Unit,
     onRegister: () -> Unit,
 ) {
@@ -132,9 +129,9 @@ private fun AdmisionForm(
                 FormSectionCaption("Datos de ingreso")
                 SelectField(
                     label = { RequiredFieldLabel("Servicio") },
-                    options = servicioOptions,
-                    selected = uiState.servicio,
-                    onSelect = onServicioChange,
+                    options = serviceOptions.map { it.name },
+                    selected = uiState.service?.name.orEmpty(),
+                    onSelect = { name -> serviceOptions.firstOrNull { it.name == name }?.let(onServicioChange) },
                     testTag = "admision_servicio_field",
                 )
                 OutlinedTextField(
@@ -148,9 +145,9 @@ private fun AdmisionForm(
                 )
                 SelectField(
                     label = { RequiredFieldLabel("Medico responsable") },
-                    options = medicoOptions,
-                    selected = uiState.medicoResponsable,
-                    onSelect = onMedicoResponsableChange,
+                    options = physicianOptions.map { it.fullName },
+                    selected = uiState.attendingPhysician?.fullName.orEmpty(),
+                    onSelect = { name -> physicianOptions.firstOrNull { it.fullName == name }?.let(onMedicoResponsableChange) },
                     testTag = "admision_medico_field",
                 )
             }

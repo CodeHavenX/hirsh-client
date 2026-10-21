@@ -2,8 +2,9 @@ package com.cramsan.hirsh.ui.screens.historiaclinica
 
 import androidx.compose.runtime.Composable
 import com.cramsan.hirsh.model.Diagnostico
+import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.EnfermedadActual
-import com.cramsan.hirsh.model.EstadoHospitalizacion
+import com.cramsan.hirsh.model.EpisodeStatus
 import com.cramsan.hirsh.model.ExamenFisico
 import com.cramsan.hirsh.model.ExamenRegional
 import com.cramsan.hirsh.model.Filiacion
@@ -12,13 +13,14 @@ import com.cramsan.hirsh.model.HcSectionKey
 import com.cramsan.hirsh.model.HistoriaClinica
 import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.MotivoIngreso
-import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.Plan
 import com.cramsan.hirsh.model.Sex
+import com.cramsan.hirsh.repository.PlaceholderCatalog
 import com.cramsan.hirsh.ui.preview.PreviewComponent
 import com.cramsan.hirsh.ui.preview.PreviewResponsive
 import com.cramsan.hirsh.ui.theme.HirshTheme
+import kotlin.time.Instant
 
 private val previewPatient = Patient(
     id = "30c14d79-8c7e-43f8-870c-f1dbc4c90247",
@@ -124,15 +126,13 @@ private fun previewHistoriaClinica(partial: Boolean) = HistoriaClinica(
 private fun previewHospitalizacion(historiaClinica: HistoriaClinica) = Hospitalizacion(
     id = "h_ricaldi_1",
     patientId = previewPatient.id,
-    servicio = "Psiquiatria (UHSMA)",
-    cama = "01",
-    medicoResponsable = "Dr. Reyes",
-    fechaIngreso = "20 May 2026",
-    horaIngreso = "14:30",
-    fechaAlta = null,
-    horaAlta = null,
-    motivoIngreso = "Heteroagresividad, psicosis, adicciones",
-    estado = EstadoHospitalizacion.ACTIVA,
+    currentService = PlaceholderCatalog.service("Psiquiatria (UHSMA)"),
+    currentBed = PlaceholderCatalog.bed("01"),
+    attendingPhysician = PlaceholderCatalog.physician("Dr. Reyes"),
+    startDate = Instant.parse("2026-05-20T14:30:00Z"),
+    endDate = null,
+    admissionReason = "Heteroagresividad, psicosis, adicciones",
+    status = EpisodeStatus.ACTIVE,
     historiaClinica = historiaClinica,
     evoluciones = emptyList(),
 )

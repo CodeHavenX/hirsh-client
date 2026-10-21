@@ -3,10 +3,11 @@ package com.cramsan.hirsh.ui.screens.historiaclinica
 import app.cash.turbine.test
 import com.cramsan.hirsh.model.Allergy
 import com.cramsan.hirsh.model.AllergyType
+import com.cramsan.hirsh.model.BedRef
 import com.cramsan.hirsh.model.Diagnostico
 import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.EnfermedadActual
-import com.cramsan.hirsh.model.EstadoHospitalizacion
+import com.cramsan.hirsh.model.EpisodeStatus
 import com.cramsan.hirsh.model.Evolucion
 import com.cramsan.hirsh.model.ExamenFisico
 import com.cramsan.hirsh.model.Filiacion
@@ -17,15 +18,12 @@ import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.MotivoIngreso
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.Plan
+import com.cramsan.hirsh.model.ServiceRef
 import com.cramsan.hirsh.model.Severity
 import com.cramsan.hirsh.model.Sex
+import com.cramsan.hirsh.model.UserRef
 import com.cramsan.hirsh.repository.HospitalizationRepository
 import com.cramsan.hirsh.repository.PatientRepository
-import kotlin.test.AfterTest
-import kotlin.test.BeforeTest
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertNull
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -38,6 +36,12 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
+import kotlin.time.Instant
 
 private val samplePatient = Patient(
     id = "07c98942-3654-4034-b960-f3265814e214",
@@ -71,15 +75,13 @@ private fun sampleHospitalization(id: String, patientId: String, historiaClinica
     Hospitalizacion(
         id = id,
         patientId = patientId,
-        servicio = "Psiquiatria (UHSMA)",
-        cama = "01",
-        medicoResponsable = "Dr. Reyes",
-        fechaIngreso = "20 May 2026",
-        horaIngreso = "14:30",
-        fechaAlta = null,
-        horaAlta = null,
-        motivoIngreso = "Heteroagresividad",
-        estado = EstadoHospitalizacion.ACTIVA,
+        currentService = ServiceRef("svc-1", "Psiquiatria (UHSMA)"),
+        currentBed = BedRef("bed-1", "01"),
+        attendingPhysician = UserRef("doc-1", "Dr. Reyes"),
+        startDate = Instant.parse("2026-05-20T14:30:00Z"),
+        endDate = null,
+        admissionReason = "Heteroagresividad",
+        status = EpisodeStatus.ACTIVE,
         historiaClinica = historiaClinica,
         evoluciones = emptyList(),
     )
@@ -140,10 +142,10 @@ private class FakeHospitalizationRepository(hospitalizations: List<Hospitalizaci
 
     override suspend fun addHospitalization(
         patientId: String,
-        servicio: String,
-        cama: String,
-        medicoResponsable: String,
-        motivoIngreso: String,
+        service: ServiceRef,
+        bed: BedRef?,
+        attendingPhysician: UserRef,
+        admissionReason: String?,
     ): Hospitalizacion = error("not used by this test")
 
     override suspend fun discharge(hospId: String, jpaVersion: Long) = Unit
