@@ -149,6 +149,24 @@ class HospitalizationRepositoryTest {
     }
 
     @Test
+    fun `addHospitalization refuses a second active stay with Conflict naming the open one`() = runTest {
+        val repository = InMemoryHospitalizationRepository(FakeClock())
+
+        val error = assertFailsWith<ApiException> {
+            repository.addHospitalization(
+                patientId = PATIENT_MENDOZA_ID,
+                service = PlaceholderCatalog.service("Medicina General"),
+                bed = PlaceholderCatalog.bed("05"),
+                attendingPhysician = PlaceholderCatalog.physician("Dr. Lin"),
+                admissionReason = null,
+            )
+        }
+
+        assertEquals(ApiError.Conflict("h_mendoza_1"), error.error)
+        assertEquals(1, repository.hospitalizations.value.count { it.patientId == PATIENT_MENDOZA_ID })
+    }
+
+    @Test
     fun `discharge sets status to CLOSED and stamps endDate`() = runTest {
         val repository = InMemoryHospitalizationRepository(FakeClock())
 

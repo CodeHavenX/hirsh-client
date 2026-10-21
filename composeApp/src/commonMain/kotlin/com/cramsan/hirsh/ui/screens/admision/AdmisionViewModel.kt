@@ -2,9 +2,12 @@ package com.cramsan.hirsh.ui.screens.admision
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.cramsan.hirsh.model.EpisodeStatus
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.ServiceRef
 import com.cramsan.hirsh.model.UserRef
+import com.cramsan.hirsh.network.ApiError
+import com.cramsan.hirsh.network.ApiException
 import com.cramsan.hirsh.repository.HospitalizationRepository
 import com.cramsan.hirsh.repository.PatientRepository
 import com.cramsan.hirsh.repository.PlaceholderCatalog
@@ -26,7 +29,15 @@ data class AdmisionUiState(
     val error: String? = null,
     val isSaving: Boolean = false,
     val createdHospitalizationId: String? = null,
+    /**
+     * Whether the patient already has an [EpisodeStatus.ACTIVE] stay -- the backend allows only
+     * one open inpatient episode and answers a second admission with `409` (HISS-632).
+     */
+    val hasActiveHospitalization: Boolean = false,
 )
+
+private const val ACTIVE_HOSPITALIZATION_ERROR = "El paciente ya tiene una hospitalizacion activa"
+
 
 /**
  * fechaIngreso/horaIngreso are never part of this state -- unlike the
@@ -50,7 +61,11 @@ class AdmisionViewModel(
         _uiState.value = AdmisionUiState(isLoading = true)
         viewModelScope.launch {
             val patient = patientRepository.getPatient(patientId).first()
-            _uiState.update { it.copy(isLoading = false, patient = patient) }
+            val hasActiveHospitalization = patient != null &&
+                hospitalizationRepository.getHospitalizations(patientId).first().any { it.status == EpisodeStatus.ACTIVE }
+            _uiState.update {
+                it.copy(isLoading = false, patient = patient, hasActiveHospitalization = hasActiveHospitalization)
+            }
         }
     }
 
@@ -63,12 +78,19 @@ class AdmisionViewModel(
      * Mirrors the prototype's registerHospitalization(): service, cama, and
      * attending physician block submit; motivo does not -- a blank motivo is
      * saved as no admission reason (the backend's `admissionReason` is optional).
+     *
+     * A patient with an active stay is refused here rather than left to the backend's `409`,
+     * which is still mapped to the same message in case the stay was opened after [load].
      */
     fun register() {
         val state = _uiState.value
         val id = patientId
         state.patient ?: return
         if (state.isSaving) {
+            return
+        }
+        if (state.hasActiveHospitalization) {
+            _uiState.update { it.copy(error = ACTIVE_HOSPITALIZATION_ERROR) }
             return
         }
         val service = state.service
@@ -91,6 +113,16 @@ class AdmisionViewModel(
                 _uiState.update { it.copy(isSaving = false, createdHospitalizationId = created.id) }
             } catch (e: CancellationException) {
                 throw e
+            } catch (e: ApiException) {
+                // Only the one-open-stay 409 names a conflicting resource (the open episode); the
+                // backend's other 409s on admission are about the bed (occupied, or another service's).
+                val error = e.error
+                val message = when {
+                    error is ApiError.Conflict && error.resourceId.isNotBlank() -> ACTIVE_HOSPITALIZATION_ERROR
+                    error is ApiError.Conflict -> "La cama elegida no esta disponible"
+                    else -> "No se pudo registrar la hospitalizacion"
+                }
+                _uiState.update { it.copy(isSaving = false, error = message) }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isSaving = false, error = "No se pudo registrar la hospitalizacion") }
             }

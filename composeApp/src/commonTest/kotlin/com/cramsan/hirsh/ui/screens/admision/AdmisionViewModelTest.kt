@@ -15,6 +15,8 @@ import com.cramsan.hirsh.model.ServiceRef
 import com.cramsan.hirsh.model.Severity
 import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.model.UserRef
+import com.cramsan.hirsh.network.ApiError
+import com.cramsan.hirsh.network.ApiException
 import com.cramsan.hirsh.repository.HospitalizationRepository
 import com.cramsan.hirsh.repository.PatientRepository
 import com.cramsan.hirsh.repository.PlaceholderCatalog
@@ -83,7 +85,10 @@ private class FakePatientRepository(patients: List<Patient> = listOf(samplePatie
     override suspend fun deleteAllergy(patientId: String, allergyId: String) = error("not used by this test")
 }
 
-private class FakeHospitalizationRepository : HospitalizationRepository {
+private class FakeHospitalizationRepository(
+    private val existing: List<Hospitalizacion> = emptyList(),
+    private val addError: ApiError? = null,
+) : HospitalizationRepository {
     var addHospitalizationCalls = 0
         private set
     var lastAdmissionReason: String? = null
@@ -96,7 +101,7 @@ private class FakeHospitalizationRepository : HospitalizationRepository {
         private set
 
     override fun getHospitalizations(patientId: String): Flow<List<Hospitalizacion>> =
-        MutableStateFlow(emptyList<Hospitalizacion>())
+        MutableStateFlow(existing.filter { it.patientId == patientId })
 
     override fun getHospitalization(patientId: String, hospId: String): Flow<Hospitalizacion?> =
         MutableStateFlow(null)
@@ -111,6 +116,7 @@ private class FakeHospitalizationRepository : HospitalizationRepository {
         admissionReason: String?,
     ): Hospitalizacion {
         addHospitalizationCalls++
+        addError?.let { throw ApiException(it) }
         lastAdmissionReason = admissionReason
         lastService = service
         lastBed = bed
@@ -136,6 +142,20 @@ private class FakeHospitalizationRepository : HospitalizationRepository {
 
     override suspend fun addEvolucion(hospId: String, evolucion: Evolucion): Evolucion = evolucion
 }
+
+private fun stay(status: EpisodeStatus) = Hospitalizacion(
+    id = "h_existing",
+    patientId = samplePatient.id,
+    currentService = PlaceholderCatalog.service("Medicina General"),
+    currentBed = null,
+    attendingPhysician = PlaceholderCatalog.physician("Dr. Patel"),
+    startDate = Instant.parse("2026-03-01T09:00:00Z"),
+    endDate = null,
+    admissionReason = null,
+    status = status,
+    historiaClinica = HistoriaClinica(),
+    evoluciones = emptyList(),
+)
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class AdmisionViewModelTest {
@@ -297,5 +317,70 @@ class AdmisionViewModelTest {
         dispatcher.scheduler.advanceUntilIdle()
 
         assertEquals(1, repository.addHospitalizationCalls)
+    }
+
+    @Test
+    fun `load flags a patient who already has an active stay`() = runTest(dispatcher) {
+        val repository = FakeHospitalizationRepository(existing = listOf(stay(EpisodeStatus.ACTIVE)))
+        val viewModel = AdmisionViewModel(FakePatientRepository(), repository)
+
+        viewModel.load(samplePatient.id)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(true, viewModel.uiState.value.hasActiveHospitalization)
+    }
+
+    @Test
+    fun `load does not flag a patient whose stays are all closed`() = runTest(dispatcher) {
+        val repository = FakeHospitalizationRepository(existing = listOf(stay(EpisodeStatus.CLOSED)))
+        val viewModel = AdmisionViewModel(FakePatientRepository(), repository)
+
+        viewModel.load(samplePatient.id)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(false, viewModel.uiState.value.hasActiveHospitalization)
+    }
+
+    @Test
+    fun `register refuses a patient with an active stay without calling the repository`() = runTest(dispatcher) {
+        val repository = FakeHospitalizationRepository(existing = listOf(stay(EpisodeStatus.ACTIVE)))
+        val viewModel = AdmisionViewModel(FakePatientRepository(), repository)
+        viewModel.load(samplePatient.id)
+        dispatcher.scheduler.advanceUntilIdle()
+        fillRequiredFields(viewModel)
+
+        viewModel.register()
+
+        assertEquals(0, repository.addHospitalizationCalls)
+        assertEquals("El paciente ya tiene una hospitalizacion activa", viewModel.uiState.value.error)
+    }
+
+    @Test
+    fun `register shows the active-stay message for the backend's open-episode conflict`() = runTest(dispatcher) {
+        val repository = FakeHospitalizationRepository(addError = ApiError.Conflict("h_opened_elsewhere"))
+        val viewModel = AdmisionViewModel(FakePatientRepository(), repository)
+        viewModel.load(samplePatient.id)
+        dispatcher.scheduler.advanceUntilIdle()
+        fillRequiredFields(viewModel)
+
+        viewModel.register()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals("El paciente ya tiene una hospitalizacion activa", viewModel.uiState.value.error)
+        assertEquals(false, viewModel.uiState.value.isSaving)
+    }
+
+    @Test
+    fun `register shows a bed message for a conflict without a resource id`() = runTest(dispatcher) {
+        val repository = FakeHospitalizationRepository(addError = ApiError.Conflict(""))
+        val viewModel = AdmisionViewModel(FakePatientRepository(), repository)
+        viewModel.load(samplePatient.id)
+        dispatcher.scheduler.advanceUntilIdle()
+        fillRequiredFields(viewModel)
+
+        viewModel.register()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals("La cama elegida no esta disponible", viewModel.uiState.value.error)
     }
 }
