@@ -269,6 +269,12 @@ tasks.named("recordRoborazziDesktop") {
     mustRunAfter("clearRoborazziDesktop")
 }
 
+// Previews render timestamps in the JVM's default time zone (HISS-631), so the generated
+// screenshot tests run in UTC -- matching CI -- or every golden would differ by machine.
+tasks.named<Test>("desktopTest") {
+    systemProperty("user.timezone", "UTC")
+}
+
 detekt {
     // KMP source sets (commonMain, androidMain, ...) live outside the
     // src/main/src/test layout detekt's Gradle plugin looks for by default.
