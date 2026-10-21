@@ -2,20 +2,22 @@ package com.cramsan.hirsh.ui.screens.evolucionview
 
 import androidx.compose.runtime.Composable
 import com.cramsan.hirsh.model.DiagnosticoCie10
-import com.cramsan.hirsh.model.EstadoHospitalizacion
+import com.cramsan.hirsh.model.DocumentType
+import com.cramsan.hirsh.model.EpisodeStatus
 import com.cramsan.hirsh.model.Evolucion
 import com.cramsan.hirsh.model.EvolucionResultado
 import com.cramsan.hirsh.model.Examen
 import com.cramsan.hirsh.model.HistoriaClinica
 import com.cramsan.hirsh.model.Hospitalizacion
-import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.Pronostico
 import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.model.Vitals
+import com.cramsan.hirsh.repository.PlaceholderCatalog
 import com.cramsan.hirsh.ui.preview.PreviewComponent
 import com.cramsan.hirsh.ui.preview.PreviewResponsive
 import com.cramsan.hirsh.ui.theme.HirshTheme
+import kotlin.time.Instant
 
 private val previewPatient = Patient(
     id = "1e0697d0-f3e4-4755-85ad-d888d2b15f9d",
@@ -54,15 +56,13 @@ private fun previewEvolucion(examenes: List<Examen>) = Evolucion(
 private fun previewHospitalizacion(evolucion: Evolucion) = Hospitalizacion(
     id = "h_mendoza_1",
     patientId = previewPatient.id,
-    servicio = "Emergencia - Topico de Medicina",
-    cama = "0",
-    medicoResponsable = "Dr. Hirsh",
-    fechaIngreso = "15 Jun 2026",
-    horaIngreso = "12:50",
-    fechaAlta = null,
-    horaAlta = null,
-    motivoIngreso = "Sintomas respiratorios",
-    estado = EstadoHospitalizacion.ACTIVA,
+    currentService = PlaceholderCatalog.service("Emergencia - Topico de Medicina"),
+    currentBed = PlaceholderCatalog.bed("0"),
+    attendingPhysician = PlaceholderCatalog.physician("Dr. Hirsh"),
+    startDate = Instant.parse("2026-06-15T12:50:00Z"),
+    endDate = null,
+    admissionReason = "Sintomas respiratorios",
+    status = EpisodeStatus.ACTIVE,
     historiaClinica = HistoriaClinica(),
     evoluciones = listOf(evolucion),
 )

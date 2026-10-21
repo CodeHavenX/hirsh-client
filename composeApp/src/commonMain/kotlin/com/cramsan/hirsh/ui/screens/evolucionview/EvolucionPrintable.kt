@@ -13,6 +13,8 @@ import androidx.compose.ui.unit.dp
 import com.cramsan.hirsh.model.Evolucion
 import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.Patient
+import com.cramsan.hirsh.model.bedNumber
+import com.cramsan.hirsh.model.serviceName
 import com.cramsan.hirsh.model.toDisplayLabel
 import com.cramsan.hirsh.ui.components.PrintableSection
 import com.cramsan.hirsh.ui.components.PrintableSectionText
@@ -34,14 +36,14 @@ fun EvolucionPrintable(
     PrintableSummary(
         title = "VISTA PREVIA · NOTA DE EVOLUCION",
         onBack = onBack,
-        subtitle = "Nota de evolucion · ${hospitalizacion.servicio}",
+        subtitle = "Nota de evolucion · ${hospitalizacion.serviceName}",
         metaItems = listOf(
             "Paciente" to patient.fullName,
             "DNI" to patient.documentNumber,
             "Fecha de evolucion" to "${evolucion.fecha} · ${evolucion.hora}",
             "Medico" to evolucion.medico,
             "N° Historia" to patient.medicalRecordNumber,
-            "Cama" to hospitalizacion.cama,
+            "Cama" to hospitalizacion.bedNumber,
             "Pronostico" to evolucion.pronostico.toDisplayLabel(),
             "Evolucion" to evolucion.resultado.toDisplayLabel(),
         ),

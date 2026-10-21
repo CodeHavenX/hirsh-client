@@ -2,7 +2,7 @@ package com.cramsan.hirsh.repository
 
 import app.cash.turbine.test
 import com.cramsan.hirsh.model.DiagnosticoCie10
-import com.cramsan.hirsh.model.EstadoHospitalizacion
+import com.cramsan.hirsh.model.EpisodeStatus
 import com.cramsan.hirsh.model.Evolucion
 import com.cramsan.hirsh.model.EvolucionResultado
 import com.cramsan.hirsh.model.Filiacion
@@ -13,9 +13,6 @@ import com.cramsan.hirsh.network.ApiError
 import com.cramsan.hirsh.network.ApiException
 import com.cramsan.hirsh.util.Clock
 import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.LocalDateTime
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toInstant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -30,9 +27,7 @@ private const val PATIENT_SANTIESTEBAN_ID = "a7efc7af-d998-43e8-8abd-d07c1155ef9
 private const val PATIENT_MENDOZA_ID = "1e0697d0-f3e4-4755-85ad-d888d2b15f9d"
 private const val PATIENT_VASQUEZ_ID = "caaedede-5d72-4a52-bb72-7532d7cdda83"
 
-// Built from a local wall-clock value (not a literal UTC Instant) so
-// formatDate/formatTime's output is independent of the test host's time zone.
-private val FIXED_NOW: Instant = LocalDateTime(2027, 1, 15, 10, 30).toInstant(TimeZone.currentSystemDefault())
+private val FIXED_NOW: Instant = Instant.parse("2027-01-15T10:30:00Z")
 
 private class FakeClock(private val instant: Instant = FIXED_NOW) : Clock {
     override fun now(): Instant = instant
@@ -115,22 +110,24 @@ class HospitalizationRepositoryTest {
     }
 
     @Test
-    fun `addHospitalization stamps fecha and hora to now and starts Activa`() = runTest {
+    fun `addHospitalization stamps startDate to now, keeps the given references, and starts ACTIVE`() = runTest {
         val repository = InMemoryHospitalizationRepository(FakeClock())
 
         val created = repository.addHospitalization(
             patientId = PATIENT_SANTIESTEBAN_ID,
-            servicio = "Medicina General",
-            cama = "05",
-            medicoResponsable = "Dr. Lin",
-            motivoIngreso = "Control",
+            service = PlaceholderCatalog.service("Medicina General"),
+            bed = PlaceholderCatalog.bed("05"),
+            attendingPhysician = PlaceholderCatalog.physician("Dr. Lin"),
+            admissionReason = "Control",
         )
 
-        assertEquals("15 Jan 2027", created.fechaIngreso)
-        assertEquals("10:30", created.horaIngreso)
-        assertNull(created.fechaAlta)
-        assertNull(created.horaAlta)
-        assertEquals(EstadoHospitalizacion.ACTIVA, created.estado)
+        assertEquals(FIXED_NOW, created.startDate)
+        assertNull(created.endDate)
+        assertEquals(EpisodeStatus.ACTIVE, created.status)
+        assertEquals("Medicina General", created.currentService?.name)
+        assertEquals("05", created.currentBed?.number)
+        assertEquals("Dr. Lin", created.attendingPhysician?.fullName)
+        assertEquals("Control", created.admissionReason)
         assertTrue(created.id.startsWith("h_"))
     }
 
@@ -142,26 +139,25 @@ class HospitalizationRepositoryTest {
             assertEquals(emptyList(), awaitItem())
             repository.addHospitalization(
                 patientId = PATIENT_SANTIESTEBAN_ID,
-                servicio = "Medicina General",
-                cama = "05",
-                medicoResponsable = "Dr. Lin",
-                motivoIngreso = "Control",
+                service = PlaceholderCatalog.service("Medicina General"),
+                bed = PlaceholderCatalog.bed("05"),
+                attendingPhysician = PlaceholderCatalog.physician("Dr. Lin"),
+                admissionReason = "Control",
             )
             assertEquals(1, awaitItem().size)
         }
     }
 
     @Test
-    fun `discharge sets estado to Alta and stamps fechaAlta and horaAlta`() = runTest {
+    fun `discharge sets status to CLOSED and stamps endDate`() = runTest {
         val repository = InMemoryHospitalizationRepository(FakeClock())
 
         repository.discharge("h_mendoza_1", jpaVersion = 0L)
 
         repository.getHospitalization(PATIENT_MENDOZA_ID, "h_mendoza_1").test {
             val hospitalization = awaitItem()
-            assertEquals(EstadoHospitalizacion.ALTA, hospitalization?.estado)
-            assertEquals("15 Jan 2027", hospitalization?.fechaAlta)
-            assertEquals("10:30", hospitalization?.horaAlta)
+            assertEquals(EpisodeStatus.CLOSED, hospitalization?.status)
+            assertEquals(FIXED_NOW, hospitalization?.endDate)
         }
     }
 
@@ -172,7 +168,7 @@ class HospitalizationRepositoryTest {
         repository.discharge("does-not-exist", jpaVersion = 0L)
 
         repository.getHospitalizations(PATIENT_MENDOZA_ID).test {
-            assertEquals(EstadoHospitalizacion.ACTIVA, awaitItem().single().estado)
+            assertEquals(EpisodeStatus.ACTIVE, awaitItem().single().status)
         }
     }
 
@@ -199,7 +195,7 @@ class HospitalizationRepositoryTest {
             assertEquals(ApiError.Conflict("h_mendoza_1"), exception.error)
             repository.getHospitalization(PATIENT_MENDOZA_ID, "h_mendoza_1").test {
                 val hospitalization = awaitItem()
-                assertEquals(EstadoHospitalizacion.ACTIVA, hospitalization?.estado)
+                assertEquals(EpisodeStatus.ACTIVE, hospitalization?.status)
                 assertEquals(0L, hospitalization?.jpaVersion)
             }
         }

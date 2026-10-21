@@ -6,10 +6,14 @@ import com.cramsan.hirsh.model.HistoriaClinica
 import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.MotivoIngreso
 import com.cramsan.hirsh.model.Patient
+import com.cramsan.hirsh.model.bedNumber
+import com.cramsan.hirsh.model.physicianName
+import com.cramsan.hirsh.model.serviceName
 import com.cramsan.hirsh.ui.components.PrintableKvLines
 import com.cramsan.hirsh.ui.components.PrintableSection
 import com.cramsan.hirsh.ui.components.PrintableSectionText
 import com.cramsan.hirsh.ui.components.PrintableSummary
+import com.cramsan.hirsh.util.formatDateTime
 
 /**
  * Maps a Historia Clinica into [PrintableSummary] calls -- mirrors
@@ -26,19 +30,19 @@ fun HistoriaClinicaPrintable(
     PrintableSummary(
         title = "VISTA PREVIA · HISTORIA CLINICA",
         onBack = onBack,
-        subtitle = "Historia Clinica · ${hospitalizacion.servicio}",
+        subtitle = "Historia Clinica · ${hospitalizacion.serviceName}",
         metaItems = listOf(
             "Paciente" to patient.fullName,
             "DNI" to patient.documentNumber,
-            "Fecha de ingreso" to "${hospitalizacion.fechaIngreso} · ${hospitalizacion.horaIngreso}",
-            "Medico responsable" to hospitalizacion.medicoResponsable,
+            "Fecha de ingreso" to formatDateTime(hospitalizacion.startDate),
+            "Medico responsable" to hospitalizacion.physicianName,
             "N° Historia" to patient.medicalRecordNumber,
-            "Cama" to hospitalizacion.cama,
+            "Cama" to hospitalizacion.bedNumber,
         ),
         sections = HcSectionKey.entries.map { key ->
             PrintableSection(label = key.label) { HcPrintableSectionBody(key, historiaClinica) }
         },
-        signatureName = hospitalizacion.medicoResponsable,
+        signatureName = hospitalizacion.physicianName,
     )
 }
 

@@ -41,7 +41,9 @@ import androidx.compose.ui.window.DialogProperties
 import com.cramsan.hirsh.model.HcSectionKey
 import com.cramsan.hirsh.model.HistoriaClinica
 import com.cramsan.hirsh.model.MotivoIngreso
+import com.cramsan.hirsh.model.bedNumber
 import com.cramsan.hirsh.model.completionCount
+import com.cramsan.hirsh.model.serviceName
 import com.cramsan.hirsh.model.statusLabel
 import com.cramsan.hirsh.ui.components.BadgeTone
 import com.cramsan.hirsh.ui.components.Chip
@@ -129,8 +131,8 @@ internal fun HistoriaClinicaScreenContent(
                     title = "Historia Clinica · ${patient.fullName} ${patient.medicalRecordNumber}",
                     onClose = onClose,
                     meta = {
-                        Chip(hospitalizacion.servicio)
-                        Chip("Cama ${hospitalizacion.cama}")
+                        Chip(hospitalizacion.serviceName)
+                        Chip("Cama ${hospitalizacion.bedNumber}")
                         HcStatusBadge(historiaClinica)
                     },
                     actions = {

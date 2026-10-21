@@ -4,17 +4,19 @@ import androidx.compose.runtime.Composable
 import com.cramsan.hirsh.model.Allergy
 import com.cramsan.hirsh.model.AllergyType
 import com.cramsan.hirsh.model.Diagnostico
-import com.cramsan.hirsh.model.EstadoHospitalizacion
+import com.cramsan.hirsh.model.DocumentType
+import com.cramsan.hirsh.model.EpisodeStatus
 import com.cramsan.hirsh.model.HcSection
 import com.cramsan.hirsh.model.HistoriaClinica
 import com.cramsan.hirsh.model.Hospitalizacion
-import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.Plan
 import com.cramsan.hirsh.model.Severity
 import com.cramsan.hirsh.model.Sex
+import com.cramsan.hirsh.repository.PlaceholderCatalog
 import com.cramsan.hirsh.ui.preview.PreviewResponsive
 import com.cramsan.hirsh.ui.theme.HirshTheme
+import kotlin.time.Instant
 
 private val previewPatients = listOf(
     Patient(
@@ -46,18 +48,16 @@ private val previewPatients = listOf(
     ),
 )
 
-private fun previewHospitalization(id: String, fechaAlta: String?) = Hospitalizacion(
+private fun previewHospitalization(id: String, startDate: String, endDate: String?) = Hospitalizacion(
     id = id,
     patientId = "07c98942-3654-4034-b960-f3265814e214",
-    servicio = "Medicina General",
-    cama = "08",
-    medicoResponsable = "Dr. Patel",
-    fechaIngreso = "10 Abr 2026",
-    horaIngreso = "09:00",
-    fechaAlta = fechaAlta,
-    horaAlta = if (fechaAlta != null) "11:30" else null,
-    motivoIngreso = "Tos productiva con fiebre",
-    estado = if (fechaAlta != null) EstadoHospitalizacion.ALTA else EstadoHospitalizacion.ACTIVA,
+    currentService = PlaceholderCatalog.service("Medicina General"),
+    currentBed = PlaceholderCatalog.bed("08"),
+    attendingPhysician = PlaceholderCatalog.physician("Dr. Patel"),
+    startDate = Instant.parse(startDate),
+    endDate = endDate?.let(Instant::parse),
+    admissionReason = "Tos productiva con fiebre",
+    status = if (endDate != null) EpisodeStatus.CLOSED else EpisodeStatus.ACTIVE,
     historiaClinica = HistoriaClinica(
         diagnostico = HcSection(
             complete = true,
@@ -85,9 +85,9 @@ private fun PatientRecordScreenPreview() {
                 isLoading = false,
                 patient = previewPatients.first { it.id == "07c98942-3654-4034-b960-f3265814e214" },
                 hospitalizations = listOf(
-                    previewHospitalization("h_gonzalez_1", "12 Abr 2026"),
-                    previewHospitalization("h_gonzalez_2", "02 Feb 2026"),
-                    previewHospitalization("h_gonzalez_3", "15 Nov 2025"),
+                    previewHospitalization("h_gonzalez_1", "2026-04-10T09:00:00Z", "2026-04-12T11:30:00Z"),
+                    previewHospitalization("h_gonzalez_2", "2026-01-31T08:30:00Z", "2026-02-02T10:00:00Z"),
+                    previewHospitalization("h_gonzalez_3", "2025-11-14T08:00:00Z", "2025-11-15T09:00:00Z"),
                 ),
             ),
             patientId = "07c98942-3654-4034-b960-f3265814e214",

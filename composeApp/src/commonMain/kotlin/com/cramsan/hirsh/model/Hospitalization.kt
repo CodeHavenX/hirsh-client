@@ -1,22 +1,26 @@
 package com.cramsan.hirsh.model
 
+import kotlin.time.Instant
+
 /**
- * Placeholder shape for the domain object the backend service will eventually own.
- * Field names follow the prototype (`prototype/shared/data.js`) so the mapping from
- * the real API response, once it exists, stays obvious.
+ * One hospital stay -- the backend's `EpisodeResponse`/`EpisodeSummary` (HISS-631). Field names
+ * follow the API; the class keeps the prototype's name until the repository split (HISS-641).
+ *
+ * [currentService]/[currentBed]/[attendingPhysician] are references to real backend rows, all
+ * nullable as in the API (an outpatient episode has no bed). [historiaClinica]/[evoluciones] have
+ * no episode-level equivalent server side and stay client-only until HISS-641 moves them out.
  */
 data class Hospitalizacion(
     val id: String,
     val patientId: String,
-    val servicio: String,
-    val cama: String,
-    val medicoResponsable: String,
-    val fechaIngreso: String,
-    val horaIngreso: String,
-    val fechaAlta: String?,
-    val horaAlta: String?,
-    val motivoIngreso: String,
-    val estado: EstadoHospitalizacion,
+    val currentService: ServiceRef?,
+    val currentBed: BedRef?,
+    val attendingPhysician: UserRef?,
+    val startDate: Instant,
+    /** Null while the episode is still [EpisodeStatus.ACTIVE]. */
+    val endDate: Instant?,
+    val admissionReason: String?,
+    val status: EpisodeStatus,
     val historiaClinica: HistoriaClinica,
     val evoluciones: List<Evolucion>,
     /**
@@ -29,4 +33,33 @@ data class Hospitalizacion(
     val jpaVersion: Long = 0L,
 )
 
-enum class EstadoHospitalizacion { ACTIVA, ALTA }
+/** Mirrors the backend's `EpisodeStatus`. */
+enum class EpisodeStatus {
+    ACTIVE,
+
+    /** Discharged and closed. */
+    CLOSED,
+
+    /** Closed because care moved to another institution. */
+    TRANSFERRED,
+}
+
+fun EpisodeStatus.toDisplayLabel(): String = when (this) {
+    EpisodeStatus.ACTIVE -> "Activa"
+    EpisodeStatus.CLOSED -> "Alta"
+    EpisodeStatus.TRANSFERRED -> "Transferida"
+}
+
+/** The backend's `ServiceRef`: a clinical service (ward/unit). */
+data class ServiceRef(val id: String, val name: String)
+
+/** The backend's `BedRef`. */
+data class BedRef(val id: String, val number: String)
+
+/** The backend's `UserRef`: a staff account, e.g. the attending physician. */
+data class UserRef(val id: String, val fullName: String)
+
+/** Display forms of the nullable references -- every screen shows a missing one as a dash. */
+val Hospitalizacion.serviceName: String get() = currentService?.name ?: "—"
+val Hospitalizacion.bedNumber: String get() = currentBed?.number ?: "—"
+val Hospitalizacion.physicianName: String get() = attendingPhysician?.fullName ?: "—"
