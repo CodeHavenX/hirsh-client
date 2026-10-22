@@ -1,18 +1,14 @@
 package com.cramsan.hirsh.di
 
-import com.russhwolf.settings.Settings
-import com.russhwolf.settings.StorageSettings
 import io.ktor.client.engine.HttpClientEngineFactory
 import io.ktor.client.engine.js.Js
 import io.ktor.client.engine.js.JsClientEngineConfig
-import kotlinx.browser.localStorage
 import org.koin.core.module.Module
 import org.koin.dsl.module
 import kotlin.js.toJsString
 
 actual val platformModule: Module = module {
     single<HttpClientEngineFactory<*>> { Js }
-    single<Settings> { StorageSettings(localStorage) }
     single<HttpClientEngineTuning> {
         {
             // The cast is safe: this engine-tuning binding only ever runs against the Js

@@ -32,11 +32,9 @@ interface SessionRepository {
     suspend fun logout()
 
     /**
-     * Calls [AuthRepository.restoreSession] once and publishes the result -- a real session
-     * restore is a network round-trip (`GET /api/v1/auth/me`), unlike the old
-     * `AppPreferences.sessionUsername`-based check, so this can't run synchronously in the
-     * constructor the way it used to. Call exactly once, from [com.cramsan.hirsh.ui.navigation.AppNavHost]'s
-     * initial composition.
+     * Calls [AuthRepository.restoreSession] once and publishes the result -- a network
+     * round-trip (`GET /api/v1/auth/me`), so it can't run synchronously in the constructor.
+     * Call exactly once, from [com.cramsan.hirsh.ui.navigation.AppNavHost]'s initial composition.
      */
     suspend fun restore()
 
@@ -49,9 +47,8 @@ interface SessionRepository {
 }
 
 /**
- * Wraps [AuthRepository] rather than reaching past it into [com.cramsan.hirsh.preferences.AppPreferences]
- * directly -- [AuthRepository] already owns that persistence, so duplicating
- * it here would just be two places reading/writing the same state.
+ * Wraps [AuthRepository] and holds nothing persistent itself: the session is the backend's
+ * cookie, so the app keeps no record of its own of who was signed in (HISS-664).
  */
 class DefaultSessionRepository(
     private val authRepository: AuthRepository,

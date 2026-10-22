@@ -3,7 +3,6 @@ package com.cramsan.hirsh.di
 import com.cramsan.hirsh.network.ApiConfig
 import com.cramsan.hirsh.network.XsrfHeaderPlugin
 import com.cramsan.hirsh.network.installApiErrorValidator
-import com.cramsan.hirsh.preferences.AppPreferences
 import com.cramsan.hirsh.repository.AccessLogRepository
 import com.cramsan.hirsh.repository.AccountRepository
 import com.cramsan.hirsh.repository.AdmissionCatalogRepository
@@ -81,7 +80,6 @@ private val sharedModule = module {
             engine(engineTuning)
         }
     }
-    singleOf(::AppPreferences)
     singleOf(::KtorAuthRepository) bind AuthRepository::class
     singleOf(::DefaultSessionRepository) bind SessionRepository::class
     singleOf(::KtorPatientRepository) bind PatientRepository::class
