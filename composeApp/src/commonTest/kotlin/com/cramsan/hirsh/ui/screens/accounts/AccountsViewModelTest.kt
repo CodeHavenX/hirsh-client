@@ -2,16 +2,14 @@ package com.cramsan.hirsh.ui.screens.accounts
 
 import app.cash.turbine.test
 import com.cramsan.hirsh.model.Account
+import com.cramsan.hirsh.model.AccountRole
 import com.cramsan.hirsh.model.AccountStatus
-import com.cramsan.hirsh.model.Role
 import com.cramsan.hirsh.repository.AccountRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -22,38 +20,48 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.time.Instant
 
 private fun sampleAccount(
+    id: String = "acc_3",
     name: String = "Dr. Sara Lin",
     username: String = "slin",
     status: AccountStatus = AccountStatus.ACTIVE,
-) = Account(name = name, username = username, role = Role.DOCTOR, status = status, lastLogin = "28 May 2026")
+) = Account(
+    id = id,
+    name = name,
+    username = username,
+    roles = listOf(AccountRole("ATTENDING_PHYSICIAN", "Attending Physician")),
+    status = status,
+    lastAccess = Instant.parse("2026-05-28T15:00:00Z"),
+)
 
 private class FakeAccountRepository(accounts: List<Account> = listOf(sampleAccount())) : AccountRepository {
     private val _accounts = MutableStateFlow(accounts)
     override val accounts: StateFlow<List<Account>> = _accounts.asStateFlow()
 
-    override fun getAccount(username: String): Flow<Account?> =
-        accounts.map { list -> list.find { it.username == username } }
+    var refreshCount = 0
 
-    override suspend fun updateLastLogin(username: String, lastLogin: String) = Unit
+    override suspend fun refresh() {
+        refreshCount++
+    }
 
     override suspend fun addAccount(name: String, username: String): Account {
-        val created = Account(name = name, username = username, role = Role.DOCTOR, status = AccountStatus.ACTIVE, lastLogin = "—")
+        val created = sampleAccount(id = "acc_new", name = name, username = username).copy(lastAccess = null)
         _accounts.update { it + created }
         return created
     }
 
-    override suspend fun updateAccount(originalUsername: String, name: String, username: String) {
-        _accounts.update { list -> list.map { if (it.username == originalUsername) it.copy(name = name, username = username) else it } }
+    override suspend fun updateAccount(id: String, name: String, username: String) {
+        _accounts.update { list -> list.map { if (it.id == id) it.copy(name = name, username = username) else it } }
     }
 
-    override suspend fun deactivate(username: String) {
-        _accounts.update { list -> list.map { if (it.username == username) it.copy(status = AccountStatus.INACTIVE) else it } }
-    }
+    override suspend fun deactivate(id: String) = setStatus(id, AccountStatus.INACTIVE)
 
-    override suspend fun reactivate(username: String) {
-        _accounts.update { list -> list.map { if (it.username == username) it.copy(status = AccountStatus.ACTIVE) else it } }
+    override suspend fun reactivate(id: String) = setStatus(id, AccountStatus.ACTIVE)
+
+    private fun setStatus(id: String, status: AccountStatus) {
+        _accounts.update { list -> list.map { if (it.id == id) it.copy(status = status) else it } }
     }
 }
 
@@ -88,6 +96,16 @@ class AccountsViewModelTest {
             assertEquals(listOf(account), latest.accounts)
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    @Test
+    fun `init loads the accounts from the repository`() = runTest(dispatcher) {
+        val repository = FakeAccountRepository()
+
+        AccountsViewModel(repository)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(1, repository.refreshCount)
     }
 
     @Test
@@ -271,6 +289,32 @@ class AccountsViewModelTest {
             assertEquals(AccountDialog.None, latest.dialog)
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    @Test
+    fun `reactivate releases a locked account`() = runTest(dispatcher) {
+        val account = sampleAccount(status = AccountStatus.LOCKED)
+        val repository = FakeAccountRepository(listOf(account))
+        val viewModel = AccountsViewModel(repository)
+
+        viewModel.reactivate(account)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(AccountStatus.ACTIVE, repository.accounts.value.single().status)
+    }
+
+    @Test
+    fun `confirmEdit keys the update by id, so the username itself can change`() = runTest(dispatcher) {
+        val account = sampleAccount()
+        val repository = FakeAccountRepository(listOf(account))
+        val viewModel = AccountsViewModel(repository)
+        viewModel.openEditDialog(account)
+        viewModel.onEditUsernameChange("slin2")
+
+        viewModel.confirmEdit()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals("slin2", repository.accounts.value.single().username)
     }
 
     @Test

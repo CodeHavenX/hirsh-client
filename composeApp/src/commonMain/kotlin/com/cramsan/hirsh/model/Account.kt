@@ -1,36 +1,42 @@
 package com.cramsan.hirsh.model
 
+import kotlin.time.Instant
+
 /**
- * Field names follow the prototype (`prototype/shared/data.js`'s `ACCOUNTS`), same
- * convention as [Patient]. [status] and [role] translate the prototype's raw string
- * values (`'active'`/`'off'`, `'Medico'`/`'Admin'`) into typed values rather than
- * carrying the raw strings through.
+ * One staff account -- the backend's `UserResponse` (HISS-651). [name] is its assembled
+ * `fullName`. [id] is the UUID every `/api/v1/users/{userId}` endpoint is keyed by; the API has
+ * no lookup by [username].
  */
 data class Account(
+    val id: String,
     val name: String,
     val username: String,
-    val role: Role,
+    val roles: List<AccountRole>,
     val status: AccountStatus,
-    val lastLogin: String,
+    /** The last successful login, stamped by the backend; null if the user never logged in. */
+    val lastAccess: Instant?,
 )
 
-enum class AccountStatus { ACTIVE, INACTIVE }
+/**
+ * One role the account holds, as `UserRoleResponse` carries it. [code] is one of the backend's
+ * seeded roles (`SYSTEM_ADMIN`, `ATTENDING_PHYSICIAN`, `RESIDENT`, `NURSING`, `PSYCHOLOGIST`,
+ * `AUDITOR`); [name] is its display name from the backend.
+ */
+data class AccountRole(val code: String, val name: String)
+
+/** System administrators can't be edited or deactivated from the Accounts screen. */
+val Account.isAdmin: Boolean get() = roles.any { it.code == SYSTEM_ADMIN_ROLE }
+
+/** Every role's display name, or a dash for an account with none. */
+val Account.rolesLabel: String get() = roles.joinToString(", ") { it.name }.ifEmpty { "—" }
+
+const val SYSTEM_ADMIN_ROLE = "SYSTEM_ADMIN"
+
+/** Mirrors the backend's `UserStatus`. [LOCKED] is set by repeated failed logins; reactivating releases it. */
+enum class AccountStatus { ACTIVE, INACTIVE, LOCKED }
 
 fun AccountStatus.toDisplayLabel(): String = when (this) {
     AccountStatus.ACTIVE -> "Activo"
     AccountStatus.INACTIVE -> "Inactivo"
-}
-
-/**
- * Relocated here from `model/Session.kt` (HISS-612): the real session's role/permission model is
- * now [Session.roles]/[Session.permissions], but the Accounts admin screen's still-fake CRUD
- * (`AccountRepository`, not touched until HISS-651+) keeps this simple two-value enum for its own
- * unrelated purposes.
- */
-enum class Role { DOCTOR, ADMIN }
-
-/** Mirrors the prototype's raw role strings (`ACCOUNTS[].role`, `accounts.html`'s role column) -- not "Administrador", which is the seed admin account's name, not its role label. */
-fun Role.toDisplayLabel(): String = when (this) {
-    Role.DOCTOR -> "Medico"
-    Role.ADMIN -> "Admin"
+    AccountStatus.LOCKED -> "Bloqueado"
 }

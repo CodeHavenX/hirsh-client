@@ -1,6 +1,5 @@
 package com.cramsan.hirsh.repository
 
-import app.cash.turbine.test
 import com.cramsan.hirsh.model.Permission
 import com.cramsan.hirsh.model.can
 import com.cramsan.hirsh.preferences.AppPreferences
@@ -130,7 +129,7 @@ class AuthRepositoryTest {
     }
 
     @Test
-    fun `successful login writes lastLogin for the matched account`() = runTest {
+    fun `successful login stamps lastAccess on the matched account`() = runTest {
         val accountRepository = InMemoryAccountRepository()
         val repository = FakeAuthRepository(
             preferences = AppPreferences(FakeSettings()),
@@ -140,9 +139,7 @@ class AuthRepositoryTest {
 
         repository.login("apatel", "hunter2")
 
-        accountRepository.getAccount("apatel").test {
-            assertEquals("15 Jan 2027 10:30", awaitItem()?.lastLogin)
-        }
+        assertEquals(FIXED_NOW, accountRepository.accounts.value.single { it.username == "apatel" }.lastAccess)
     }
 
     @Test
