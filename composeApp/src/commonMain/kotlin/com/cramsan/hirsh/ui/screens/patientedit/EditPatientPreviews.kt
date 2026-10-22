@@ -51,7 +51,6 @@ private fun EditPatientScreenPreview() {
     HirshTheme {
         EditPatientScreenContent(
             uiState = previewUiState,
-            patientId = previewPatient.id,
             onCancel = {},
             onFirstNameChange = {},
             onLastNameChange = {},
@@ -72,7 +71,6 @@ private fun EditPatientScreenAddingAllergyPreview() {
             uiState = previewUiState.copy(
                 allergyDraft = AllergyDraft(allergyType = AllergyType.MEDICATION, description = "Ibuprofeno"),
             ),
-            patientId = previewPatient.id,
             onCancel = {},
             onFirstNameChange = {},
             onLastNameChange = {},

@@ -77,8 +77,6 @@ fun HistoriaClinicaScreen(
 
     HistoriaClinicaScreenContent(
         uiState = uiState,
-        patientId = patientId,
-        hospId = hospId,
         onClose = onClose,
         onOpenPrintPreview = viewModel::openPrintPreview,
         onClosePrintPreview = viewModel::closePrintPreview,
@@ -94,8 +92,6 @@ fun HistoriaClinicaScreen(
 @Composable
 internal fun HistoriaClinicaScreenContent(
     uiState: HistoriaClinicaUiState,
-    patientId: String,
-    hospId: String,
     onClose: () -> Unit,
     onOpenPrintPreview: () -> Unit,
     onClosePrintPreview: () -> Unit,
@@ -116,12 +112,12 @@ internal fun HistoriaClinicaScreenContent(
                 modifier = Modifier.padding(24.dp),
             )
             patient == null -> Text(
-                "Paciente no encontrado: $patientId",
+                "Paciente no encontrado",
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(24.dp),
             )
             hospitalizacion == null -> Text(
-                "Hospitalizacion no encontrada: $hospId",
+                "Hospitalizacion no encontrada",
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(24.dp),
             )

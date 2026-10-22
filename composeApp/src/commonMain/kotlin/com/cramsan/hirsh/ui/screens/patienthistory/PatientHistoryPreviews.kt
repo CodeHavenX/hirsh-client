@@ -56,7 +56,6 @@ private fun PatientHistoryScreenPreview() {
                 entries = previewEntries,
                 totalEntries = 132,
             ),
-            patientId = "07c98942-3654-4034-b960-f3265814e214",
             onBack = {},
         )
     }
@@ -69,7 +68,6 @@ private fun PatientHistoryScreenEmptyPreview() {
     HirshTheme {
         PatientHistoryScreenContent(
             uiState = PatientHistoryUiState(isLoading = false, patient = previewPatients[1]),
-            patientId = "1e0697d0-f3e4-4755-85ad-d888d2b15f9d",
             onBack = {},
         )
     }
@@ -82,7 +80,6 @@ private fun PatientHistoryScreenForbiddenPreview() {
     HirshTheme {
         PatientHistoryScreenContent(
             uiState = PatientHistoryUiState(isLoading = false, patient = previewPatients[0], error = AccessLogError.FORBIDDEN),
-            patientId = "07c98942-3654-4034-b960-f3265814e214",
             onBack = {},
         )
     }

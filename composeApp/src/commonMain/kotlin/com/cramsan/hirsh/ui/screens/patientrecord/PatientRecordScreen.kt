@@ -79,7 +79,6 @@ fun PatientRecordScreen(
 
     PatientRecordScreenContent(
         uiState = uiState,
-        patientId = patientId,
         onEditProfile = onEditProfile,
         onNewHospitalization = onNewHospitalization,
         onHospitalizationSelected = onHospitalizationSelected,
@@ -92,7 +91,6 @@ fun PatientRecordScreen(
 @Composable
 internal fun PatientRecordScreenContent(
     uiState: PatientRecordUiState,
-    patientId: String,
     onEditProfile: () -> Unit,
     onNewHospitalization: () -> Unit,
     onHospitalizationSelected: (hospId: String) -> Unit,
@@ -103,7 +101,7 @@ internal fun PatientRecordScreenContent(
     Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
         when {
             uiState.isLoading -> Text("Cargando...", style = MaterialTheme.typography.bodyMedium)
-            patient == null -> Text("Paciente no encontrado: $patientId", style = MaterialTheme.typography.bodyMedium)
+            patient == null -> Text("Paciente no encontrado", style = MaterialTheme.typography.bodyMedium)
             else -> {
                 RecordHeader(
                     patient = patient,

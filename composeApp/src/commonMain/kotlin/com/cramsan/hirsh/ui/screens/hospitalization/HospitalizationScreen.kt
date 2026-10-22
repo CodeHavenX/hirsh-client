@@ -82,8 +82,6 @@ fun HospitalizationScreen(
 
     HospitalizationScreenContent(
         uiState = uiState,
-        patientId = patientId,
-        hospId = hospId,
         onNewEvolucion = onNewEvolucion,
         onOpenHistoriaClinica = onOpenHistoriaClinica,
         onEvolucionSelected = onEvolucionSelected,
@@ -95,8 +93,6 @@ fun HospitalizationScreen(
 @Composable
 internal fun HospitalizationScreenContent(
     uiState: HospitalizationUiState,
-    patientId: String,
-    hospId: String,
     onNewEvolucion: () -> Unit,
     onOpenHistoriaClinica: () -> Unit,
     onEvolucionSelected: (evoId: String) -> Unit,
@@ -108,9 +104,9 @@ internal fun HospitalizationScreenContent(
     Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
         when {
             uiState.isLoading -> Text("Cargando...", style = MaterialTheme.typography.bodyMedium)
-            patient == null -> Text("Paciente no encontrado: $patientId", style = MaterialTheme.typography.bodyMedium)
+            patient == null -> Text("Paciente no encontrado", style = MaterialTheme.typography.bodyMedium)
             hospitalizacion == null ->
-                Text("Hospitalizacion no encontrada: $hospId", style = MaterialTheme.typography.bodyMedium)
+                Text("Hospitalizacion no encontrada", style = MaterialTheme.typography.bodyMedium)
             else -> {
                 HospitalizationHeader(
                     title = "${hospitalizacion.serviceName} · ${patient.fullName}",

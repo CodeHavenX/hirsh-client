@@ -51,7 +51,6 @@ fun PatientHistoryScreen(
 
     PatientHistoryScreenContent(
         uiState = uiState,
-        patientId = patientId,
         onBack = onBack,
     )
 }
@@ -60,14 +59,13 @@ fun PatientHistoryScreen(
 @Composable
 internal fun PatientHistoryScreenContent(
     uiState: PatientHistoryUiState,
-    patientId: String,
     onBack: () -> Unit,
 ) {
     val patient = uiState.patient
     Column(modifier = Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
         when {
             uiState.isLoading -> Text("Cargando...", style = MaterialTheme.typography.bodyMedium)
-            patient == null -> Text("Paciente no encontrado: $patientId", style = MaterialTheme.typography.bodyMedium)
+            patient == null -> Text("Paciente no encontrado", style = MaterialTheme.typography.bodyMedium)
             else -> {
                 Row(
                     modifier = Modifier.fillMaxWidth(),

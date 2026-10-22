@@ -54,7 +54,6 @@ fun AdmisionScreen(
 
     AdmisionScreenContent(
         uiState = uiState,
-        patientId = patientId,
         onCancel = onCancel,
         onServicioChange = viewModel::onServicioChange,
         onCamaChange = viewModel::onCamaChange,
@@ -68,7 +67,6 @@ fun AdmisionScreen(
 @Composable
 internal fun AdmisionScreenContent(
     uiState: AdmisionUiState,
-    patientId: String,
     onCancel: () -> Unit,
     onServicioChange: (ServiceRef) -> Unit,
     onCamaChange: (BedRef) -> Unit,
@@ -80,7 +78,7 @@ internal fun AdmisionScreenContent(
     Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp).testTag("screen_scroll_container")) {
         when {
             uiState.isLoading -> Text("Cargando...", style = MaterialTheme.typography.bodyMedium)
-            patient == null -> Text("Paciente no encontrado: $patientId", style = MaterialTheme.typography.bodyMedium)
+            patient == null -> Text("Paciente no encontrado", style = MaterialTheme.typography.bodyMedium)
             else -> AdmisionForm(
                 uiState = uiState,
                 patientName = patient.fullName,

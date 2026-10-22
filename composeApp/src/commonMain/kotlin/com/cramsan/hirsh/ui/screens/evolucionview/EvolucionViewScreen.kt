@@ -68,9 +68,6 @@ fun EvolucionViewScreen(
 
     EvolucionViewScreenContent(
         uiState = uiState,
-        patientId = patientId,
-        hospId = hospId,
-        evoId = evoId,
         onClose = onClose,
         onOpenPrintPreview = viewModel::openPrintPreview,
         onClosePrintPreview = viewModel::closePrintPreview,
@@ -82,9 +79,6 @@ fun EvolucionViewScreen(
 @Composable
 internal fun EvolucionViewScreenContent(
     uiState: EvolucionViewUiState,
-    patientId: String,
-    hospId: String,
-    evoId: String,
     onClose: () -> Unit,
     onOpenPrintPreview: () -> Unit,
     onClosePrintPreview: () -> Unit,
@@ -102,17 +96,17 @@ internal fun EvolucionViewScreenContent(
                 modifier = Modifier.padding(24.dp),
             )
             patient == null -> Text(
-                "Paciente no encontrado: $patientId",
+                "Paciente no encontrado",
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(24.dp),
             )
             hospitalizacion == null -> Text(
-                "Hospitalizacion no encontrada: $hospId",
+                "Hospitalizacion no encontrada",
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(24.dp),
             )
             evolucion == null -> Text(
-                "Evolucion no encontrada: $evoId",
+                "Evolucion no encontrada",
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(24.dp),
             )

@@ -104,8 +104,6 @@ private fun HospitalizationScreenActivaPreview() {
     HirshTheme {
         HospitalizationScreenContent(
             uiState = previewUiState(hospitalizacion, evoluciones),
-            patientId = previewPatient.id,
-            hospId = hospitalizacion.id,
             onNewEvolucion = {},
             onOpenHistoriaClinica = {},
             onEvolucionSelected = {},
@@ -126,8 +124,6 @@ private fun HospitalizationScreenAltaPreview() {
     HirshTheme {
         HospitalizationScreenContent(
             uiState = previewUiState(hospitalizacion, evoluciones),
-            patientId = previewPatient.id,
-            hospId = hospitalizacion.id,
             onNewEvolucion = {},
             onOpenHistoriaClinica = {},
             onEvolucionSelected = {},
@@ -148,8 +144,6 @@ private fun HospitalizationScreenNoEvolucionesPreview() {
     HirshTheme {
         HospitalizationScreenContent(
             uiState = previewUiState(hospitalizacion, evoluciones),
-            patientId = previewPatient.id,
-            hospId = hospitalizacion.id,
             onNewEvolucion = {},
             onOpenHistoriaClinica = {},
             onEvolucionSelected = {},
@@ -170,8 +164,6 @@ private fun HospitalizationScreenTransferredPreview() {
     HirshTheme {
         HospitalizationScreenContent(
             uiState = previewUiState(hospitalizacion, evoluciones),
-            patientId = previewPatient.id,
-            hospId = hospitalizacion.id,
             onNewEvolucion = {},
             onOpenHistoriaClinica = {},
             onEvolucionSelected = {},

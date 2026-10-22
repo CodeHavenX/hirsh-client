@@ -50,7 +50,6 @@ private fun AdmisionPreview(uiState: AdmisionUiState) {
     HirshTheme {
         AdmisionScreenContent(
             uiState = uiState,
-            patientId = previewPatient.id,
             onCancel = {},
             onServicioChange = {},
             onCamaChange = {},
