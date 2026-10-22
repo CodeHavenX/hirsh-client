@@ -154,11 +154,19 @@ class KtorEpisodeRepositoryTest {
 
     @Test
     fun `getHospitalizations propagates a failed fetch instead of reporting no stays`() = runTest {
-        val client = episodeClient { json(HttpStatusCode.NotFound, """{"title": "Not Found"}""") }
+        val client = episodeClient { json(HttpStatusCode.InternalServerError, """{"title": "Internal Server Error"}""") }
         val repository = KtorEpisodeRepository(client)
 
         val error = assertFailsWith<ApiException> { repository.getHospitalizations(PATIENT_ID).first() }
-        assertTrue(error.error is ApiError.NotFound)
+        assertTrue(error.error is ApiError.Unknown)
+    }
+
+    @Test
+    fun `getHospitalizations reports no stays for an unknown patient`() = runTest {
+        val client = episodeClient { json(HttpStatusCode.NotFound, """{"title": "Not Found"}""") }
+        val repository = KtorEpisodeRepository(client)
+
+        assertEquals(emptyList(), repository.getHospitalizations(PATIENT_ID).first())
     }
 
     // --- getHospitalization --------------------------------------------------------------

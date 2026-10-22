@@ -108,6 +108,7 @@ private fun HospitalizationScreenActivaPreview() {
             onOpenHistoriaClinica = {},
             onEvolucionSelected = {},
             onDischarge = {},
+            onRetry = {},
         )
     }
 }
@@ -128,6 +129,7 @@ private fun HospitalizationScreenAltaPreview() {
             onOpenHistoriaClinica = {},
             onEvolucionSelected = {},
             onDischarge = {},
+            onRetry = {},
         )
     }
 }
@@ -148,6 +150,7 @@ private fun HospitalizationScreenNoEvolucionesPreview() {
             onOpenHistoriaClinica = {},
             onEvolucionSelected = {},
             onDischarge = {},
+            onRetry = {},
         )
     }
 }
@@ -168,6 +171,7 @@ private fun HospitalizationScreenTransferredPreview() {
             onOpenHistoriaClinica = {},
             onEvolucionSelected = {},
             onDischarge = {},
+            onRetry = {},
         )
     }
 }

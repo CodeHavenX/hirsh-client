@@ -93,6 +93,7 @@ private fun NuevaEvolucionScreenPreview() {
             onRemoveExamRow = {},
             onAddExamRow = {},
             onExamenesObsChange = {},
+            onRetry = {},
         )
     }
 }
@@ -149,6 +150,7 @@ private fun NuevaEvolucionScreenFilledPreview() {
             onRemoveExamRow = {},
             onAddExamRow = {},
             onExamenesObsChange = {},
+            onRetry = {},
         )
     }
 }
@@ -197,6 +199,7 @@ private fun NuevaEvolucionScreenExamenesTabPreview() {
             onRemoveExamRow = {},
             onAddExamRow = {},
             onExamenesObsChange = {},
+            onRetry = {},
         )
     }
 }

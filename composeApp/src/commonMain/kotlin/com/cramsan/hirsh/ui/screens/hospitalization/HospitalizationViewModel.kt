@@ -9,14 +9,19 @@ import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.repository.ClinicalNoteRepository
 import com.cramsan.hirsh.repository.EpisodeRepository
 import com.cramsan.hirsh.repository.PatientRepository
+import com.cramsan.hirsh.ui.components.LoadError
+import com.cramsan.hirsh.ui.components.toLoadError
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 
 data class HospitalizationUiState(
     val isLoading: Boolean = true,
@@ -24,6 +29,7 @@ data class HospitalizationUiState(
     val hospitalizacion: Hospitalizacion? = null,
     val historiaClinica: HistoriaClinica = HistoriaClinica(),
     val evoluciones: List<Evolucion> = emptyList(),
+    val loadError: LoadError? = null,
 )
 
 private data class RequestedIds(val patientId: String, val hospId: String)
@@ -37,7 +43,10 @@ class HospitalizationViewModel(
 
     private val requestedIds = MutableStateFlow<RequestedIds?>(null)
 
-    val uiState: StateFlow<HospitalizationUiState> = requestedIds
+    /** Bumped by [retry] to re-run the reads for the same stay. */
+    private val attempt = MutableStateFlow(0)
+
+    val uiState: StateFlow<HospitalizationUiState> = combine(requestedIds, attempt) { ids, _ -> ids }
         .flatMapLatest { ids ->
             if (ids == null) {
                 flowOf(HospitalizationUiState(isLoading = true))
@@ -56,11 +65,17 @@ class HospitalizationViewModel(
                         evoluciones = evoluciones,
                     )
                 }
+                    .onStart { emit(HospitalizationUiState(isLoading = true)) }
+                    .catch { emit(HospitalizationUiState(isLoading = false, loadError = it.toLoadError())) }
             }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HospitalizationUiState())
 
     fun load(patientId: String, hospId: String) {
         requestedIds.value = RequestedIds(patientId, hospId)
+    }
+
+    fun retry() {
+        attempt.update { it + 1 }
     }
 }

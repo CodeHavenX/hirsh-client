@@ -37,6 +37,7 @@ import com.cramsan.hirsh.model.serviceName
 import com.cramsan.hirsh.model.toDisplayLabel
 import com.cramsan.hirsh.ui.components.FieldFontSize
 import com.cramsan.hirsh.ui.components.FormSectionCaption
+import com.cramsan.hirsh.ui.components.LoadErrorMessage
 import com.cramsan.hirsh.ui.components.RequiredFieldLabel
 import com.cramsan.hirsh.ui.components.SelectField
 import com.cramsan.hirsh.ui.components.fieldShape
@@ -76,6 +77,7 @@ fun DischargeScreen(
         onNextAppointmentDateChange = viewModel::onNextAppointmentDateChange,
         onFollowUpPlanChange = viewModel::onFollowUpPlanChange,
         onDischarge = viewModel::discharge,
+        onRetry = viewModel::retry,
     )
 }
 
@@ -92,12 +94,14 @@ internal fun DischargeScreenContent(
     onNextAppointmentDateChange: (String) -> Unit,
     onFollowUpPlanChange: (String) -> Unit,
     onDischarge: () -> Unit,
+    onRetry: () -> Unit,
 ) {
     val patient = uiState.patient
     val hospitalizacion = uiState.hospitalizacion
     Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp).testTag("screen_scroll_container")) {
         when {
             uiState.isLoading -> Text("Cargando...", style = MaterialTheme.typography.bodyMedium)
+            uiState.loadError != null -> LoadErrorMessage(uiState.loadError, onRetry = onRetry)
             patient == null -> Text("Paciente no encontrado", style = MaterialTheme.typography.bodyMedium)
             hospitalizacion == null ->
                 Text("Hospitalizacion no encontrada", style = MaterialTheme.typography.bodyMedium)

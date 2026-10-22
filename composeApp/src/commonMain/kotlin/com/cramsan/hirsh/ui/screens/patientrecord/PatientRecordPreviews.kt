@@ -74,6 +74,7 @@ private fun PatientRecordScreenPreview() {
             onNewHospitalization = {},
             onHospitalizationSelected = {},
             onViewHistory = {},
+            onRetry = {},
         )
     }
 }
@@ -93,6 +94,7 @@ private fun PatientRecordScreenEmptyHospitalizationsPreview() {
             onNewHospitalization = {},
             onHospitalizationSelected = {},
             onViewHistory = {},
+            onRetry = {},
         )
     }
 }

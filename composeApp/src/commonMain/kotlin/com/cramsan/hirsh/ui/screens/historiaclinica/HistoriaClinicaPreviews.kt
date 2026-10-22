@@ -163,6 +163,7 @@ private fun HistoriaClinicaScreenFiliacionPreview() {
             onMotivoOtrosDetalleChange = { _, _ -> },
             onFieldChange = { _, _ -> },
             onSave = {},
+            onRetry = {},
         )
     }
 }
@@ -183,6 +184,7 @@ private fun HistoriaClinicaScreenPartialPreview() {
             onMotivoOtrosDetalleChange = { _, _ -> },
             onFieldChange = { _, _ -> },
             onSave = {},
+            onRetry = {},
         )
     }
 }
@@ -203,6 +205,7 @@ private fun HistoriaClinicaScreenMotivoIngresoPreview() {
             onMotivoOtrosDetalleChange = { _, _ -> },
             onFieldChange = { _, _ -> },
             onSave = {},
+            onRetry = {},
         )
     }
 }

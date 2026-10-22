@@ -12,6 +12,8 @@ import com.cramsan.hirsh.network.ApiError
 import com.cramsan.hirsh.network.ApiException
 import com.cramsan.hirsh.repository.PatientRepository
 import com.cramsan.hirsh.ui.components.AllergyDraft
+import com.cramsan.hirsh.ui.components.LoadError
+import com.cramsan.hirsh.ui.components.toLoadError
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -40,6 +42,7 @@ data class EditPatientUiState(
     val error: String? = null,
     val isSaving: Boolean = false,
     val saved: Boolean = false,
+    val loadError: LoadError? = null,
 )
 
 /**
@@ -53,32 +56,56 @@ class EditPatientViewModel(
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(EditPatientUiState())
+
+    /** The id [load] was last called with; set before its fetch finishes, so [retry] knows what to re-read. */
+    private var requestedId: String? = null
     val uiState: StateFlow<EditPatientUiState> = _uiState.asStateFlow()
 
     fun load(patientId: String) {
-        if (_uiState.value.patient?.id == patientId) return
+        if (requestedId == patientId) return
+        requestedId = patientId
         _uiState.value = EditPatientUiState(isLoading = true)
+        fetch(patientId)
+    }
+
+    fun retry() {
+        val patientId = requestedId ?: return
+        _uiState.update { it.copy(isLoading = true, loadError = null) }
+        fetch(patientId)
+    }
+
+    private fun fetch(patientId: String) {
         viewModelScope.launch {
-            val patient = patientRepository.getPatient(patientId).first()
-            if (patient == null) {
-                _uiState.update { it.copy(isLoading = false, error = "Paciente no encontrado") }
-                return@launch
+            try {
+                loadPatient(patientId)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false, loadError = e.toLoadError()) }
             }
-            _uiState.update {
-                it.copy(
-                    isLoading = false,
-                    patient = patient,
-                    firstName = patient.firstName,
-                    lastName = patient.lastName,
-                    secondLastName = patient.secondLastName,
-                    documentNumber = patient.documentNumber,
-                    birthDate = patient.birthDate,
-                    phone = patient.phone,
-                    sex = patient.sex,
-                    bloodType = patient.bloodType,
-                    allergies = patient.allergies,
-                )
-            }
+        }
+    }
+
+    private suspend fun loadPatient(patientId: String) {
+        val patient = patientRepository.getPatient(patientId).first()
+        if (patient == null) {
+            _uiState.update { it.copy(isLoading = false, error = "Paciente no encontrado") }
+            return
+        }
+        _uiState.update {
+            it.copy(
+                isLoading = false,
+                patient = patient,
+                firstName = patient.firstName,
+                lastName = patient.lastName,
+                secondLastName = patient.secondLastName,
+                documentNumber = patient.documentNumber,
+                birthDate = patient.birthDate,
+                phone = patient.phone,
+                sex = patient.sex,
+                bloodType = patient.bloodType,
+                allergies = patient.allergies,
+            )
         }
     }
 

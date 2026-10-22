@@ -6,6 +6,7 @@ import com.cramsan.hirsh.model.AllergyType
 import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.Sex
+import com.cramsan.hirsh.ui.components.LoadError
 import com.cramsan.hirsh.ui.preview.PreviewResponsive
 import com.cramsan.hirsh.ui.theme.HirshTheme
 
@@ -45,6 +46,7 @@ private fun PatientListScreenPreview() {
             onPatientSelected = {},
             onRegisterPatient = {},
             onQueryChange = {},
+            onRetry = {},
         )
     }
 }
@@ -58,6 +60,21 @@ private fun PatientListScreenEmptyPreview() {
             onPatientSelected = {},
             onRegisterPatient = {},
             onQueryChange = {},
+            onRetry = {},
+        )
+    }
+}
+
+@PreviewResponsive
+@Composable
+private fun PatientListScreenLoadErrorPreview() {
+    HirshTheme {
+        PatientListScreenContent(
+            uiState = PatientListUiState(isLoading = false, loadError = LoadError.UNREACHABLE),
+            onPatientSelected = {},
+            onRegisterPatient = {},
+            onQueryChange = {},
+            onRetry = {},
         )
     }
 }

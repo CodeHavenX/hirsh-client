@@ -175,6 +175,20 @@ class KtorEpisodeRepositoryRealBackendTest {
         assertEquals(ApiError.Conflict::class, stale.error::class)
     }
 
+    /** The backend 404s an unknown patient's episode list; the repository reads that as no stays (HISS-663). */
+    @Test
+    fun anUnknownPatientHasNoStays() = runTest {
+        val client = realHttpClient()
+        client.post("/api/v1/auth/login") {
+            contentType(ContentType.Application.Json)
+            setBody(LoginRequest(username!!, password!!))
+        }
+
+        val stays = KtorEpisodeRepository(client).getHospitalizations("00000000-0000-4000-8000-000000000000").first()
+
+        assertEquals(emptyList(), stays)
+    }
+
     private fun JsonObject.string(key: String): String = getValue(key).jsonPrimitive.content
 
     private companion object {

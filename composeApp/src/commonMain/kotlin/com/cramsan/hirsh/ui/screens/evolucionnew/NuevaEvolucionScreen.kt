@@ -50,6 +50,7 @@ import com.cramsan.hirsh.ui.components.Chip
 import com.cramsan.hirsh.ui.components.EncounterTopBar
 import com.cramsan.hirsh.ui.components.FieldFontSize
 import com.cramsan.hirsh.ui.components.FormSectionCaption
+import com.cramsan.hirsh.ui.components.LoadErrorMessage
 import com.cramsan.hirsh.ui.components.RequiredFieldLabel
 import com.cramsan.hirsh.ui.components.SelectField
 import com.cramsan.hirsh.ui.components.StatusBadge
@@ -126,6 +127,7 @@ fun NuevaEvolucionScreen(
         onRemoveExamRow = viewModel::removeExamRow,
         onAddExamRow = viewModel::addExamRow,
         onExamenesObsChange = viewModel::onExamenesObsChange,
+        onRetry = viewModel::retry,
     )
 }
 
@@ -168,6 +170,7 @@ internal fun NuevaEvolucionScreenContent(
     onRemoveExamRow: (Int) -> Unit,
     onAddExamRow: () -> Unit,
     onExamenesObsChange: (String) -> Unit,
+    onRetry: () -> Unit,
 ) {
     val patient = uiState.patient
     val hospitalizacion = uiState.hospitalizacion
@@ -179,6 +182,7 @@ internal fun NuevaEvolucionScreenContent(
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(24.dp),
             )
+            uiState.loadError != null -> LoadErrorMessage(uiState.loadError, onRetry = onRetry)
             patient == null -> Text(
                 "Paciente no encontrado",
                 style = MaterialTheme.typography.bodyMedium,

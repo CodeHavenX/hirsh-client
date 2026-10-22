@@ -42,6 +42,7 @@ import com.cramsan.hirsh.ui.components.DataTableColumn
 import com.cramsan.hirsh.ui.components.EncounterTopBar
 import com.cramsan.hirsh.ui.components.FormSectionCaption
 import com.cramsan.hirsh.ui.components.KeyValueRow
+import com.cramsan.hirsh.ui.components.LoadErrorMessage
 import com.cramsan.hirsh.ui.components.ReadOnlyField
 import com.cramsan.hirsh.ui.components.StatusBadge
 import com.cramsan.hirsh.ui.components.fieldShape
@@ -72,6 +73,7 @@ fun EvolucionViewScreen(
         onOpenPrintPreview = viewModel::openPrintPreview,
         onClosePrintPreview = viewModel::closePrintPreview,
         onSelectTab = viewModel::selectTab,
+        onRetry = viewModel::retry,
     )
 }
 
@@ -83,6 +85,7 @@ internal fun EvolucionViewScreenContent(
     onOpenPrintPreview: () -> Unit,
     onClosePrintPreview: () -> Unit,
     onSelectTab: (EvolucionViewTab) -> Unit,
+    onRetry: () -> Unit,
 ) {
     val patient = uiState.patient
     val hospitalizacion = uiState.hospitalizacion
@@ -95,6 +98,7 @@ internal fun EvolucionViewScreenContent(
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(24.dp),
             )
+            uiState.loadError != null -> LoadErrorMessage(uiState.loadError, onRetry = onRetry)
             patient == null -> Text(
                 "Paciente no encontrado",
                 style = MaterialTheme.typography.bodyMedium,

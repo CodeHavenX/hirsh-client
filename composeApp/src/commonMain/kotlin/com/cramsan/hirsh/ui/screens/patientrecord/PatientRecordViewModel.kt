@@ -7,19 +7,25 @@ import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.repository.EpisodeRepository
 import com.cramsan.hirsh.repository.PatientRepository
+import com.cramsan.hirsh.ui.components.LoadError
+import com.cramsan.hirsh.ui.components.toLoadError
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 
 data class PatientRecordUiState(
     val isLoading: Boolean = true,
     val patient: Patient? = null,
     val hospitalizations: List<Hospitalizacion> = emptyList(),
+    val loadError: LoadError? = null,
 ) {
     /**
      * The backend allows one open inpatient stay per patient. Read off [hospitalizations] rather
@@ -37,7 +43,10 @@ class PatientRecordViewModel(
 
     private val requestedId = MutableStateFlow<String?>(null)
 
-    val uiState: StateFlow<PatientRecordUiState> = requestedId
+    /** Bumped by [retry] to re-run the reads for the same patient. */
+    private val attempt = MutableStateFlow(0)
+
+    val uiState: StateFlow<PatientRecordUiState> = combine(requestedId, attempt) { id, _ -> id }
         .flatMapLatest { id ->
             val patientId = id ?: return@flatMapLatest flowOf(PatientRecordUiState(isLoading = true))
             combine(
@@ -50,10 +59,16 @@ class PatientRecordViewModel(
                     hospitalizations = hospitalizations,
                 )
             }
+                .onStart { emit(PatientRecordUiState(isLoading = true)) }
+                .catch { emit(PatientRecordUiState(isLoading = false, loadError = it.toLoadError())) }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PatientRecordUiState())
 
     fun load(patientId: String) {
         requestedId.value = patientId
+    }
+
+    fun retry() {
+        attempt.update { it + 1 }
     }
 }

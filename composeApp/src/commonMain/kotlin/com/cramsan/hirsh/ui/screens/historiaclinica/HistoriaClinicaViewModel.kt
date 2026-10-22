@@ -16,14 +16,18 @@ import com.cramsan.hirsh.model.Plan
 import com.cramsan.hirsh.repository.ClinicalNoteRepository
 import com.cramsan.hirsh.repository.EpisodeRepository
 import com.cramsan.hirsh.repository.PatientRepository
+import com.cramsan.hirsh.ui.components.LoadError
+import com.cramsan.hirsh.ui.components.toLoadError
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -38,6 +42,7 @@ data class HistoriaClinicaUiState(
     val motivoIngresoDraft: MotivoIngreso = MotivoIngreso(),
     val isSaving: Boolean = false,
     val showPrintPreview: Boolean = false,
+    val loadError: LoadError? = null,
 )
 
 private data class RequestedIds(val patientId: String, val hospId: String)
@@ -68,7 +73,10 @@ class HistoriaClinicaViewModel(
     private val requestedIds = MutableStateFlow<RequestedIds?>(null)
     private val formState = MutableStateFlow(FormState())
 
-    val uiState: StateFlow<HistoriaClinicaUiState> = requestedIds
+    /** Bumped by [retry] to re-run the reads for the same stay. */
+    private val attempt = MutableStateFlow(0)
+
+    val uiState: StateFlow<HistoriaClinicaUiState> = combine(requestedIds, attempt) { ids, _ -> ids }
         .flatMapLatest { ids ->
             if (ids == null) {
                 flowOf(HistoriaClinicaUiState(isLoading = true))
@@ -98,6 +106,8 @@ class HistoriaClinicaViewModel(
                         showPrintPreview = form.showPrintPreview,
                     )
                 }
+                    .onStart { emit(HistoriaClinicaUiState(isLoading = true)) }
+                    .catch { emit(HistoriaClinicaUiState(isLoading = false, loadError = it.toLoadError())) }
             }
         }
         // Eagerly, not WhileSubscribed like this screen family's other ViewModels -- save() below
@@ -110,6 +120,10 @@ class HistoriaClinicaViewModel(
         if (requestedIds.value == RequestedIds(patientId, hospId)) return
         requestedIds.value = RequestedIds(patientId, hospId)
         formState.value = FormState()
+    }
+
+    fun retry() {
+        attempt.update { it + 1 }
     }
 
     fun selectSection(key: HcSectionKey) = formState.update {
