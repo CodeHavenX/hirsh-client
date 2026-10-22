@@ -1,6 +1,9 @@
 package com.cramsan.hirsh.repository
 
 import com.cramsan.hirsh.model.BedRef
+import com.cramsan.hirsh.model.DischargeCondition
+import com.cramsan.hirsh.model.DischargeDetails
+import com.cramsan.hirsh.model.DischargeType
 import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.EpisodeStatus
 import com.cramsan.hirsh.model.ServiceRef
@@ -93,7 +96,7 @@ class KtorHospitalizationRepositoryRealBackendTest {
     }.body()
 
     @Test
-    fun admitsListsAndFetchesAStayAndRefusesASecondOne() = runTest {
+    fun admitsListsFetchesAndDischargesAStayAndRefusesASecondOne() = runTest {
         val client = realHttpClient()
         val login = client.post("/api/v1/auth/login") {
             contentType(ContentType.Application.Json)
@@ -150,6 +153,26 @@ class KtorHospitalizationRepositoryRealBackendTest {
             repository.addHospitalization(patient.id, service, null, physician, null)
         }
         assertEquals(ApiError.Conflict(created.id), conflict.error)
+
+        // Discharge with a diagnosis the typeahead actually finds in the catalog. TRANSFER, since
+        // it's the one type that doesn't end CLOSED.
+        val diagnosis = KtorIcd10Repository(client).search("F32").first()
+        val details = DischargeDetails(
+            type = DischargeType.TRANSFER,
+            condition = DischargeCondition.IMPROVED,
+            diagnosisIcd10 = diagnosis.code,
+            followUpPlan = "Control ambulatorio",
+            nextAppointmentDate = "17/07/2030",
+        )
+        repository.discharge(created.id, details, fetched.jpaVersion)
+
+        val discharged = assertNotNull(repository.getHospitalization(patient.id, created.id).first())
+        assertEquals(EpisodeStatus.TRANSFERRED, discharged.status)
+        assertNotNull(discharged.endDate)
+        assertEquals(details, discharged.discharge)
+
+        val stale = assertFailsWith<ApiException> { repository.discharge(created.id, details, fetched.jpaVersion) }
+        assertEquals(ApiError.Conflict::class, stale.error::class)
     }
 
     private fun JsonObject.string(key: String): String = getValue(key).jsonPrimitive.content

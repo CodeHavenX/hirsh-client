@@ -9,15 +9,18 @@ import com.cramsan.hirsh.repository.AccountRepository
 import com.cramsan.hirsh.repository.AuthRepository
 import com.cramsan.hirsh.repository.DefaultSessionRepository
 import com.cramsan.hirsh.repository.HospitalizationRepository
+import com.cramsan.hirsh.repository.Icd10Repository
 import com.cramsan.hirsh.repository.InMemoryAccountRepository
 import com.cramsan.hirsh.repository.InMemoryHospitalizationRepository
 import com.cramsan.hirsh.repository.KtorAuthRepository
+import com.cramsan.hirsh.repository.KtorIcd10Repository
 import com.cramsan.hirsh.repository.KtorAccessLogRepository
 import com.cramsan.hirsh.repository.KtorPatientRepository
 import com.cramsan.hirsh.repository.PatientRepository
 import com.cramsan.hirsh.repository.SessionRepository
 import com.cramsan.hirsh.ui.screens.accounts.AccountsViewModel
 import com.cramsan.hirsh.ui.screens.admision.AdmisionViewModel
+import com.cramsan.hirsh.ui.screens.discharge.DischargeViewModel
 import com.cramsan.hirsh.ui.screens.evolucionnew.NuevaEvolucionViewModel
 import com.cramsan.hirsh.ui.screens.evolucionview.EvolucionViewViewModel
 import com.cramsan.hirsh.ui.screens.historiaclinica.HistoriaClinicaViewModel
@@ -81,6 +84,7 @@ private val sharedModule = module {
     singleOf(::KtorAccessLogRepository) bind AccessLogRepository::class
     singleOf(::InMemoryAccountRepository) bind AccountRepository::class
     singleOf(::InMemoryHospitalizationRepository) bind HospitalizationRepository::class
+    singleOf(::KtorIcd10Repository) bind Icd10Repository::class
     singleOf(::DefaultClock) bind Clock::class
 
     viewModelOf(::LoginViewModel)
@@ -92,6 +96,7 @@ private val sharedModule = module {
     viewModelOf(::ProfileViewModel)
     viewModelOf(::AdmisionViewModel)
     viewModelOf(::HospitalizationViewModel)
+    viewModelOf(::DischargeViewModel)
     viewModelOf(::NuevaEvolucionViewModel)
     viewModelOf(::EvolucionViewViewModel)
     viewModelOf(::HistoriaClinicaViewModel)

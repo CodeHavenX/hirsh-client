@@ -4,6 +4,9 @@ import app.cash.turbine.test
 import com.cramsan.hirsh.model.Allergy
 import com.cramsan.hirsh.model.AllergyType
 import com.cramsan.hirsh.model.BedRef
+import com.cramsan.hirsh.model.DischargeCondition
+import com.cramsan.hirsh.model.DischargeDetails
+import com.cramsan.hirsh.model.DischargeType
 import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.EpisodeStatus
 import com.cramsan.hirsh.model.Evolucion
@@ -147,7 +150,7 @@ private class FakeHospitalizationRepository(hospitalizations: List<Hospitalizaci
         return created
     }
 
-    override suspend fun discharge(hospId: String, jpaVersion: Long) {
+    override suspend fun discharge(hospId: String, details: DischargeDetails, jpaVersion: Long) {
         _hospitalizations.update { list ->
             list.map { if (it.id == hospId) it.copy(status = EpisodeStatus.CLOSED) else it }
         }
@@ -240,7 +243,11 @@ class PatientRecordViewModelTest {
             viewModel.load(samplePatient.id)
             assertEquals(EpisodeStatus.ACTIVE, awaitItem().hospitalizations.single().status)
 
-            hospitalizationRepository.discharge("h1", jpaVersion = 0L)
+            hospitalizationRepository.discharge(
+                "h1",
+                DischargeDetails(DischargeType.MEDICAL, DischargeCondition.IMPROVED, "F32.2"),
+                jpaVersion = 0L,
+            )
 
             assertEquals(EpisodeStatus.CLOSED, awaitItem().hospitalizations.single().status)
             cancelAndIgnoreRemainingEvents()

@@ -2,6 +2,8 @@ package com.cramsan.hirsh.repository
 
 import com.cramsan.hirsh.model.BedRef
 import com.cramsan.hirsh.model.Diagnostico
+import com.cramsan.hirsh.model.DischargeDetails
+import com.cramsan.hirsh.model.DischargeType
 import com.cramsan.hirsh.model.DiagnosticoCie10
 import com.cramsan.hirsh.model.EnfermedadActual
 import com.cramsan.hirsh.model.EpisodeStatus
@@ -28,6 +30,7 @@ import com.cramsan.hirsh.network.dto.EpisodeResponse
 import com.cramsan.hirsh.network.dto.EpisodeSummary
 import com.cramsan.hirsh.network.dto.EpisodeTypeDto
 import com.cramsan.hirsh.network.dto.PageResponse
+import com.cramsan.hirsh.network.dto.toRequest
 import com.cramsan.hirsh.network.dto.toDomain
 import com.cramsan.hirsh.util.Clock
 import io.ktor.client.HttpClient
@@ -77,18 +80,16 @@ interface HospitalizationRepository {
     ): Hospitalizacion
 
     /**
-     * Sets [Hospitalizacion.status] to [EpisodeStatus.CLOSED] and stamps
-     * [Hospitalizacion.endDate] to now -- a deliberate fix over the prototype, whose own
-     * dischargeHospitalization() never actually mutates the record. No-op for an
-     * unknown [hospId].
+     * Closes the episode with [details] and stamps [Hospitalizacion.endDate] to now. The status
+     * becomes [EpisodeStatus.TRANSFERRED] for a [DischargeType.TRANSFER] and [EpisodeStatus.CLOSED]
+     * otherwise, as the backend does.
      *
-     * [jpaVersion] is the version the caller last read (the real backend's
-     * `DischargeEpisodeRequest` carries the same field) -- a mismatch against the currently
-     * stored version throws [com.cramsan.hirsh.network.ApiException] wrapping
-     * [com.cramsan.hirsh.network.ApiError.Conflict] instead of discharging over a concurrent
-     * edit (HISS-604).
+     * [jpaVersion] is the version the caller last read -- a mismatch against the currently stored
+     * version throws [com.cramsan.hirsh.network.ApiException] wrapping
+     * [com.cramsan.hirsh.network.ApiError.Conflict] instead of discharging over a concurrent edit
+     * (HISS-604).
      */
-    suspend fun discharge(hospId: String, jpaVersion: Long)
+    suspend fun discharge(hospId: String, details: DischargeDetails, jpaVersion: Long)
 
     /**
      * Marks the [key] section complete with [data]. [data]'s runtime type must match
@@ -158,8 +159,9 @@ class InMemoryHospitalizationRepository(
         return newHospitalization
     }
 
-    override suspend fun discharge(hospId: String, jpaVersion: Long) {
-        val current = _hospitalizations.value.find { it.id == hospId } ?: return
+    /** Throws [ApiError.NotFound] for an unknown [hospId], like the backend. */
+    override suspend fun discharge(hospId: String, details: DischargeDetails, jpaVersion: Long) {
+        val current = _hospitalizations.value.find { it.id == hospId } ?: throw ApiException(ApiError.NotFound(hospId))
         if (current.jpaVersion != jpaVersion) {
             throw ApiException(ApiError.Conflict(hospId))
         }
@@ -169,9 +171,10 @@ class InMemoryHospitalizationRepository(
                     hospitalization
                 } else {
                     hospitalization.copy(
-                        status = EpisodeStatus.CLOSED,
+                        status = details.type.closingStatus(),
                         endDate = clock.now(),
                         jpaVersion = hospitalization.jpaVersion + 1,
+                        discharge = details,
                     )
                 }
             }
@@ -208,15 +211,14 @@ class InMemoryHospitalizationRepository(
  * Real implementation of the episode half of [HospitalizationRepository], backed by the shared
  * `HttpClient` (HISS-632). See `network/dto/EpisodeDtos.kt` for the DTOs mapped here.
  *
- * Only [getHospitalizations]/[getHospitalization]/[addHospitalization] have a real endpoint yet.
- * The other four throw [UnsupportedOperationException]: discharge needs the real discharge form
- * (HISS-633), and Historia Clinica/Evolucion have no API equivalent (HISS-641). Until those land,
- * `di/AppModule.kt` keeps [InMemoryHospitalizationRepository] bound -- admission also still sends
- * [PlaceholderCatalog] ids the backend would reject (HISS-634).
+ * Historia Clinica/Evolucion throw [UnsupportedOperationException]: they have no API equivalent
+ * (HISS-641). Until that lands, `di/AppModule.kt` keeps [InMemoryHospitalizationRepository]
+ * bound -- admission also still sends [PlaceholderCatalog] ids the backend would reject
+ * (HISS-634).
  *
  * Every read follows [KtorPatientRepository.getPatient]'s shape: fetch once per collection, write
- * the result into a cache, then keep observing that cache, so [addHospitalization] reaches an
- * already-open patient record without a re-fetch. Lists only ever hold `INPATIENT` episodes -- the
+ * the result into a cache, then keep observing that cache, so [addHospitalization]/[discharge]
+ * reach an already-open screen without a re-fetch. Lists only ever hold `INPATIENT` episodes -- the
  * backend's episode list also returns outpatient/emergency contacts, which aren't hospital stays.
  */
 class KtorHospitalizationRepository(
@@ -309,8 +311,19 @@ class KtorHospitalizationRepository(
         return created
     }
 
-    override suspend fun discharge(hospId: String, jpaVersion: Long): Unit =
-        throw UnsupportedOperationException("Discharge needs the real discharge form (HISS-633)")
+    /** Updates both caches from the response, so an open stay screen or list shows it closed. */
+    override suspend fun discharge(hospId: String, details: DischargeDetails, jpaVersion: Long) {
+        val discharged = httpClient.post("/api/v1/episodes/$hospId/discharge") {
+            contentType(ContentType.Application.Json)
+            setBody(details.toRequest(jpaVersion))
+        }.body<EpisodeResponse>().toDomain()
+        _details.update { it + (hospId to discharged) }
+        _lists.update { lists ->
+            lists.mapValues { (_, list) ->
+                list.map { if (it.id == hospId) it.copy(status = discharged.status, endDate = discharged.endDate) else it }
+            }
+        }
+    }
 
     override suspend fun saveHistoriaClinicaSection(hospId: String, key: HcSectionKey, data: Any): Unit =
         throw UnsupportedOperationException("Historia Clinica has no backend endpoint yet (HISS-641)")
@@ -322,6 +335,9 @@ class KtorHospitalizationRepository(
         const val PAGE_SIZE = 100
     }
 }
+
+private fun DischargeType.closingStatus(): EpisodeStatus =
+    if (this == DischargeType.TRANSFER) EpisodeStatus.TRANSFERRED else EpisodeStatus.CLOSED
 
 private fun Hospitalizacion.withSection(key: HcSectionKey, data: Any): Hospitalizacion = copy(
     historiaClinica = when (key) {

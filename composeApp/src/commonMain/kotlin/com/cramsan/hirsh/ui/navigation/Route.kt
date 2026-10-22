@@ -21,6 +21,7 @@ object Routes {
     const val PATIENT_HISTORY = "patient_history/{patientId}"
     const val ADMISION = "admision/{patientId}"
     const val HOSPITALIZATION = "hospitalization/{patientId}/{hospId}"
+    const val DISCHARGE = "discharge/{patientId}/{hospId}"
     const val HISTORIA_CLINICA = "historia_clinica/{patientId}/{hospId}"
     const val EVOLUCION_NEW = "evolucion_new/{patientId}/{hospId}"
     const val EVOLUCION_VIEW = "evolucion_view/{patientId}/{hospId}/{evoId}"
@@ -32,6 +33,8 @@ object Routes {
     fun admision(patientId: String) = "admision/${encodeRouteSegment(patientId)}"
     fun hospitalization(patientId: String, hospId: String) =
         "hospitalization/${encodeRouteSegment(patientId)}/${encodeRouteSegment(hospId)}"
+    fun discharge(patientId: String, hospId: String) =
+        "discharge/${encodeRouteSegment(patientId)}/${encodeRouteSegment(hospId)}"
     fun historiaClinica(patientId: String, hospId: String) =
         "historia_clinica/${encodeRouteSegment(patientId)}/${encodeRouteSegment(hospId)}"
     fun evolucionNew(patientId: String, hospId: String) =

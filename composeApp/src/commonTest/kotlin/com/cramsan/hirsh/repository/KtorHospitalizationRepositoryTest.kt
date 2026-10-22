@@ -2,6 +2,9 @@ package com.cramsan.hirsh.repository
 
 import app.cash.turbine.test
 import com.cramsan.hirsh.model.BedRef
+import com.cramsan.hirsh.model.DischargeCondition
+import com.cramsan.hirsh.model.DischargeDetails
+import com.cramsan.hirsh.model.DischargeType
 import com.cramsan.hirsh.model.EpisodeStatus
 import com.cramsan.hirsh.model.ServiceRef
 import com.cramsan.hirsh.model.UserRef
@@ -78,6 +81,7 @@ private fun episodeResponseJson(
     status: String = "ACTIVE",
     endDate: String? = null,
     jpaVersion: Long = 4,
+    dischargeJson: String = "",
 ): String = """
     {
       "id": "$id",
@@ -88,7 +92,7 @@ private fun episodeResponseJson(
       "endDate": ${endDate?.let { "\"$it\"" }},
       "admissionReason": "Ideacion suicida",
       $REFS_JSON,
-      "dischargeCondition": null,
+      $dischargeJson
       "audit": {"createdAt": "2026-06-01T15:00:00Z", "jpaVersion": $jpaVersion}
     }
 """.trimIndent()
@@ -265,12 +269,88 @@ class KtorHospitalizationRepositoryTest {
         assertEquals(1, sent.count { it.method == HttpMethod.Get }, "the list is not re-fetched")
     }
 
-    // --- not yet backed by the API ----------------------------------------------------------
+    // --- discharge ------------------------------------------------------------------------
 
     @Test
-    fun `discharge is unsupported until the real discharge form lands`() = runTest {
-        val repository = KtorHospitalizationRepository(episodeClient { error("no request expected") })
+    fun `discharge posts every field, the next appointment as ISO, and the version`() = runTest {
+        val sent = mutableListOf<SentRequest>()
+        val client = episodeClient(sent) { json(HttpStatusCode.OK, episodeResponseJson(status = "CLOSED", endDate = "2026-06-10T09:30:00Z")) }
+        val repository = KtorHospitalizationRepository(client)
 
-        assertFailsWith<UnsupportedOperationException> { repository.discharge(EPISODE_ID, 1) }
+        repository.discharge(
+            EPISODE_ID,
+            DischargeDetails(
+                type = DischargeType.MEDICAL,
+                condition = DischargeCondition.IMPROVED,
+                diagnosisIcd10 = "F32.2",
+                followUpPlan = "Control en 15 dias",
+                nextAppointmentDate = "17/07/2026",
+            ),
+            jpaVersion = 4,
+        )
+
+        val request = sent.single()
+        assertEquals(HttpMethod.Post, request.method)
+        assertEquals("/api/v1/episodes/$EPISODE_ID/discharge", request.path)
+        val body = Json.parseToJsonElement(request.body).jsonObject
+        assertEquals("MEDICAL", body["dischargeType"]?.jsonPrimitive?.content)
+        assertEquals("IMPROVED", body["dischargeCondition"]?.jsonPrimitive?.content)
+        assertEquals("F32.2", body["dischargeDiagnosisIcd10"]?.jsonPrimitive?.content)
+        assertEquals("Control en 15 dias", body["followUpPlan"]?.jsonPrimitive?.content)
+        assertEquals("2026-07-17", body["nextAppointmentDate"]?.jsonPrimitive?.content)
+        assertEquals("4", body["jpaVersion"]?.jsonPrimitive?.content)
+        assertTrue("endDate" !in body, "the server stamps the end date")
+    }
+
+    @Test
+    fun `discharge reaches an open stay and its list row without a re-fetch`() = runTest {
+        val discharged = episodeResponseJson(
+            status = "TRANSFERRED",
+            endDate = "2026-06-10T09:30:00Z",
+            jpaVersion = 5,
+            dischargeJson = """"dischargeType": "TRANSFER", "dischargeCondition": "UNCHANGED",
+                "dischargeDiagnosisIcd10": "F20.0", "nextAppointmentDate": "2026-07-17",""",
+        )
+        val sent = mutableListOf<SentRequest>()
+        val client = episodeClient(sent) { request ->
+            when {
+                request.method == HttpMethod.Post -> json(HttpStatusCode.OK, discharged)
+                request.url.encodedPath.startsWith("/api/v1/episodes/") -> json(HttpStatusCode.OK, episodeResponseJson())
+                else -> json(HttpStatusCode.OK, pageJson(listOf(episodeSummaryJson(EPISODE_ID, "ACTIVE")), 0, 1))
+            }
+        }
+        val repository = KtorHospitalizationRepository(client)
+
+        repository.getHospitalizations(PATIENT_ID).test {
+            assertEquals(EpisodeStatus.ACTIVE, awaitItem().single().status)
+            repository.getHospitalization(PATIENT_ID, EPISODE_ID).test {
+                assertEquals(EpisodeStatus.ACTIVE, awaitItem()?.status)
+
+                repository.discharge(EPISODE_ID, DischargeDetails(DischargeType.TRANSFER, DischargeCondition.UNCHANGED, "F20.0"), 4)
+
+                val stay = awaitItem()
+                assertEquals(EpisodeStatus.TRANSFERRED, stay?.status)
+                assertEquals(5L, stay?.jpaVersion)
+                assertEquals(
+                    DischargeDetails(DischargeType.TRANSFER, DischargeCondition.UNCHANGED, "F20.0", nextAppointmentDate = "17/07/2026"),
+                    stay?.discharge,
+                )
+            }
+            val row = awaitItem().single()
+            assertEquals(EpisodeStatus.TRANSFERRED, row.status)
+            assertEquals(Instant.parse("2026-06-10T09:30:00Z"), row.endDate)
+        }
+        assertEquals(2, sent.count { it.method == HttpMethod.Get }, "one list fetch and one stay fetch, no re-fetch")
+    }
+
+    @Test
+    fun `discharge surfaces the backend's 409 as Conflict`() = runTest {
+        val client = episodeClient { json(HttpStatusCode.Conflict, """{"detail": "Episode was modified by another user."}""") }
+        val repository = KtorHospitalizationRepository(client)
+
+        val error = assertFailsWith<ApiException> {
+            repository.discharge(EPISODE_ID, DischargeDetails(DischargeType.MEDICAL, DischargeCondition.IMPROVED, "F32.2"), 1)
+        }
+        assertEquals(ApiError.Conflict(""), error.error)
     }
 }

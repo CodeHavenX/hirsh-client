@@ -31,9 +31,54 @@ data class Hospitalizacion(
      * concurrent edit. See [Patient.jpaVersion]'s doc comment.
      */
     val jpaVersion: Long = 0L,
+    /** Set once the episode is discharged (HISS-633); null while it's [EpisodeStatus.ACTIVE]. */
+    val discharge: DischargeDetails? = null,
 )
 
-/** Mirrors the backend's `EpisodeStatus`. */
+/**
+ * What the backend's `DischargeEpisodeRequest` records when an episode closes (HISS-633), and what
+ * `EpisodeResponse` returns once it has. [diagnosisIcd10] must exist in the ICD-10 catalog.
+ * [nextAppointmentDate] is `dd/MM/yyyy`, like [Patient.birthDate], converted only at the API
+ * boundary.
+ */
+data class DischargeDetails(
+    val type: DischargeType,
+    val condition: DischargeCondition,
+    val diagnosisIcd10: String,
+    val followUpPlan: String? = null,
+    val nextAppointmentDate: String? = null,
+)
+
+/** Mirrors the backend's `DischargeType`. */
+enum class DischargeType { MEDICAL, VOLUNTARY, ELOPEMENT, TRANSFER, DEATH, AGAINST_ADVICE }
+
+fun DischargeType.toDisplayLabel(): String = when (this) {
+    DischargeType.MEDICAL -> "Alta medica"
+    DischargeType.VOLUNTARY -> "Alta voluntaria"
+    DischargeType.ELOPEMENT -> "Fuga"
+    DischargeType.TRANSFER -> "Transferencia"
+    DischargeType.DEATH -> "Fallecimiento"
+    DischargeType.AGAINST_ADVICE -> "Retiro contra opinion medica"
+}
+
+/** Mirrors the backend's `DischargeCondition`: the patient's condition at discharge. */
+enum class DischargeCondition { IMPROVED, RECOVERED, UNCHANGED, WORSENED, DECEASED }
+
+fun DischargeCondition.toDisplayLabel(): String = when (this) {
+    DischargeCondition.IMPROVED -> "Mejorado"
+    DischargeCondition.RECOVERED -> "Recuperado"
+    DischargeCondition.UNCHANGED -> "Sin cambios"
+    DischargeCondition.WORSENED -> "Empeorado"
+    DischargeCondition.DECEASED -> "Fallecido"
+}
+
+/** One ICD-10 catalog entry, as the backend's `Icd10CodeResponse` returns it. */
+data class Icd10Code(val code: String, val description: String)
+
+/**
+ * Mirrors the backend's `EpisodeStatus`. Discharging sets [TRANSFERRED] for a
+ * [DischargeType.TRANSFER] and [CLOSED] for every other type.
+ */
 enum class EpisodeStatus {
     ACTIVE,
 

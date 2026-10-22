@@ -1,6 +1,9 @@
 package com.cramsan.hirsh.network.dto
 
 import com.cramsan.hirsh.model.BedRef
+import com.cramsan.hirsh.model.DischargeCondition
+import com.cramsan.hirsh.model.DischargeDetails
+import com.cramsan.hirsh.model.DischargeType
 import com.cramsan.hirsh.model.EpisodeStatus
 import com.cramsan.hirsh.model.HistoriaClinica
 import com.cramsan.hirsh.model.Hospitalizacion
@@ -26,10 +29,21 @@ data class CreateEpisodeRequest(
 )
 
 /**
- * 200/201 body of the single-episode endpoints -- schema `EpisodeResponse`. The discharge block
- * (`dischargeType`/`dischargeCondition`/`dischargeDiagnosisIcd10`/follow-up) isn't mapped yet; the
- * real discharge form that needs it is HISS-633.
+ * Body of `POST /api/v1/episodes/{episodeId}/discharge` -- schema `DischargeEpisodeRequest`.
+ * `endDate` is left to the server's clock, like [CreateEpisodeRequest]'s `startDate`.
+ * [nextAppointmentDate] is ISO (`2026-07-17`).
  */
+@Serializable
+data class DischargeEpisodeRequest(
+    val dischargeType: DischargeTypeDto,
+    val dischargeCondition: DischargeConditionDto,
+    val dischargeDiagnosisIcd10: String,
+    val followUpPlan: String? = null,
+    val nextAppointmentDate: String? = null,
+    val jpaVersion: Long,
+)
+
+/** 200/201 body of the single-episode endpoints -- schema `EpisodeResponse`. */
 @Serializable
 data class EpisodeResponse(
     val id: String,
@@ -42,6 +56,11 @@ data class EpisodeResponse(
     val attendingPhysician: UserRefDto? = null,
     val currentService: ServiceRefDto? = null,
     val currentBed: BedRefDto? = null,
+    val dischargeType: DischargeTypeDto? = null,
+    val dischargeCondition: DischargeConditionDto? = null,
+    val dischargeDiagnosisIcd10: String? = null,
+    val followUpPlan: String? = null,
+    val nextAppointmentDate: String? = null,
     val audit: AuditBlock,
 )
 
@@ -103,6 +122,71 @@ fun EpisodeStatusDto.toDomain(): EpisodeStatus = when (this) {
     EpisodeStatusDto.TRANSFERRED -> EpisodeStatus.TRANSFERRED
 }
 
+/** Wire values match [DischargeType]'s constant names exactly (confirmed against the backend's `DischargeType.kt`). */
+@Serializable
+enum class DischargeTypeDto { MEDICAL, VOLUNTARY, ELOPEMENT, TRANSFER, DEATH, AGAINST_ADVICE }
+
+fun DischargeTypeDto.toDomain(): DischargeType = when (this) {
+    DischargeTypeDto.MEDICAL -> DischargeType.MEDICAL
+    DischargeTypeDto.VOLUNTARY -> DischargeType.VOLUNTARY
+    DischargeTypeDto.ELOPEMENT -> DischargeType.ELOPEMENT
+    DischargeTypeDto.TRANSFER -> DischargeType.TRANSFER
+    DischargeTypeDto.DEATH -> DischargeType.DEATH
+    DischargeTypeDto.AGAINST_ADVICE -> DischargeType.AGAINST_ADVICE
+}
+
+fun DischargeType.toDto(): DischargeTypeDto = when (this) {
+    DischargeType.MEDICAL -> DischargeTypeDto.MEDICAL
+    DischargeType.VOLUNTARY -> DischargeTypeDto.VOLUNTARY
+    DischargeType.ELOPEMENT -> DischargeTypeDto.ELOPEMENT
+    DischargeType.TRANSFER -> DischargeTypeDto.TRANSFER
+    DischargeType.DEATH -> DischargeTypeDto.DEATH
+    DischargeType.AGAINST_ADVICE -> DischargeTypeDto.AGAINST_ADVICE
+}
+
+/** Wire values match [DischargeCondition]'s constant names exactly (confirmed against the backend's `DischargeCondition.kt`). */
+@Serializable
+enum class DischargeConditionDto { IMPROVED, RECOVERED, UNCHANGED, WORSENED, DECEASED }
+
+fun DischargeConditionDto.toDomain(): DischargeCondition = when (this) {
+    DischargeConditionDto.IMPROVED -> DischargeCondition.IMPROVED
+    DischargeConditionDto.RECOVERED -> DischargeCondition.RECOVERED
+    DischargeConditionDto.UNCHANGED -> DischargeCondition.UNCHANGED
+    DischargeConditionDto.WORSENED -> DischargeCondition.WORSENED
+    DischargeConditionDto.DECEASED -> DischargeCondition.DECEASED
+}
+
+fun DischargeCondition.toDto(): DischargeConditionDto = when (this) {
+    DischargeCondition.IMPROVED -> DischargeConditionDto.IMPROVED
+    DischargeCondition.RECOVERED -> DischargeConditionDto.RECOVERED
+    DischargeCondition.UNCHANGED -> DischargeConditionDto.UNCHANGED
+    DischargeCondition.WORSENED -> DischargeConditionDto.WORSENED
+    DischargeCondition.DECEASED -> DischargeConditionDto.DECEASED
+}
+
+fun DischargeDetails.toRequest(jpaVersion: Long): DischargeEpisodeRequest = DischargeEpisodeRequest(
+    dischargeType = type.toDto(),
+    dischargeCondition = condition.toDto(),
+    dischargeDiagnosisIcd10 = diagnosisIcd10,
+    followUpPlan = followUpPlan,
+    nextAppointmentDate = nextAppointmentDate?.displayDateToIso(),
+    jpaVersion = jpaVersion,
+)
+
+/** Null until the episode is discharged -- the backend sets all three required fields together. */
+private fun EpisodeResponse.dischargeDetails(): DischargeDetails? {
+    val type = dischargeType ?: return null
+    val condition = dischargeCondition ?: return null
+    val diagnosis = dischargeDiagnosisIcd10 ?: return null
+    return DischargeDetails(
+        type = type.toDomain(),
+        condition = condition.toDomain(),
+        diagnosisIcd10 = diagnosis,
+        followUpPlan = followUpPlan,
+        nextAppointmentDate = nextAppointmentDate?.isoDateToDisplay(),
+    )
+}
+
 fun UserRefDto.toDomain(): UserRef = UserRef(id = id, fullName = fullName)
 
 fun ServiceRefDto.toDomain(): ServiceRef = ServiceRef(id = id, name = name)
@@ -127,6 +211,7 @@ fun EpisodeResponse.toDomain(): Hospitalizacion = Hospitalizacion(
     historiaClinica = HistoriaClinica(),
     evoluciones = emptyList(),
     jpaVersion = audit.jpaVersion,
+    discharge = dischargeDetails(),
 )
 
 /** See [EpisodeSummary]'s doc comment for the field it can't fill. */
