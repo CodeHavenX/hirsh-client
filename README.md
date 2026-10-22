@@ -74,6 +74,12 @@ IosSimulatorArm64,IosX64}` all build clean at these pinned versions.
 ./gradlew :composeApp:wasmJsBrowserDevelopmentRun # Web (dev server)
 ```
 
+The web dev server runs on `http://localhost:3000`. The browser only lets it call
+the backend if the backend allows that origin, so start the backend with
+`CORS_ALLOWED_ORIGIN=http://localhost:3000` (its default is `https://...`, which
+a plain-http dev server never matches). Desktop, Android and iOS aren't subject to
+CORS and need nothing extra.
+
 iOS: open `iosApp/iosApp.xcodeproj` in Xcode and run. First build will be
 slow (compiles the KMP framework for the simulator/device architecture).
 
