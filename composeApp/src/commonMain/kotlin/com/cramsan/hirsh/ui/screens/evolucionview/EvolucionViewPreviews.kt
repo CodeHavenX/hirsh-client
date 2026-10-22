@@ -7,7 +7,6 @@ import com.cramsan.hirsh.model.EpisodeStatus
 import com.cramsan.hirsh.model.Evolucion
 import com.cramsan.hirsh.model.EvolucionResultado
 import com.cramsan.hirsh.model.Examen
-import com.cramsan.hirsh.model.HistoriaClinica
 import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.Pronostico
@@ -63,8 +62,6 @@ private fun previewHospitalizacion(evolucion: Evolucion) = Hospitalizacion(
     endDate = null,
     admissionReason = "Sintomas respiratorios",
     status = EpisodeStatus.ACTIVE,
-    historiaClinica = HistoriaClinica(),
-    evoluciones = listOf(evolucion),
 )
 
 private val previewExamenes = listOf(

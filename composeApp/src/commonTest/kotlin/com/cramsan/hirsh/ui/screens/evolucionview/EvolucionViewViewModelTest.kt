@@ -20,7 +20,8 @@ import com.cramsan.hirsh.model.Severity
 import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.model.UserRef
 import com.cramsan.hirsh.model.Vitals
-import com.cramsan.hirsh.repository.HospitalizationRepository
+import com.cramsan.hirsh.repository.ClinicalNoteRepository
+import com.cramsan.hirsh.repository.EpisodeRepository
 import com.cramsan.hirsh.repository.PatientRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -71,7 +72,7 @@ private fun sampleEvolucion(id: String) = Evolucion(
     examenesObs = "",
 )
 
-private fun sampleHospitalization(id: String, patientId: String, evoluciones: List<Evolucion> = emptyList()) = Hospitalizacion(
+private fun sampleHospitalization(id: String, patientId: String) = Hospitalizacion(
     id = id,
     patientId = patientId,
     currentService = ServiceRef("svc-1", "Medicina General"),
@@ -81,8 +82,6 @@ private fun sampleHospitalization(id: String, patientId: String, evoluciones: Li
     endDate = null,
     admissionReason = "Tos productiva con fiebre",
     status = EpisodeStatus.ACTIVE,
-    historiaClinica = HistoriaClinica(),
-    evoluciones = evoluciones,
 )
 
 private class FakePatientRepository(patients: List<Patient>) : PatientRepository {
@@ -120,8 +119,8 @@ private class FakePatientRepository(patients: List<Patient>) : PatientRepository
     override suspend fun deleteAllergy(patientId: String, allergyId: String) = error("not used by this test")
 }
 
-private class FakeHospitalizationRepository(hospitalizations: List<Hospitalizacion> = emptyList()) :
-    HospitalizationRepository {
+private class FakeEpisodeRepository(hospitalizations: List<Hospitalizacion> = emptyList()) :
+    EpisodeRepository {
     private val _hospitalizations = MutableStateFlow(hospitalizations)
 
     override fun getHospitalizations(patientId: String): Flow<List<Hospitalizacion>> =
@@ -129,9 +128,6 @@ private class FakeHospitalizationRepository(hospitalizations: List<Hospitalizaci
 
     override fun getHospitalization(patientId: String, hospId: String): Flow<Hospitalizacion?> =
         _hospitalizations.map { list -> list.find { it.patientId == patientId && it.id == hospId } }
-
-    override fun getEvolucion(hospId: String, evoId: String): Flow<Evolucion?> =
-        _hospitalizations.map { list -> list.find { it.id == hospId }?.evoluciones?.find { it.id == evoId } }
 
     override suspend fun addHospitalization(
         patientId: String,
@@ -142,6 +138,16 @@ private class FakeHospitalizationRepository(hospitalizations: List<Hospitalizaci
     ): Hospitalizacion = error("not used by this test")
 
     override suspend fun discharge(hospId: String, details: DischargeDetails, jpaVersion: Long) = Unit
+}
+
+private class FakeClinicalNoteRepository(private val evoluciones: Map<String, List<Evolucion>> = emptyMap()) :
+    ClinicalNoteRepository {
+    override fun getHistoriaClinica(hospId: String): Flow<HistoriaClinica> = MutableStateFlow(HistoriaClinica())
+
+    override fun getEvoluciones(hospId: String): Flow<List<Evolucion>> = MutableStateFlow(evoluciones[hospId].orEmpty())
+
+    override fun getEvolucion(hospId: String, evoId: String): Flow<Evolucion?> =
+        MutableStateFlow(evoluciones[hospId]?.find { it.id == evoId })
 
     override suspend fun saveHistoriaClinicaSection(hospId: String, key: HcSectionKey, data: Any) = Unit
 
@@ -166,10 +172,11 @@ class EvolucionViewViewModelTest {
     @Test
     fun `load populates patient, hospitalizacion, and evolucion`() = runTest(dispatcher) {
         val evolucion = sampleEvolucion("evo1")
-        val hospitalization = sampleHospitalization("h1", samplePatient.id, listOf(evolucion))
+        val hospitalization = sampleHospitalization("h1", samplePatient.id)
         val viewModel = EvolucionViewViewModel(
             FakePatientRepository(listOf(samplePatient)),
-            FakeHospitalizationRepository(listOf(hospitalization)),
+            FakeEpisodeRepository(listOf(hospitalization)),
+            FakeClinicalNoteRepository(mapOf("h1" to listOf(evolucion))),
         )
 
         viewModel.uiState.test {
@@ -186,10 +193,11 @@ class EvolucionViewViewModelTest {
     @Test
     fun `load produces not-found when the hospId belongs to a different patient`() = runTest(dispatcher) {
         val evolucion = sampleEvolucion("evo1")
-        val hospitalization = sampleHospitalization("h1", "other-patient-id", listOf(evolucion))
+        val hospitalization = sampleHospitalization("h1", "other-patient-id")
         val viewModel = EvolucionViewViewModel(
             FakePatientRepository(listOf(samplePatient)),
-            FakeHospitalizationRepository(listOf(hospitalization)),
+            FakeEpisodeRepository(listOf(hospitalization)),
+            FakeClinicalNoteRepository(mapOf("h1" to listOf(evolucion))),
         )
 
         viewModel.uiState.test {
@@ -207,7 +215,8 @@ class EvolucionViewViewModelTest {
     fun `load produces not-found when the patient does not exist`() = runTest(dispatcher) {
         val viewModel = EvolucionViewViewModel(
             FakePatientRepository(emptyList()),
-            FakeHospitalizationRepository(),
+            FakeEpisodeRepository(),
+            FakeClinicalNoteRepository(),
         )
 
         viewModel.uiState.test {
@@ -223,10 +232,11 @@ class EvolucionViewViewModelTest {
 
     @Test
     fun `load produces not-found when evoId does not exist within the hospitalizacion`() = runTest(dispatcher) {
-        val hospitalization = sampleHospitalization("h1", samplePatient.id, listOf(sampleEvolucion("evo1")))
+        val hospitalization = sampleHospitalization("h1", samplePatient.id)
         val viewModel = EvolucionViewViewModel(
             FakePatientRepository(listOf(samplePatient)),
-            FakeHospitalizationRepository(listOf(hospitalization)),
+            FakeEpisodeRepository(listOf(hospitalization)),
+            FakeClinicalNoteRepository(mapOf("h1" to listOf(sampleEvolucion("evo1")))),
         )
 
         viewModel.uiState.test {
@@ -242,10 +252,11 @@ class EvolucionViewViewModelTest {
     @Test
     fun `selectTab switches the selected tab`() = runTest(dispatcher) {
         val evolucion = sampleEvolucion("evo1")
-        val hospitalization = sampleHospitalization("h1", samplePatient.id, listOf(evolucion))
+        val hospitalization = sampleHospitalization("h1", samplePatient.id)
         val viewModel = EvolucionViewViewModel(
             FakePatientRepository(listOf(samplePatient)),
-            FakeHospitalizationRepository(listOf(hospitalization)),
+            FakeEpisodeRepository(listOf(hospitalization)),
+            FakeClinicalNoteRepository(mapOf("h1" to listOf(evolucion))),
         )
 
         viewModel.uiState.test {
@@ -263,10 +274,11 @@ class EvolucionViewViewModelTest {
     @Test
     fun `openPrintPreview shows the summary, closePrintPreview hides it`() = runTest(dispatcher) {
         val evolucion = sampleEvolucion("evo1")
-        val hospitalization = sampleHospitalization("h1", samplePatient.id, listOf(evolucion))
+        val hospitalization = sampleHospitalization("h1", samplePatient.id)
         val viewModel = EvolucionViewViewModel(
             FakePatientRepository(listOf(samplePatient)),
-            FakeHospitalizationRepository(listOf(hospitalization)),
+            FakeEpisodeRepository(listOf(hospitalization)),
+            FakeClinicalNoteRepository(mapOf("h1" to listOf(evolucion))),
         )
 
         viewModel.uiState.test {

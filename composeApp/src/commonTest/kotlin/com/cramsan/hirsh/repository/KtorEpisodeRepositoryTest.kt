@@ -43,7 +43,7 @@ private const val EPISODE_ID = "3c9d2e1f-7a4b-4c5d-9e8f-1a2b3c4d5e6f"
 /** One sent request -- method, path, query and body -- for assertions without a real server. */
 private data class SentRequest(val method: HttpMethod, val path: String, val query: Map<String, String>, val body: String)
 
-/** Same plugin stack as `KtorHospitalizationRepository` runs behind; mirrors [KtorPatientRepositoryTest]'s `mockClient`. */
+/** Same plugin stack as `KtorEpisodeRepository` runs behind; mirrors [KtorPatientRepositoryTest]'s `mockClient`. */
 private fun episodeClient(
     sent: MutableList<SentRequest> = mutableListOf(),
     handler: MockRequestHandleScope.(HttpRequestData) -> HttpResponseData,
@@ -112,7 +112,7 @@ private fun episodeSummaryJson(id: String, status: String = "CLOSED"): String = 
 private fun pageJson(content: List<String>, number: Int, totalPages: Int): String =
     """{"content": [${content.joinToString(",")}], "page": {"number": $number, "size": 100, "totalElements": 0, "totalPages": $totalPages}}"""
 
-class KtorHospitalizationRepositoryTest {
+class KtorEpisodeRepositoryTest {
 
     // --- getHospitalizations -------------------------------------------------------------
 
@@ -120,7 +120,7 @@ class KtorHospitalizationRepositoryTest {
     fun `getHospitalizations asks for INPATIENT episodes only and maps each summary`() = runTest {
         val sent = mutableListOf<SentRequest>()
         val client = episodeClient(sent) { json(HttpStatusCode.OK, pageJson(listOf(episodeSummaryJson("e1", "ACTIVE")), 0, 1)) }
-        val repository = KtorHospitalizationRepository(client)
+        val repository = KtorEpisodeRepository(client)
 
         val list = repository.getHospitalizations(PATIENT_ID).first()
 
@@ -147,7 +147,7 @@ class KtorHospitalizationRepositoryTest {
                 else -> json(HttpStatusCode.OK, pageJson(listOf(episodeSummaryJson("e1")), 1, 2))
             }
         }
-        val repository = KtorHospitalizationRepository(client)
+        val repository = KtorEpisodeRepository(client)
 
         assertEquals(listOf("e0", "e1"), repository.getHospitalizations(PATIENT_ID).first().map { it.id })
     }
@@ -155,7 +155,7 @@ class KtorHospitalizationRepositoryTest {
     @Test
     fun `getHospitalizations propagates a failed fetch instead of reporting no stays`() = runTest {
         val client = episodeClient { json(HttpStatusCode.NotFound, """{"title": "Not Found"}""") }
-        val repository = KtorHospitalizationRepository(client)
+        val repository = KtorEpisodeRepository(client)
 
         val error = assertFailsWith<ApiException> { repository.getHospitalizations(PATIENT_ID).first() }
         assertTrue(error.error is ApiError.NotFound)
@@ -169,7 +169,7 @@ class KtorHospitalizationRepositoryTest {
         val client = episodeClient(sent) {
             json(HttpStatusCode.OK, episodeResponseJson(status = "CLOSED", endDate = "2026-06-10T09:30:00Z", jpaVersion = 9))
         }
-        val repository = KtorHospitalizationRepository(client)
+        val repository = KtorEpisodeRepository(client)
 
         val episode = repository.getHospitalization(PATIENT_ID, EPISODE_ID).first()
 
@@ -179,13 +179,12 @@ class KtorHospitalizationRepositoryTest {
         assertEquals(Instant.parse("2026-06-10T09:30:00Z"), episode?.endDate)
         assertEquals("Ideacion suicida", episode?.admissionReason)
         assertEquals(9L, episode?.jpaVersion)
-        assertEquals(emptyList(), episode?.evoluciones)
     }
 
     @Test
     fun `getHospitalization of another patient's episode is not found`() = runTest {
         val client = episodeClient { json(HttpStatusCode.OK, episodeResponseJson(patientId = OTHER_PATIENT_ID)) }
-        val repository = KtorHospitalizationRepository(client)
+        val repository = KtorEpisodeRepository(client)
 
         assertNull(repository.getHospitalization(PATIENT_ID, EPISODE_ID).first())
     }
@@ -193,7 +192,7 @@ class KtorHospitalizationRepositoryTest {
     @Test
     fun `getHospitalization returns null on a 404 instead of throwing`() = runTest {
         val client = episodeClient { json(HttpStatusCode.NotFound, """{"title": "Not Found"}""") }
-        val repository = KtorHospitalizationRepository(client)
+        val repository = KtorEpisodeRepository(client)
 
         assertNull(repository.getHospitalization(PATIENT_ID, EPISODE_ID).first())
     }
@@ -201,7 +200,7 @@ class KtorHospitalizationRepositoryTest {
     @Test
     fun `getHospitalization still throws on errors other than 404`() = runTest {
         val client = episodeClient { json(HttpStatusCode.Forbidden, """{"title": "Forbidden"}""") }
-        val repository = KtorHospitalizationRepository(client)
+        val repository = KtorEpisodeRepository(client)
 
         val error = assertFailsWith<ApiException> { repository.getHospitalization(PATIENT_ID, EPISODE_ID).first() }
         assertEquals(ApiError.Forbidden, error.error)
@@ -213,7 +212,7 @@ class KtorHospitalizationRepositoryTest {
     fun `addHospitalization posts an INPATIENT CreateEpisodeRequest with the refs' ids`() = runTest {
         val sent = mutableListOf<SentRequest>()
         val client = episodeClient(sent) { json(HttpStatusCode.Created, episodeResponseJson()) }
-        val repository = KtorHospitalizationRepository(client)
+        val repository = KtorEpisodeRepository(client)
 
         repository.addHospitalization(
             patientId = PATIENT_ID,
@@ -239,7 +238,7 @@ class KtorHospitalizationRepositoryTest {
     @Test
     fun `addHospitalization surfaces the backend's 409 for an already-open stay as Conflict`() = runTest {
         val client = episodeClient { json(HttpStatusCode.Conflict, """{"conflictingResourceId": "open-episode"}""") }
-        val repository = KtorHospitalizationRepository(client)
+        val repository = KtorEpisodeRepository(client)
 
         val error = assertFailsWith<ApiException> {
             repository.addHospitalization(PATIENT_ID, ServiceRef("s1", "Psiquiatria"), null, UserRef("u1", "Dra. Rosa Quispe"), null)
@@ -257,7 +256,7 @@ class KtorHospitalizationRepositoryTest {
                 json(HttpStatusCode.OK, pageJson(listOf(episodeSummaryJson("older")), 0, 1))
             }
         }
-        val repository = KtorHospitalizationRepository(client)
+        val repository = KtorEpisodeRepository(client)
 
         repository.getHospitalizations(PATIENT_ID).test {
             assertEquals(listOf("older"), awaitItem().map { it.id })
@@ -275,7 +274,7 @@ class KtorHospitalizationRepositoryTest {
     fun `discharge posts every field, the next appointment as ISO, and the version`() = runTest {
         val sent = mutableListOf<SentRequest>()
         val client = episodeClient(sent) { json(HttpStatusCode.OK, episodeResponseJson(status = "CLOSED", endDate = "2026-06-10T09:30:00Z")) }
-        val repository = KtorHospitalizationRepository(client)
+        val repository = KtorEpisodeRepository(client)
 
         repository.discharge(
             EPISODE_ID,
@@ -319,7 +318,7 @@ class KtorHospitalizationRepositoryTest {
                 else -> json(HttpStatusCode.OK, pageJson(listOf(episodeSummaryJson(EPISODE_ID, "ACTIVE")), 0, 1))
             }
         }
-        val repository = KtorHospitalizationRepository(client)
+        val repository = KtorEpisodeRepository(client)
 
         repository.getHospitalizations(PATIENT_ID).test {
             assertEquals(EpisodeStatus.ACTIVE, awaitItem().single().status)
@@ -346,7 +345,7 @@ class KtorHospitalizationRepositoryTest {
     @Test
     fun `discharge surfaces the backend's 409 as Conflict`() = runTest {
         val client = episodeClient { json(HttpStatusCode.Conflict, """{"detail": "Episode was modified by another user."}""") }
-        val repository = KtorHospitalizationRepository(client)
+        val repository = KtorEpisodeRepository(client)
 
         val error = assertFailsWith<ApiException> {
             repository.discharge(EPISODE_ID, DischargeDetails(DischargeType.MEDICAL, DischargeCondition.IMPROVED, "F32.2"), 1)

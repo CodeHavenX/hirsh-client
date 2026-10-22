@@ -20,7 +20,7 @@ import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.model.UserRef
 import com.cramsan.hirsh.network.ApiError
 import com.cramsan.hirsh.network.ApiException
-import com.cramsan.hirsh.repository.HospitalizationRepository
+import com.cramsan.hirsh.repository.EpisodeRepository
 import com.cramsan.hirsh.repository.Icd10Repository
 import com.cramsan.hirsh.repository.PatientRepository
 import kotlinx.coroutines.Dispatchers
@@ -65,8 +65,6 @@ private fun sampleHospitalization(id: String, patientId: String) = Hospitalizaci
     endDate = null,
     admissionReason = "Tos productiva con fiebre",
     status = EpisodeStatus.ACTIVE,
-    historiaClinica = HistoriaClinica(),
-    evoluciones = emptyList(),
     jpaVersion = 3,
 )
 
@@ -118,8 +116,8 @@ private class FakePatientRepository(patients: List<Patient>) : PatientRepository
     override suspend fun deleteAllergy(patientId: String, allergyId: String) = error("not used by this test")
 }
 
-private class FakeHospitalizationRepository(hospitalizations: List<Hospitalizacion> = emptyList()) :
-    HospitalizationRepository {
+private class FakeEpisodeRepository(hospitalizations: List<Hospitalizacion> = emptyList()) :
+    EpisodeRepository {
     private val _hospitalizations = MutableStateFlow(hospitalizations)
     var dischargeCallCount = 0
         private set
@@ -132,9 +130,6 @@ private class FakeHospitalizationRepository(hospitalizations: List<Hospitalizaci
 
     override fun getHospitalization(patientId: String, hospId: String): Flow<Hospitalizacion?> =
         _hospitalizations.map { list -> list.find { it.patientId == patientId && it.id == hospId } }
-
-    override fun getEvolucion(hospId: String, evoId: String): Flow<Evolucion?> =
-        _hospitalizations.map { list -> list.find { it.id == hospId }?.evoluciones?.find { it.id == evoId } }
 
     override suspend fun addHospitalization(
         patientId: String,
@@ -152,10 +147,6 @@ private class FakeHospitalizationRepository(hospitalizations: List<Hospitalizaci
             list.map { if (it.id == hospId) it.copy(status = EpisodeStatus.CLOSED, discharge = details) else it }
         }
     }
-
-    override suspend fun saveHistoriaClinicaSection(hospId: String, key: HcSectionKey, data: Any) = Unit
-
-    override suspend fun addEvolucion(hospId: String, evolucion: Evolucion): Evolucion = evolucion
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -174,10 +165,10 @@ class DischargeViewModelTest {
     }
 
     private fun viewModel(
-        hospitalizationRepository: FakeHospitalizationRepository =
-            FakeHospitalizationRepository(listOf(sampleHospitalization("h1", samplePatient.id))),
+        episodeRepository: FakeEpisodeRepository =
+            FakeEpisodeRepository(listOf(sampleHospitalization("h1", samplePatient.id))),
         icd10Repository: FakeIcd10Repository = FakeIcd10Repository(),
-    ): DischargeViewModel = DischargeViewModel(FakePatientRepository(listOf(samplePatient)), hospitalizationRepository, icd10Repository)
+    ): DischargeViewModel = DischargeViewModel(FakePatientRepository(listOf(samplePatient)), episodeRepository, icd10Repository)
         .also {
             it.load(samplePatient.id, "h1")
             dispatcher.scheduler.advanceUntilIdle()
@@ -258,7 +249,7 @@ class DischargeViewModelTest {
 
     @Test
     fun `discharge requires type, condition and diagnosis`() = runTest(dispatcher) {
-        val repository = FakeHospitalizationRepository(listOf(sampleHospitalization("h1", samplePatient.id)))
+        val repository = FakeEpisodeRepository(listOf(sampleHospitalization("h1", samplePatient.id)))
         val viewModel = viewModel(repository)
         viewModel.onTypeChange(DischargeType.MEDICAL)
         viewModel.onConditionChange(DischargeCondition.IMPROVED)
@@ -272,7 +263,7 @@ class DischargeViewModelTest {
 
     @Test
     fun `discharge rejects a next appointment that is not a real dd-MM-yyyy date`() = runTest(dispatcher) {
-        val repository = FakeHospitalizationRepository(listOf(sampleHospitalization("h1", samplePatient.id)))
+        val repository = FakeEpisodeRepository(listOf(sampleHospitalization("h1", samplePatient.id)))
         val viewModel = viewModel(repository)
         viewModel.fillRequired()
 
@@ -287,7 +278,7 @@ class DischargeViewModelTest {
 
     @Test
     fun `discharge sends every field with the stay's current version`() = runTest(dispatcher) {
-        val repository = FakeHospitalizationRepository(listOf(sampleHospitalization("h1", samplePatient.id)))
+        val repository = FakeEpisodeRepository(listOf(sampleHospitalization("h1", samplePatient.id)))
         val viewModel = viewModel(repository)
         viewModel.fillRequired()
         viewModel.onNextAppointmentDateChange(" 17/07/2026 ")
@@ -310,7 +301,7 @@ class DischargeViewModelTest {
 
     @Test
     fun `blank optional fields are sent as absent`() = runTest(dispatcher) {
-        val repository = FakeHospitalizationRepository(listOf(sampleHospitalization("h1", samplePatient.id)))
+        val repository = FakeEpisodeRepository(listOf(sampleHospitalization("h1", samplePatient.id)))
         val viewModel = viewModel(repository)
         viewModel.fillRequired()
         viewModel.onFollowUpPlanChange("   ")
@@ -324,7 +315,7 @@ class DischargeViewModelTest {
 
     @Test
     fun `discharge ignores a second call while one is in flight`() = runTest(dispatcher) {
-        val repository = FakeHospitalizationRepository(listOf(sampleHospitalization("h1", samplePatient.id)))
+        val repository = FakeEpisodeRepository(listOf(sampleHospitalization("h1", samplePatient.id)))
         val viewModel = viewModel(repository)
         viewModel.fillRequired()
 
@@ -338,7 +329,7 @@ class DischargeViewModelTest {
     @Test
     fun `a stay that is no longer active is not discharged`() = runTest(dispatcher) {
         val closed = sampleHospitalization("h1", samplePatient.id).copy(status = EpisodeStatus.CLOSED)
-        val repository = FakeHospitalizationRepository(listOf(closed))
+        val repository = FakeEpisodeRepository(listOf(closed))
         val viewModel = viewModel(repository)
         viewModel.fillRequired()
 
@@ -357,7 +348,7 @@ class DischargeViewModelTest {
             ApiError.Unknown("Episode is not active") to "No se pudo dar de alta al paciente",
         )
         for ((error, message) in cases) {
-            val repository = FakeHospitalizationRepository(listOf(sampleHospitalization("h1", samplePatient.id)))
+            val repository = FakeEpisodeRepository(listOf(sampleHospitalization("h1", samplePatient.id)))
                 .apply { throwOnDischarge = ApiException(error) }
             val viewModel = viewModel(repository)
             viewModel.fillRequired()

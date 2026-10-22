@@ -8,11 +8,13 @@ import com.cramsan.hirsh.model.ExamenFisico
 import com.cramsan.hirsh.model.ExamenRegional
 import com.cramsan.hirsh.model.Filiacion
 import com.cramsan.hirsh.model.HcSectionKey
+import com.cramsan.hirsh.model.HistoriaClinica
 import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.MotivoIngreso
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.Plan
-import com.cramsan.hirsh.repository.HospitalizationRepository
+import com.cramsan.hirsh.repository.ClinicalNoteRepository
+import com.cramsan.hirsh.repository.EpisodeRepository
 import com.cramsan.hirsh.repository.PatientRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -30,6 +32,7 @@ data class HistoriaClinicaUiState(
     val isLoading: Boolean = true,
     val patient: Patient? = null,
     val hospitalizacion: Hospitalizacion? = null,
+    val historiaClinica: HistoriaClinica = HistoriaClinica(),
     val activeSection: HcSectionKey = HcSectionKey.FILIACION,
     val fieldValues: Map<String, String> = emptyMap(),
     val motivoIngresoDraft: MotivoIngreso = MotivoIngreso(),
@@ -58,7 +61,8 @@ private data class FormState(
 @OptIn(ExperimentalCoroutinesApi::class)
 class HistoriaClinicaViewModel(
     private val patientRepository: PatientRepository,
-    private val hospitalizationRepository: HospitalizationRepository,
+    private val episodeRepository: EpisodeRepository,
+    private val clinicalNoteRepository: ClinicalNoteRepository,
 ) : ViewModel() {
 
     private val requestedIds = MutableStateFlow<RequestedIds?>(null)
@@ -71,21 +75,22 @@ class HistoriaClinicaViewModel(
             } else {
                 combine(
                     patientRepository.getPatient(ids.patientId),
-                    hospitalizationRepository.getHospitalization(ids.patientId, ids.hospId),
+                    episodeRepository.getHospitalization(ids.patientId, ids.hospId),
+                    clinicalNoteRepository.getHistoriaClinica(ids.hospId),
                     formState,
-                ) { patient, hospitalizacion, form ->
-                    val historiaClinica = hospitalizacion?.historiaClinica
-                    val persistedFieldMap = historiaClinica?.let { fieldMapFor(form.activeSection, it) }.orEmpty()
+                ) { patient, hospitalizacion, historiaClinica, form ->
+                    val persistedFieldMap = fieldMapFor(form.activeSection, historiaClinica).orEmpty()
                     val effectiveFieldValues = HC_SECTION_FIELDS[form.activeSection].orEmpty().associate { spec ->
                         spec.key to (form.fieldOverrides[spec.key] ?: persistedFieldMap[spec.key].orEmpty())
                     }
                     val effectiveMotivo = form.motivoOverrides
-                        ?: historiaClinica?.motivoIngreso?.data
+                        ?: historiaClinica.motivoIngreso.data
                         ?: MotivoIngreso()
                     HistoriaClinicaUiState(
                         isLoading = false,
                         patient = patient,
                         hospitalizacion = hospitalizacion,
+                        historiaClinica = historiaClinica,
                         activeSection = form.activeSection,
                         fieldValues = effectiveFieldValues,
                         motivoIngresoDraft = effectiveMotivo,
@@ -190,7 +195,7 @@ class HistoriaClinicaViewModel(
         formState.update { it.copy(isSaving = true) }
         viewModelScope.launch {
             try {
-                hospitalizationRepository.saveHistoriaClinicaSection(ids.hospId, state.activeSection, data)
+                clinicalNoteRepository.saveHistoriaClinicaSection(ids.hospId, state.activeSection, data)
                 formState.update { it.copy(isSaving = false, fieldOverrides = emptyMap(), motivoOverrides = null) }
             } catch (e: CancellationException) {
                 throw e

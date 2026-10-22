@@ -3,7 +3,6 @@ package com.cramsan.hirsh.ui.screens.evolucionnew
 import androidx.compose.runtime.Composable
 import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.EpisodeStatus
-import com.cramsan.hirsh.model.HistoriaClinica
 import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.Sex
@@ -39,8 +38,6 @@ private val previewHospitalizacion = Hospitalizacion(
     endDate = null,
     admissionReason = "Sintomas respiratorios",
     status = EpisodeStatus.ACTIVE,
-    historiaClinica = HistoriaClinica(),
-    evoluciones = emptyList(),
 )
 
 private val previewOpenedNow = Instant.parse("2026-06-18T22:30:00Z").toLocalDateTime(TimeZone.currentSystemDefault())

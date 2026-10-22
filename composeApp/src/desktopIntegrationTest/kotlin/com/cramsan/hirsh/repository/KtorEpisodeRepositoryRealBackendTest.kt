@@ -49,7 +49,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 /**
- * [KtorHospitalizationRepository] against a real, separately-running backend (see
+ * [KtorEpisodeRepository] against a real, separately-running backend (see
  * `.claude/skills/_shared/real-backend-check.md`, Tier 1): the mock-engine tests in `commonTest`
  * only prove the client decodes the JSON *we* wrote; this proves it decodes what the backend
  * actually sends (offset timestamps, the patient header's extra fields, the 409 problem body).
@@ -58,7 +58,7 @@ import kotlin.test.assertNull
  * service, bed and patient so it never depends on seed data. Skips when the backend isn't
  * reachable or the credentials aren't set.
  */
-class KtorHospitalizationRepositoryRealBackendTest {
+class KtorEpisodeRepositoryRealBackendTest {
 
     private val username: String? = System.getenv("HIRSH_ADMIN_USERNAME")
     private val password: String? = System.getenv("HIRSH_ADMIN_PASSWORD")
@@ -129,7 +129,7 @@ class KtorHospitalizationRepositoryRealBackendTest {
             bloodType = "",
         )
 
-        val repository = KtorHospitalizationRepository(client)
+        val repository = KtorEpisodeRepository(client)
         val created = repository.addHospitalization(patient.id, service, bed, physician, "Ingreso de prueba")
 
         assertEquals(EpisodeStatus.ACTIVE, created.status)

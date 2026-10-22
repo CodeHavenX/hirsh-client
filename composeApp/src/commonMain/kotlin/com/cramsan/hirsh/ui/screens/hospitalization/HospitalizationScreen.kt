@@ -124,12 +124,12 @@ internal fun HospitalizationScreenContent(
                 ) {
                     InfoCard(patient, hospitalizacion, modifier = Modifier.padding(top = 20.dp))
                     HistoriaClinicaStrip(
-                        historiaClinica = hospitalizacion.historiaClinica,
+                        historiaClinica = uiState.historiaClinica,
                         onOpenHistoriaClinica = onOpenHistoriaClinica,
                         modifier = Modifier.padding(top = 16.dp),
                     )
                     EvolucionesSection(
-                        evoluciones = hospitalizacion.evoluciones,
+                        evoluciones = uiState.evoluciones,
                         onEvolucionSelected = onEvolucionSelected,
                         modifier = Modifier.padding(top = 20.dp),
                     )

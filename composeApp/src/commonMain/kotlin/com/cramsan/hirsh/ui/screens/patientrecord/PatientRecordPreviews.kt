@@ -3,14 +3,10 @@ package com.cramsan.hirsh.ui.screens.patientrecord
 import androidx.compose.runtime.Composable
 import com.cramsan.hirsh.model.Allergy
 import com.cramsan.hirsh.model.AllergyType
-import com.cramsan.hirsh.model.Diagnostico
 import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.EpisodeStatus
-import com.cramsan.hirsh.model.HcSection
-import com.cramsan.hirsh.model.HistoriaClinica
 import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.Patient
-import com.cramsan.hirsh.model.Plan
 import com.cramsan.hirsh.model.Severity
 import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.repository.PlaceholderCatalog
@@ -58,22 +54,6 @@ private fun previewHospitalization(id: String, startDate: String, endDate: Strin
     endDate = endDate?.let(Instant::parse),
     admissionReason = "Tos productiva con fiebre",
     status = if (endDate != null) EpisodeStatus.CLOSED else EpisodeStatus.ACTIVE,
-    historiaClinica = HistoriaClinica(
-        diagnostico = HcSection(
-            complete = true,
-            data = Diagnostico(ejeI = "—", ejeII = "—", ejeIII = "Bronquitis aguda (J20.9)", ejeIV = "—", ejeV = "—"),
-        ),
-        plan = HcSection(
-            complete = true,
-            data = Plan(
-                lugarHospitalizacion = "Medicina General",
-                examenesSolicitados = "—",
-                psicofarmacos = "—",
-                evaluacionesSolicitadas = "—",
-            ),
-        ),
-    ),
-    evoluciones = emptyList(),
 )
 
 @PreviewResponsive

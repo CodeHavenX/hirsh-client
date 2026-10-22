@@ -18,7 +18,7 @@ import com.cramsan.hirsh.model.ServiceRef
 import com.cramsan.hirsh.model.Severity
 import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.model.UserRef
-import com.cramsan.hirsh.repository.HospitalizationRepository
+import com.cramsan.hirsh.repository.EpisodeRepository
 import com.cramsan.hirsh.repository.PatientRepository
 import com.cramsan.hirsh.repository.assembleFullName
 import kotlinx.coroutines.Dispatchers
@@ -62,8 +62,6 @@ private fun sampleHospitalization(id: String, patientId: String) = Hospitalizaci
     endDate = null,
     admissionReason = "Control",
     status = EpisodeStatus.ACTIVE,
-    historiaClinica = HistoriaClinica(),
-    evoluciones = emptyList(),
 )
 
 private class FakePatientRepository(patients: List<Patient>) : PatientRepository {
@@ -125,8 +123,8 @@ private class FakePatientRepository(patients: List<Patient>) : PatientRepository
     override suspend fun deleteAllergy(patientId: String, allergyId: String) = error("not used by this test")
 }
 
-private class FakeHospitalizationRepository(hospitalizations: List<Hospitalizacion> = emptyList()) :
-    HospitalizationRepository {
+private class FakeEpisodeRepository(hospitalizations: List<Hospitalizacion> = emptyList()) :
+    EpisodeRepository {
     private val _hospitalizations = MutableStateFlow(hospitalizations)
 
     override fun getHospitalizations(patientId: String): Flow<List<Hospitalizacion>> =
@@ -134,9 +132,6 @@ private class FakeHospitalizationRepository(hospitalizations: List<Hospitalizaci
 
     override fun getHospitalization(patientId: String, hospId: String): Flow<Hospitalizacion?> =
         _hospitalizations.map { list -> list.find { it.patientId == patientId && it.id == hospId } }
-
-    override fun getEvolucion(hospId: String, evoId: String): Flow<Evolucion?> =
-        _hospitalizations.map { list -> list.find { it.id == hospId }?.evoluciones?.find { it.id == evoId } }
 
     override suspend fun addHospitalization(
         patientId: String,
@@ -155,10 +150,6 @@ private class FakeHospitalizationRepository(hospitalizations: List<Hospitalizaci
             list.map { if (it.id == hospId) it.copy(status = EpisodeStatus.CLOSED) else it }
         }
     }
-
-    override suspend fun saveHistoriaClinicaSection(hospId: String, key: HcSectionKey, data: Any) = Unit
-
-    override suspend fun addEvolucion(hospId: String, evolucion: Evolucion): Evolucion = evolucion
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -178,7 +169,7 @@ class PatientRecordViewModelTest {
 
     @Test
     fun `load populates the patient when it exists`() = runTest(dispatcher) {
-        val viewModel = PatientRecordViewModel(FakePatientRepository(listOf(samplePatient)), FakeHospitalizationRepository())
+        val viewModel = PatientRecordViewModel(FakePatientRepository(listOf(samplePatient)), FakeEpisodeRepository())
 
         viewModel.uiState.test {
             assertEquals(PatientRecordUiState(), awaitItem())
@@ -190,7 +181,7 @@ class PatientRecordViewModelTest {
 
     @Test
     fun `load leaves patient null when no match is found`() = runTest(dispatcher) {
-        val viewModel = PatientRecordViewModel(FakePatientRepository(emptyList()), FakeHospitalizationRepository())
+        val viewModel = PatientRecordViewModel(FakePatientRepository(emptyList()), FakeEpisodeRepository())
 
         viewModel.uiState.test {
             assertEquals(PatientRecordUiState(), awaitItem())
@@ -205,7 +196,7 @@ class PatientRecordViewModelTest {
         val hospitalization = sampleHospitalization("h1", samplePatient.id)
         val viewModel = PatientRecordViewModel(
             FakePatientRepository(listOf(samplePatient)),
-            FakeHospitalizationRepository(listOf(hospitalization)),
+            FakeEpisodeRepository(listOf(hospitalization)),
         )
 
         viewModel.uiState.test {
@@ -220,7 +211,7 @@ class PatientRecordViewModelTest {
     fun `load leaves hospitalizations empty for a patient with none`() = runTest(dispatcher) {
         val viewModel = PatientRecordViewModel(
             FakePatientRepository(listOf(samplePatient)),
-            FakeHospitalizationRepository(),
+            FakeEpisodeRepository(),
         )
 
         viewModel.uiState.test {
@@ -233,17 +224,17 @@ class PatientRecordViewModelTest {
 
     @Test
     fun `a hospitalization mutated elsewhere is reflected without calling load again`() = runTest(dispatcher) {
-        val hospitalizationRepository = FakeHospitalizationRepository(
+        val episodeRepository = FakeEpisodeRepository(
             listOf(sampleHospitalization("h1", samplePatient.id)),
         )
-        val viewModel = PatientRecordViewModel(FakePatientRepository(listOf(samplePatient)), hospitalizationRepository)
+        val viewModel = PatientRecordViewModel(FakePatientRepository(listOf(samplePatient)), episodeRepository)
 
         viewModel.uiState.test {
             awaitItem()
             viewModel.load(samplePatient.id)
             assertEquals(EpisodeStatus.ACTIVE, awaitItem().hospitalizations.single().status)
 
-            hospitalizationRepository.discharge(
+            episodeRepository.discharge(
                 "h1",
                 DischargeDetails(DischargeType.MEDICAL, DischargeCondition.IMPROVED, "F32.2"),
                 jpaVersion = 0L,
@@ -257,7 +248,7 @@ class PatientRecordViewModelTest {
     @Test
     fun `an allergy added through the repository is reflected without calling load again`() = runTest(dispatcher) {
         val patientRepository = FakePatientRepository(listOf(samplePatient))
-        val viewModel = PatientRecordViewModel(patientRepository, FakeHospitalizationRepository())
+        val viewModel = PatientRecordViewModel(patientRepository, FakeEpisodeRepository())
 
         viewModel.uiState.test {
             awaitItem()

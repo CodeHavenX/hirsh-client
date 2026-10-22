@@ -8,7 +8,7 @@ import com.cramsan.hirsh.model.ServiceRef
 import com.cramsan.hirsh.model.UserRef
 import com.cramsan.hirsh.network.ApiError
 import com.cramsan.hirsh.network.ApiException
-import com.cramsan.hirsh.repository.HospitalizationRepository
+import com.cramsan.hirsh.repository.EpisodeRepository
 import com.cramsan.hirsh.repository.PatientRepository
 import com.cramsan.hirsh.repository.PlaceholderCatalog
 import kotlinx.coroutines.CancellationException
@@ -41,13 +41,13 @@ private const val ACTIVE_HOSPITALIZATION_ERROR = "El paciente ya tiene una hospi
 
 /**
  * fechaIngreso/horaIngreso are never part of this state -- unlike the
- * prototype's editable date/time inputs, [HospitalizationRepository.addHospitalization]
+ * prototype's editable date/time inputs, [EpisodeRepository.addHospitalization]
  * stamps them from its own Clock, so there's nothing for this form to collect
  * or submit for them (see HISS-301's plan notes).
  */
 class AdmisionViewModel(
     private val patientRepository: PatientRepository,
-    private val hospitalizationRepository: HospitalizationRepository,
+    private val episodeRepository: EpisodeRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AdmisionUiState())
@@ -62,7 +62,7 @@ class AdmisionViewModel(
         viewModelScope.launch {
             val patient = patientRepository.getPatient(patientId).first()
             val hasActiveHospitalization = patient != null &&
-                hospitalizationRepository.getHospitalizations(patientId).first().any { it.status == EpisodeStatus.ACTIVE }
+                episodeRepository.getHospitalizations(patientId).first().any { it.status == EpisodeStatus.ACTIVE }
             _uiState.update {
                 it.copy(isLoading = false, patient = patient, hasActiveHospitalization = hasActiveHospitalization)
             }
@@ -103,7 +103,7 @@ class AdmisionViewModel(
         _uiState.update { it.copy(isSaving = true, error = null) }
         viewModelScope.launch {
             try {
-                val created = hospitalizationRepository.addHospitalization(
+                val created = episodeRepository.addHospitalization(
                     patientId = id,
                     service = service,
                     bed = PlaceholderCatalog.bed(state.cama.trim()),

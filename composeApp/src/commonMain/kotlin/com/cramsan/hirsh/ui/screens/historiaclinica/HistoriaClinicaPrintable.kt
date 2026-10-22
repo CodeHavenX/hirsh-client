@@ -24,9 +24,9 @@ import com.cramsan.hirsh.util.formatDateTime
 fun HistoriaClinicaPrintable(
     patient: Patient,
     hospitalizacion: Hospitalizacion,
+    historiaClinica: HistoriaClinica,
     onBack: () -> Unit,
 ) {
-    val historiaClinica = hospitalizacion.historiaClinica
     PrintableSummary(
         title = "VISTA PREVIA · HISTORIA CLINICA",
         onBack = onBack,

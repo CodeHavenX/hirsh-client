@@ -54,7 +54,6 @@ private fun previewEvolucion(id: String, resultado: EvolucionResultado) = Evoluc
 private fun previewHospitalizacion(
     id: String,
     status: EpisodeStatus,
-    evoluciones: List<Evolucion>,
 ) = Hospitalizacion(
     id = id,
     patientId = previewPatient.id,
@@ -65,28 +64,30 @@ private fun previewHospitalizacion(
     endDate = if (status == EpisodeStatus.ACTIVE) null else Instant.parse("2026-06-20T10:00:00Z"),
     admissionReason = "Sintomas respiratorios",
     status = status,
-    historiaClinica = HistoriaClinica(
-        diagnostico = HcSection(
-            complete = true,
-            data = Diagnostico(ejeI = "—", ejeII = "—", ejeIII = "Neumonia (B59)", ejeIV = "—", ejeV = "—"),
-        ),
-        plan = HcSection(
-            complete = true,
-            data = Plan(
-                lugarHospitalizacion = "Emergencia",
-                examenesSolicitados = "—",
-                psicofarmacos = "—",
-                evaluacionesSolicitadas = "—",
-            ),
-        ),
-    ),
-    evoluciones = evoluciones,
 )
 
-private fun previewUiState(hospitalizacion: Hospitalizacion) = HospitalizationUiState(
+private val previewHistoriaClinica = HistoriaClinica(
+    diagnostico = HcSection(
+        complete = true,
+        data = Diagnostico(ejeI = "—", ejeII = "—", ejeIII = "Neumonia (B59)", ejeIV = "—", ejeV = "—"),
+    ),
+    plan = HcSection(
+        complete = true,
+        data = Plan(
+            lugarHospitalizacion = "Emergencia",
+            examenesSolicitados = "—",
+            psicofarmacos = "—",
+            evaluacionesSolicitadas = "—",
+        ),
+    ),
+)
+
+private fun previewUiState(hospitalizacion: Hospitalizacion, evoluciones: List<Evolucion>) = HospitalizationUiState(
     isLoading = false,
     patient = previewPatient,
     hospitalizacion = hospitalizacion,
+    historiaClinica = previewHistoriaClinica,
+    evoluciones = evoluciones,
 )
 
 @PreviewResponsive
@@ -95,14 +96,14 @@ private fun HospitalizationScreenActivaPreview() {
     val hospitalizacion = previewHospitalizacion(
         id = "h_mendoza_1",
         status = EpisodeStatus.ACTIVE,
-        evoluciones = listOf(
-            previewEvolucion("v5c", EvolucionResultado.FAVORABLE),
-            previewEvolucion("v5", EvolucionResultado.ESTACIONARIA),
-        ),
+    )
+    val evoluciones = listOf(
+        previewEvolucion("v5c", EvolucionResultado.FAVORABLE),
+        previewEvolucion("v5", EvolucionResultado.ESTACIONARIA),
     )
     HirshTheme {
         HospitalizationScreenContent(
-            uiState = previewUiState(hospitalizacion),
+            uiState = previewUiState(hospitalizacion, evoluciones),
             patientId = previewPatient.id,
             hospId = hospitalizacion.id,
             onNewEvolucion = {},
@@ -120,11 +121,11 @@ private fun HospitalizationScreenAltaPreview() {
     val hospitalizacion = previewHospitalizacion(
         id = "h_mendoza_2",
         status = EpisodeStatus.CLOSED,
-        evoluciones = listOf(previewEvolucion("v5c", EvolucionResultado.FAVORABLE)),
     )
+    val evoluciones = listOf(previewEvolucion("v5c", EvolucionResultado.FAVORABLE))
     HirshTheme {
         HospitalizationScreenContent(
-            uiState = previewUiState(hospitalizacion),
+            uiState = previewUiState(hospitalizacion, evoluciones),
             patientId = previewPatient.id,
             hospId = hospitalizacion.id,
             onNewEvolucion = {},
@@ -142,11 +143,11 @@ private fun HospitalizationScreenNoEvolucionesPreview() {
     val hospitalizacion = previewHospitalizacion(
         id = "h_mendoza_3",
         status = EpisodeStatus.ACTIVE,
-        evoluciones = emptyList(),
     )
+    val evoluciones = emptyList<Evolucion>()
     HirshTheme {
         HospitalizationScreenContent(
-            uiState = previewUiState(hospitalizacion),
+            uiState = previewUiState(hospitalizacion, evoluciones),
             patientId = previewPatient.id,
             hospId = hospitalizacion.id,
             onNewEvolucion = {},
@@ -164,11 +165,11 @@ private fun HospitalizationScreenTransferredPreview() {
     val hospitalizacion = previewHospitalizacion(
         id = "h_mendoza_4",
         status = EpisodeStatus.TRANSFERRED,
-        evoluciones = listOf(previewEvolucion("v5c", EvolucionResultado.FAVORABLE)),
     )
+    val evoluciones = listOf(previewEvolucion("v5c", EvolucionResultado.FAVORABLE))
     HirshTheme {
         HospitalizationScreenContent(
-            uiState = previewUiState(hospitalizacion),
+            uiState = previewUiState(hospitalizacion, evoluciones),
             patientId = previewPatient.id,
             hospId = hospitalizacion.id,
             onNewEvolucion = {},
