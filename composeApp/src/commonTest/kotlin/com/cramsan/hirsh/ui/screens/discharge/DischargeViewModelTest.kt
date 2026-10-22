@@ -12,15 +12,23 @@ import com.cramsan.hirsh.model.DischargeDetails
 import com.cramsan.hirsh.model.DischargeType
 import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.EpisodeStatus
+import com.cramsan.hirsh.model.Evolucion
+import com.cramsan.hirsh.model.EvolucionResultado
+import com.cramsan.hirsh.model.HcSectionKey
+import com.cramsan.hirsh.model.HistoriaClinica
 import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.Icd10Code
+import com.cramsan.hirsh.model.NoteStatus
 import com.cramsan.hirsh.model.Patient
+import com.cramsan.hirsh.model.Pronostico
 import com.cramsan.hirsh.model.ServiceRef
 import com.cramsan.hirsh.model.Severity
 import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.model.UserRef
+import com.cramsan.hirsh.model.Vitals
 import com.cramsan.hirsh.network.ApiError
 import com.cramsan.hirsh.network.ApiException
+import com.cramsan.hirsh.repository.ClinicalNoteRepository
 import com.cramsan.hirsh.repository.EpisodeRepository
 import com.cramsan.hirsh.repository.Icd10Repository
 import com.cramsan.hirsh.repository.PatientRepository
@@ -158,6 +166,44 @@ private class FakeEpisodeRepository(hospitalizations: List<Hospitalizacion> = em
     }
 }
 
+private class FakeClinicalNoteRepository(
+    private val historiaClinica: HistoriaClinica = HistoriaClinica(status = NoteStatus.SIGNED),
+    private val evoluciones: List<Evolucion> = emptyList(),
+) : ClinicalNoteRepository {
+    override fun getHistoriaClinica(hospId: String): Flow<HistoriaClinica> = MutableStateFlow(historiaClinica)
+
+    override fun getEvoluciones(hospId: String): Flow<List<Evolucion>> = MutableStateFlow(evoluciones)
+
+    override fun getEvolucion(hospId: String, evoId: String): Flow<Evolucion?> = error("not used by this test")
+
+    override suspend fun saveHistoriaClinicaSection(hospId: String, key: HcSectionKey, data: Any) = error("not used by this test")
+
+    override suspend fun signHistoriaClinica(hospId: String) = error("not used by this test")
+
+    override suspend fun addEvolucion(hospId: String, evolucion: Evolucion): Evolucion = error("not used by this test")
+
+    override suspend fun signEvolucion(hospId: String, evoId: String) = error("not used by this test")
+}
+
+private fun sampleEvolucion(id: String, status: NoteStatus) = Evolucion(
+    id = id,
+    fecha = "18/06/2026",
+    hora = "22:30",
+    medico = "Dr. Patel",
+    vitals = Vitals(pa = "", fc = "", fr = "", temp = "", satO2 = "", fio2 = ""),
+    diagnosticos = emptyList(),
+    subjective = "Mejor",
+    objective = "Estable",
+    assessment = "",
+    plan = "",
+    rx = "—",
+    pronostico = Pronostico.FAVORABLE,
+    resultado = EvolucionResultado.FAVORABLE,
+    examenes = emptyList(),
+    examenesObs = "",
+    status = status,
+)
+
 @OptIn(ExperimentalCoroutinesApi::class)
 class DischargeViewModelTest {
 
@@ -177,7 +223,13 @@ class DischargeViewModelTest {
         episodeRepository: FakeEpisodeRepository =
             FakeEpisodeRepository(listOf(sampleHospitalization("h1", samplePatient.id))),
         icd10Repository: FakeIcd10Repository = FakeIcd10Repository(),
-    ): DischargeViewModel = DischargeViewModel(FakePatientRepository(listOf(samplePatient)), episodeRepository, icd10Repository)
+        clinicalNoteRepository: FakeClinicalNoteRepository = FakeClinicalNoteRepository(),
+    ): DischargeViewModel = DischargeViewModel(
+        FakePatientRepository(listOf(samplePatient)),
+        episodeRepository,
+        clinicalNoteRepository,
+        icd10Repository,
+    )
         .also {
             it.load(samplePatient.id, "h1")
             dispatcher.scheduler.advanceUntilIdle()
@@ -196,6 +248,34 @@ class DischargeViewModelTest {
         assertEquals(false, state.isLoading)
         assertEquals(samplePatient, state.patient)
         assertEquals("h1", state.hospitalizacion?.id)
+    }
+
+    @Test
+    fun `unsigned notes block the discharge and are listed`() = runTest(dispatcher) {
+        val repository = FakeEpisodeRepository(listOf(sampleHospitalization("h1", samplePatient.id)))
+        val notes = FakeClinicalNoteRepository(
+            historiaClinica = HistoriaClinica(status = NoteStatus.DRAFT),
+            evoluciones = listOf(sampleEvolucion("e1", NoteStatus.DRAFT), sampleEvolucion("e2", NoteStatus.SIGNED)),
+        )
+        val viewModel = viewModel(repository, clinicalNoteRepository = notes)
+        assertEquals(listOf("Historia clinica", "Evolucion del 18/06/2026 · 22:30"), viewModel.uiState.value.unsignedNotes)
+        viewModel.fillRequired()
+
+        viewModel.discharge()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(0, repository.dischargeCallCount)
+        assertEquals(UNSIGNED_NOTES_ERROR, viewModel.uiState.value.error)
+    }
+
+    @Test
+    fun `a stay with only signed notes, or none yet, can be discharged`() = runTest(dispatcher) {
+        val notes = FakeClinicalNoteRepository(
+            historiaClinica = HistoriaClinica(),
+            evoluciones = listOf(sampleEvolucion("e1", NoteStatus.SIGNED)),
+        )
+
+        assertEquals(emptyList(), viewModel(clinicalNoteRepository = notes).uiState.value.unsignedNotes)
     }
 
     @Test
@@ -374,7 +454,7 @@ class DischargeViewModelTest {
     @Test
     fun `a failed read shows a load error instead of crashing`() = runTest(dispatcher) {
         val patients = FakePatientRepository(listOf(samplePatient)).apply { failure = ApiException(ApiError.Forbidden) }
-        val viewModel = DischargeViewModel(patients, FakeEpisodeRepository(listOf(sampleHospitalization("h1", samplePatient.id))), FakeIcd10Repository())
+        val viewModel = DischargeViewModel(patients, FakeEpisodeRepository(listOf(sampleHospitalization("h1", samplePatient.id))), FakeClinicalNoteRepository(), FakeIcd10Repository())
         backgroundScope.launch { viewModel.uiState.collect {} }
         viewModel.load(samplePatient.id, "h1")
         advanceUntilIdle()
@@ -387,7 +467,7 @@ class DischargeViewModelTest {
     @Test
     fun `retry loads again after a failure`() = runTest(dispatcher) {
         val patients = FakePatientRepository(listOf(samplePatient)).apply { failure = RuntimeException("Connection refused") }
-        val viewModel = DischargeViewModel(patients, FakeEpisodeRepository(listOf(sampleHospitalization("h1", samplePatient.id))), FakeIcd10Repository())
+        val viewModel = DischargeViewModel(patients, FakeEpisodeRepository(listOf(sampleHospitalization("h1", samplePatient.id))), FakeClinicalNoteRepository(), FakeIcd10Repository())
         backgroundScope.launch { viewModel.uiState.collect {} }
         viewModel.load(samplePatient.id, "h1")
         advanceUntilIdle()

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
@@ -44,6 +45,9 @@ import com.cramsan.hirsh.ui.components.fieldShape
 import com.cramsan.hirsh.ui.theme.HissFaint
 import com.cramsan.hirsh.ui.theme.HissInk
 import com.cramsan.hirsh.ui.theme.HissInk2
+import com.cramsan.hirsh.ui.theme.HissRadiusDefault
+import com.cramsan.hirsh.ui.theme.HissWarn
+import com.cramsan.hirsh.ui.theme.HissWarnWash
 import org.koin.compose.viewmodel.koinViewModel
 
 private val typeOptions = DischargeType.entries
@@ -152,6 +156,10 @@ private fun DischargeForm(
             )
         }
 
+        if (uiState.unsignedNotes.isNotEmpty()) {
+            UnsignedNotesNotice(uiState.unsignedNotes)
+        }
+
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(28.dp)) {
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 FormSectionCaption("Datos del alta")
@@ -223,13 +231,29 @@ private fun DischargeForm(
             }
             Button(
                 onClick = onDischarge,
-                enabled = !uiState.isSaving,
+                enabled = !uiState.isSaving && uiState.unsignedNotes.isEmpty(),
                 shape = fieldShape,
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
                 modifier = Modifier.padding(start = 10.dp).testTag("discharge_submit_button"),
             ) {
                 Text("Dar de alta", fontSize = FieldFontSize, fontWeight = FontWeight.Medium)
             }
+        }
+    }
+}
+
+
+@Composable
+private fun UnsignedNotesNotice(notes: List<String>) {
+    Surface(
+        shape = RoundedCornerShape(HissRadiusDefault),
+        color = HissWarnWash,
+        border = BorderStroke(1.dp, HissWarn),
+        modifier = Modifier.fillMaxWidth().testTag("discharge_unsigned_notes"),
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(UNSIGNED_NOTES_ERROR, color = HissWarn, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+            notes.forEach { Text("· $it", color = HissInk, fontSize = 13.sp) }
         }
     }
 }

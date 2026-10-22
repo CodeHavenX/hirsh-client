@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.sp
 import com.cramsan.hirsh.model.EpisodeStatus
 import com.cramsan.hirsh.model.Evolucion
 import com.cramsan.hirsh.model.HistoriaClinica
+import com.cramsan.hirsh.model.NoteStatus
 import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.bedNumber
@@ -52,6 +53,7 @@ import com.cramsan.hirsh.ui.components.BadgeTone
 import com.cramsan.hirsh.ui.components.EpisodeStatusBadge
 import com.cramsan.hirsh.ui.components.KeyValueRow
 import com.cramsan.hirsh.ui.components.LoadErrorMessage
+import com.cramsan.hirsh.ui.components.NoteStatusBadge
 import com.cramsan.hirsh.ui.components.StatusBadge
 import com.cramsan.hirsh.ui.components.VisitCard
 import com.cramsan.hirsh.ui.theme.HissAccent
@@ -259,7 +261,10 @@ private fun HistoriaClinicaStrip(
                     fontWeight = FontWeight.Medium,
                     color = HissAccent,
                 )
-                HcStatusBadge(historiaClinica)
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    HcStatusBadge(historiaClinica)
+                    historiaClinica.status?.let { NoteStatusBadge(it, historiaClinica.draftDeadline) }
+                }
             }
             Button(
                 onClick = onOpenHistoriaClinica,
@@ -325,7 +330,12 @@ private fun EvolucionesSection(
                         summary = evolucion.subjective.take(90),
                         active = index == 0,
                         onClick = { onEvolucionSelected(evolucion.id) },
-                        trailing = { StatusBadge(text = evolucion.resultado.toDisplayLabel(), tone = BadgeTone.Done) },
+                        trailing = {
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                if (evolucion.status != NoteStatus.SIGNED) NoteStatusBadge(evolucion.status)
+                                StatusBadge(text = evolucion.resultado.toDisplayLabel(), tone = BadgeTone.Done)
+                            }
+                        },
                         modifier = Modifier.testTag("evo_card_${evolucion.id}"),
                     )
                 }

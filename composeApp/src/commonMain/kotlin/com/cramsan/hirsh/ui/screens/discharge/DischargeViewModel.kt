@@ -8,9 +8,11 @@ import com.cramsan.hirsh.model.DischargeType
 import com.cramsan.hirsh.model.EpisodeStatus
 import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.Icd10Code
+import com.cramsan.hirsh.model.NoteStatus
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.network.ApiError
 import com.cramsan.hirsh.network.ApiException
+import com.cramsan.hirsh.repository.ClinicalNoteRepository
 import com.cramsan.hirsh.repository.EpisodeRepository
 import com.cramsan.hirsh.repository.Icd10Repository
 import com.cramsan.hirsh.repository.PatientRepository
@@ -50,6 +52,8 @@ data class DischargeUiState(
     val isSaving: Boolean = false,
     val discharged: Boolean = false,
     val loadError: LoadError? = null,
+    /** The stay's clinical notes still awaiting a signature; discharge is blocked until it's empty. */
+    val unsignedNotes: List<String> = emptyList(),
 )
 
 /** One-letter searches match most of the catalog; the debounce avoids a request per keystroke. */
@@ -60,6 +64,7 @@ private const val CONFLICT_ERROR =
     "No se pudo dar de alta: la hospitalizacion fue modificada por otro usuario, o tiene interconsultas " +
         "pendientes o una nota de ingreso sin firmar. Recarga la pagina e intenta de nuevo."
 private const val GENERIC_ERROR = "No se pudo dar de alta al paciente"
+internal const val UNSIGNED_NOTES_ERROR = "Firma la historia clinica y las evoluciones pendientes antes de dar de alta"
 
 /**
  * The real discharge form (HISS-633): `DischargeEpisodeRequest` needs a discharge type, the
@@ -70,6 +75,7 @@ private const val GENERIC_ERROR = "No se pudo dar de alta al paciente"
 class DischargeViewModel(
     private val patientRepository: PatientRepository,
     private val episodeRepository: EpisodeRepository,
+    private val clinicalNoteRepository: ClinicalNoteRepository,
     private val icd10Repository: Icd10Repository,
 ) : ViewModel() {
 
@@ -121,13 +127,28 @@ class DischargeViewModel(
             try {
                 val patient = patientRepository.getPatient(patientId).first()
                 val hospitalizacion = episodeRepository.getHospitalization(patientId, hospId).first()
-                _uiState.update { it.copy(isLoading = false, patient = patient, hospitalizacion = hospitalizacion) }
+                val unsignedNotes = if (hospitalizacion?.status == EpisodeStatus.ACTIVE) unsignedNotes(hospId) else emptyList()
+                _uiState.update {
+                    it.copy(isLoading = false, patient = patient, hospitalizacion = hospitalizacion, unsignedNotes = unsignedNotes)
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 _uiState.update { it.copy(isLoading = false, loadError = e.toLoadError()) }
             }
         }
+    }
+
+    /**
+     * The backend refuses to discharge over an unsigned Historia Clinica (a bare 409), and HCEM-74
+     * settled that pending evoluciones must be signed first too; checking here names exactly what is
+     * missing instead of failing at the end of the form.
+     */
+    private suspend fun unsignedNotes(hospId: String): List<String> {
+        val historia = clinicalNoteRepository.getHistoriaClinica(hospId).first()
+        val evoluciones = clinicalNoteRepository.getEvoluciones(hospId).first()
+        return listOfNotNull("Historia clinica".takeIf { historia.status == NoteStatus.DRAFT }) +
+            evoluciones.filter { it.status == NoteStatus.DRAFT }.map { "Evolucion del ${it.fecha} · ${it.hora}" }
     }
 
     fun onTypeChange(value: DischargeType) = _uiState.update { it.copy(type = value, error = null) }
@@ -157,6 +178,10 @@ class DischargeViewModel(
         val patientId = patientId ?: return
         val hospId = hospId ?: return
         if (state.isSaving || state.hospitalizacion?.status != EpisodeStatus.ACTIVE) return
+        if (state.unsignedNotes.isNotEmpty()) {
+            _uiState.update { it.copy(error = UNSIGNED_NOTES_ERROR) }
+            return
+        }
         val type = state.type
         val condition = state.condition
         val diagnosis = state.diagnosis

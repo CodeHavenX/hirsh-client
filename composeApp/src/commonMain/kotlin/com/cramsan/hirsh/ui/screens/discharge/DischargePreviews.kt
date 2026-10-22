@@ -102,3 +102,14 @@ private fun DischargeScreenFilledPreview() {
         ),
     )
 }
+
+/** The stay still has notes awaiting a signature, so discharge is blocked until they're signed. */
+@PreviewResponsive
+@Composable
+private fun DischargeScreenUnsignedNotesPreview() {
+    Preview(
+        loadedState.copy(
+            unsignedNotes = listOf("Historia clinica", "Evolucion del 18/06/2026 · 22:30"),
+        ),
+    )
+}
