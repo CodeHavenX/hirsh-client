@@ -121,8 +121,8 @@ private fun BridgeDriver.ensureSignedOut() {
  *
  * Credentials come from the `HIRSH_ADMIN_USERNAME`/`HIRSH_ADMIN_PASSWORD` env vars (the same
  * ones the backend itself reads to bootstrap that account -- see its README), not a literal
- * here: this suite runs against a real, separately-running backend as of HISS-611, not
- * `FakeAuthRepository`'s in-process fixtures, so there's no fixed password to hardcode.
+ * here: this suite runs against a real, separately-running backend as of HISS-611, so there's
+ * no fixed password to hardcode.
  */
 fun BridgeDriver.loginAsAdmin() {
     ensureSignedOut()

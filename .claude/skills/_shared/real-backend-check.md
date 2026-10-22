@@ -48,9 +48,8 @@ binding in `di/AppModule.kt`:
 grep -n "bind <Feature>Repository::class" composeApp/src/commonMain/kotlin/com/cramsan/hirsh/di/AppModule.kt
 ```
 
-- **Bound to a `Fake*`/`InMemory*` implementation** (every repository today
-  except `AuthRepository` — `InMemoryPatientRepository`,
-  `InMemoryAccountRepository`, `InMemoryEpisodeRepository`, `InMemoryClinicalNoteRepository`): **Tier 1
+- **Bound to a `Fake*`/`InMemory*` implementation** (as of HISS-664 only
+  `ClinicalNoteRepository` → `InMemoryClinicalNoteRepository`): **Tier 1
   only, and only if the diff itself touches `network/`** (HttpClient config,
   plugins, error/response mapping). A UI E2E test against this feature would
   drive the UI against the fake and never touch the real backend at all —

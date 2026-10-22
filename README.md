@@ -58,7 +58,6 @@ becomes big enough, or two features need independent release cadence).
 - **Navigation-Compose** (multiplatform, string routes via `Routes` -- see the
   note in `ui/navigation/Route.kt` on why not the newer type-safe
   `@Serializable` routes yet)
-- **multiplatform-settings** for the session token / local prefs
 - **kotlinx.serialization** for DTOs once the backend contract exists (already
   wired into the Ktor client's content negotiation)
 
@@ -138,15 +137,13 @@ fix to commit, not noise to discard.
 
 ## Auth / data
 
-`repository/AuthRepository` is real as of HISS-611 (`KtorAuthRepository`,
-backed by the separate backend service -- see `network/ApiConfig.kt`).
-`repository/PatientRepository` and the rest still have only fake in-memory
-implementations (`InMemoryPatientRepository`, etc.), seeded from
-`prototype/shared/data.js`, so most of the app is still demonstrable without a
-backend -- login is the one flow that now genuinely needs one. Swap the
-remaining fakes for `HttpClient`-backed implementations as their own tickets
-land; the interfaces are the seam. `FakeAuthRepository` is kept around
-(unbound in `di/AppModule.kt`) for offline/no-backend use if ever needed again.
+Every repository bound in `di/AppModule.kt` is a `Ktor*` implementation backed by
+the separate backend service (see `network/ApiConfig.kt`), except
+`ClinicalNoteRepository`, which is still `InMemoryClinicalNoteRepository` seeded from
+`prototype/shared/data.js` until Historia Clinica/Evolucion map onto the backend's
+clinical documents. The app needs a running backend to sign in at all. A session is
+the backend's cookie, restored on launch through `GET /api/v1/auth/me` (HISS-611);
+the app persists nothing of its own about it (HISS-664).
 
 ## Running the test suite against a real backend
 

@@ -114,8 +114,6 @@ kotlin {
             implementation(libs.ktor.client.contentNegotiation)
             implementation(libs.ktor.client.logging)
             implementation(libs.ktor.serialization.kotlinxJson)
-
-            implementation(libs.multiplatform.settings)
         }
         commonTest.dependencies {
             implementation(kotlin("test"))

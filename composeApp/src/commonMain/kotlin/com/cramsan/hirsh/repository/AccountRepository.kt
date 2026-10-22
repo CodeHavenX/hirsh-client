@@ -5,7 +5,6 @@ import com.cramsan.hirsh.model.AccountProfile
 import com.cramsan.hirsh.model.AccountRole
 import com.cramsan.hirsh.model.AccountStatus
 import com.cramsan.hirsh.model.NewAccount
-import com.cramsan.hirsh.model.SYSTEM_ADMIN_ROLE
 import com.cramsan.hirsh.network.getAllPages
 import com.cramsan.hirsh.network.dto.CreateUserRequest
 import com.cramsan.hirsh.network.dto.PasswordResetResponse
@@ -28,7 +27,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlin.time.Instant
 
 interface AccountRepository {
     val accounts: StateFlow<List<Account>>
@@ -59,63 +57,6 @@ interface AccountRepository {
 
     /** Sets [id]'s status to [AccountStatus.ACTIVE] -- this also releases a [AccountStatus.LOCKED] account. */
     suspend fun reactivate(id: String)
-}
-
-/**
- * In-memory stand-in, seeded from prototype/shared/data.js's ACCOUNTS (with the backend's real
- * role codes and names). No longer bound since HISS-652 made every Accounts action real; kept for
- * [FakeAuthRepository] and tests.
- */
-class InMemoryAccountRepository : AccountRepository {
-
-    private val _accounts = MutableStateFlow(seedAccounts())
-    override val accounts: StateFlow<List<Account>> = _accounts.asStateFlow()
-
-    private var nextId = _accounts.value.size + 1
-
-    override suspend fun refresh() = Unit
-
-    override suspend fun roles(): List<AccountRole> = SEEDED_ROLES
-
-    override suspend fun addAccount(account: NewAccount, temporaryPassword: String): Account {
-        val created = Account(
-            id = "acc_${nextId++}",
-            name = assembleFullName(account.firstName, account.lastName, account.secondLastName),
-            username = account.username,
-            roles = SEEDED_ROLES.filter { it.code == account.roleCode },
-            status = AccountStatus.ACTIVE,
-            lastAccess = null,
-            profile = account.profile,
-        )
-        _accounts.update { it + created }
-        return created
-    }
-
-    override suspend fun updateAccount(id: String, profile: AccountProfile) {
-        _accounts.update { list -> list.map { if (it.id == id) it.copy(profile = profile) else it } }
-    }
-
-    override suspend fun resetPassword(id: String): String {
-        _accounts.update { list ->
-            list.map { if (it.id == id && it.status == AccountStatus.LOCKED) it.copy(status = AccountStatus.ACTIVE) else it }
-        }
-        return "Temp0ral-${id.takeLast(4)}"
-    }
-
-    /** No-op for an unknown [id]. */
-    override suspend fun deactivate(id: String) = setStatus(id, AccountStatus.INACTIVE)
-
-    /** No-op for an unknown [id]. */
-    override suspend fun reactivate(id: String) = setStatus(id, AccountStatus.ACTIVE)
-
-    /** What the backend does on a successful login; only [FakeAuthRepository] calls this. No-op for an unknown [username]. */
-    fun recordLogin(username: String, at: Instant) {
-        _accounts.update { list -> list.map { if (it.username == username) it.copy(lastAccess = at) else it } }
-    }
-
-    private fun setStatus(id: String, status: AccountStatus) {
-        _accounts.update { list -> list.map { if (it.id == id) it.copy(status = status) else it } }
-    }
 }
 
 /**
@@ -185,19 +126,6 @@ class KtorAccountRepository(
     }
 }
 
-private val ATTENDING_PHYSICIAN = AccountRole("ATTENDING_PHYSICIAN", "Attending Physician")
-private val SYSTEM_ADMINISTRATOR = AccountRole(SYSTEM_ADMIN_ROLE, "System Administrator")
-
-/** The backend's seeded roles, in its own order (by code). */
-private val SEEDED_ROLES = listOf(
-    ATTENDING_PHYSICIAN,
-    AccountRole("AUDITOR", "Auditor"),
-    AccountRole("NURSING", "Nursing"),
-    AccountRole("PSYCHOLOGIST", "Psychologist"),
-    AccountRole("RESIDENT", "Resident"),
-    SYSTEM_ADMINISTRATOR,
-)
-
 private fun NewAccount.toRequest(temporaryPassword: String) = CreateUserRequest(
     username = username.trim(),
     temporaryPassword = temporaryPassword,
@@ -211,48 +139,4 @@ private fun NewAccount.toRequest(temporaryPassword: String) = CreateUserRequest(
     medicalLicense = profile.medicalLicense.trim().ifEmpty { null },
     specialistRegistry = profile.specialistRegistry.trim().ifEmpty { null },
     roleAssignments = listOf(RoleAssignmentRequest(roleCode)),
-)
-
-/** Ported from prototype/shared/data.js's ACCOUNTS; its relative "last login" strings became fixed instants. */
-private fun seedAccounts(): List<Account> = listOf(
-    Account(
-        id = "acc_1",
-        name = "Dr. Anita Patel",
-        username = "apatel",
-        roles = listOf(ATTENDING_PHYSICIAN),
-        status = AccountStatus.ACTIVE,
-        lastAccess = Instant.parse("2026-06-18T13:12:00Z"),
-    ),
-    Account(
-        id = "acc_2",
-        name = "Dr. Marco Reyes",
-        username = "mreyes",
-        roles = listOf(ATTENDING_PHYSICIAN),
-        status = AccountStatus.ACTIVE,
-        lastAccess = Instant.parse("2026-06-17T22:40:00Z"),
-    ),
-    Account(
-        id = "acc_3",
-        name = "Dr. Sara Lin",
-        username = "slin",
-        roles = listOf(ATTENDING_PHYSICIAN),
-        status = AccountStatus.ACTIVE,
-        lastAccess = Instant.parse("2026-05-28T15:00:00Z"),
-    ),
-    Account(
-        id = "acc_4",
-        name = "Administrador",
-        username = "admin",
-        roles = listOf(SYSTEM_ADMINISTRATOR),
-        status = AccountStatus.ACTIVE,
-        lastAccess = Instant.parse("2026-06-18T12:55:00Z"),
-    ),
-    Account(
-        id = "acc_5",
-        name = "Dr. Tom Veer",
-        username = "tveer",
-        roles = listOf(ATTENDING_PHYSICIAN),
-        status = AccountStatus.INACTIVE,
-        lastAccess = null,
-    ),
 )

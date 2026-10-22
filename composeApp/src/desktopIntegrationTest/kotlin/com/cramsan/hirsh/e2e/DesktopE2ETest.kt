@@ -10,10 +10,9 @@ import org.junit.Before
 
 /**
  * Runs [HissE2EScenarios] against the real Compose Desktop app: [DesktopAppProcess] launches
- * `com.cramsan.hirsh.MainKt` as a subprocess with the bridge armed and an isolated `user.home`
- * (so a persisted `sessionUsername` from an unrelated manual run -- see the run-desktop skill's
- * gotchas -- can't leak in), then [DesktopBridgeDriver] talks to its embedded
- * `DesktopBridgeServer` over a socket.
+ * `com.cramsan.hirsh.MainKt` as a subprocess with the bridge armed and an isolated `user.home`,
+ * then [DesktopBridgeDriver] talks to its embedded `DesktopBridgeServer` over a socket. A fresh
+ * process always starts signed out: the session cookie lives only in that process's HTTP client.
  *
  * One full process launch PER TEST METHOD ([Before]/[After], not [BeforeClass]/[AfterClass]):
  * every test starts from a genuinely fresh app with the seeded fixture data and nothing else --

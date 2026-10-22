@@ -114,12 +114,10 @@ killing only the wrapper can leave the app running.
   B's clipboard write land before A's paste completes, leaving A empty. Put a
   `sleep 1` (or poll `getHierarchy` for the expected text) between `setText`
   calls into different fields, not just after the last one.
-- **A session can already be logged in when you launch.** `AppPreferences`
-  persists `sessionUsername` via `java.util.prefs`, which survives across
-  `:composeApp:run` invocations on the same machine -- don't assume a fresh
-  launch starts on the login screen; check `getHierarchy` first (if
-  `nav_patients`/`nav_profile` show up, sign out via `profile_sign_out_button`
-  before testing the login flow itself).
+- **Every launch starts signed out.** The session is the backend's cookie,
+  held only in the running app's HTTP client (nothing is persisted on disk
+  since HISS-664), so each `:composeApp:run` lands on the login screen and
+  needs a running backend to get past it.
 - **`cmp-bridge`/`cmp-bridge-driver` are on Maven Central** as
   `com.cramsan.cmpbridge:{cmp-bridge,cmp-bridge-driver}` -- Central's search UI
   (`search.maven.org`'s Solr index) can lag behind what's actually live on
