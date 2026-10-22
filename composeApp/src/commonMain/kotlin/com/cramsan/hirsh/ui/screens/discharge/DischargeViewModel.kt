@@ -35,6 +35,12 @@ data class DischargeUiState(
     /** Text typed into the diagnosis search; cleared once a [diagnosis] is picked. */
     val diagnosisQuery: String = "",
     val diagnosisResults: List<Icd10Code> = emptyList(),
+    /**
+     * The query [diagnosisResults] answer, or null before any search has finished. Empty results
+     * only mean "no match" when this equals the trimmed [diagnosisQuery]; otherwise a search is
+     * still pending (debounce or request).
+     */
+    val diagnosisResultsQuery: String? = null,
     val diagnosis: Icd10Code? = null,
     val nextAppointmentDate: String = "",
     val followUpPlan: String = "",
@@ -44,7 +50,7 @@ data class DischargeUiState(
 )
 
 /** One-letter searches match most of the catalog; the debounce avoids a request per keystroke. */
-private const val MIN_QUERY_LENGTH = 2
+internal const val MIN_QUERY_LENGTH = 2
 private const val SEARCH_DEBOUNCE_MS = 300L
 
 private const val CONFLICT_ERROR =
@@ -75,18 +81,19 @@ class DischargeViewModel(
     init {
         viewModelScope.launch {
             diagnosisQuery.debounce(SEARCH_DEBOUNCE_MS).collectLatest { query ->
-                val results = if (query.trim().length < MIN_QUERY_LENGTH) {
+                val trimmed = query.trim()
+                val results = if (trimmed.length < MIN_QUERY_LENGTH) {
                     emptyList()
                 } else {
                     try {
-                        icd10Repository.search(query.trim())
+                        icd10Repository.search(trimmed)
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {
                         emptyList()
                     }
                 }
-                _uiState.update { it.copy(diagnosisResults = results) }
+                _uiState.update { it.copy(diagnosisResults = results, diagnosisResultsQuery = trimmed) }
             }
         }
     }
@@ -114,7 +121,7 @@ class DischargeViewModel(
     }
 
     fun onDiagnosisSelected(code: Icd10Code) {
-        _uiState.update { it.copy(diagnosis = code, diagnosisQuery = "", diagnosisResults = emptyList(), error = null) }
+        _uiState.update { it.copy(diagnosis = code, diagnosisQuery = "", diagnosisResults = emptyList(), diagnosisResultsQuery = null, error = null) }
         diagnosisQuery.value = ""
     }
 

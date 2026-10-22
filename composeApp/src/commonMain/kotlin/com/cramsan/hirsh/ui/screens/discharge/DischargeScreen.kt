@@ -174,6 +174,7 @@ private fun DischargeForm(
                 DiagnosisPicker(
                     query = uiState.diagnosisQuery,
                     results = uiState.diagnosisResults,
+                    resultsQuery = uiState.diagnosisResultsQuery,
                     selected = uiState.diagnosis,
                     onQueryChange = onDiagnosisQueryChange,
                     onSelected = onDiagnosisSelected,
@@ -242,6 +243,7 @@ private fun DischargeForm(
 private fun DiagnosisPicker(
     query: String,
     results: List<Icd10Code>,
+    resultsQuery: String?,
     selected: Icd10Code?,
     onQueryChange: (String) -> Unit,
     onSelected: (Icd10Code) -> Unit,
@@ -309,7 +311,7 @@ private fun DiagnosisPicker(
                     }
                 }
             }
-        } else if (query.trim().length >= 2) {
+        } else if (query.trim().length >= MIN_QUERY_LENGTH && resultsQuery == query.trim()) {
             Text(
                 "Sin resultados en el catalogo CIE-10",
                 fontFamily = FontFamily.Monospace,

@@ -213,6 +213,20 @@ class DischargeViewModelTest {
 
         assertEquals(listOf("F32"), icd10.queries, "only the settled query is searched")
         assertEquals(listOf(depressionCode), viewModel.uiState.value.diagnosisResults)
+        assertEquals("F32", viewModel.uiState.value.diagnosisResultsQuery)
+    }
+
+    @Test
+    fun `results only answer the query once its search finishes`() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        viewModel.onDiagnosisQueryChange("F32")
+        dispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.onDiagnosisQueryChange("F99")
+        assertEquals("F32", viewModel.uiState.value.diagnosisResultsQuery, "still debouncing: not a 'no match' yet")
+
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals("F99", viewModel.uiState.value.diagnosisResultsQuery)
     }
 
     @Test
