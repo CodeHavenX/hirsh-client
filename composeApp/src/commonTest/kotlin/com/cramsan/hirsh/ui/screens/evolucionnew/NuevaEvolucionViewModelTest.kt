@@ -155,6 +155,10 @@ private class FakeClinicalNoteRepository : ClinicalNoteRepository {
 
     override suspend fun saveHistoriaClinicaSection(hospId: String, key: HcSectionKey, data: Any) = Unit
 
+    override suspend fun signHistoriaClinica(hospId: String) = Unit
+
+    override suspend fun signEvolucion(hospId: String, evoId: String) = Unit
+
     override suspend fun addEvolucion(hospId: String, evolucion: Evolucion): Evolucion {
         addEvolucionCallCount++
         val created = evolucion.copy(id = "evo_new")

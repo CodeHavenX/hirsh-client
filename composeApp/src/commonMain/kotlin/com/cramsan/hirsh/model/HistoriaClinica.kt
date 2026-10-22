@@ -1,9 +1,15 @@
 package com.cramsan.hirsh.model
 
+import kotlin.time.Instant
+
 /**
  * Filled in section-by-section (often over several days) rather than all at once.
- * Field names follow the prototype (`prototype/shared/data.js`'s SECTION_FIELDS) so
- * the mapping from the real API response, once it exists, stays obvious.
+ * Field names follow the prototype (`prototype/shared/data.js`'s SECTION_FIELDS), and are
+ * also the keys of the backend document's content (HCEM-74).
+ *
+ * [status] is null until the first section is saved -- the stay has no admission document
+ * yet. [draftDeadline] is when a [NoteStatus.DRAFT] is due to be signed, if the template sets a
+ * limit.
  */
 data class HistoriaClinica(
     val filiacion: HcSection<Filiacion> = HcSection(),
@@ -12,6 +18,8 @@ data class HistoriaClinica(
     val examenFisico: HcSection<ExamenFisico> = HcSection(),
     val diagnostico: HcSection<Diagnostico> = HcSection(),
     val plan: HcSection<Plan> = HcSection(),
+    val status: NoteStatus? = null,
+    val draftDeadline: Instant? = null,
 )
 
 data class HcSection<T>(
@@ -131,3 +139,10 @@ fun HistoriaClinica.statusLabel(): String {
         else -> "En progreso"
     }
 }
+
+/**
+ * Signing needs every section that has a digital form; the four without one can't hold it up
+ * (HCEM-74's decision).
+ */
+fun HistoriaClinica.isReadyToSign(): Boolean =
+    listOf(filiacion, motivoIngreso, enfermedadActual, examenFisico, diagnostico, plan).all { it.complete }

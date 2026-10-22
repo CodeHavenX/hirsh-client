@@ -173,6 +173,10 @@ private class FakeClinicalNoteRepository(historiasClinicas: Map<String, Historia
 
     override fun getEvolucion(hospId: String, evoId: String): Flow<Evolucion?> = MutableStateFlow(null)
 
+    override suspend fun signHistoriaClinica(hospId: String) = Unit
+
+    override suspend fun signEvolucion(hospId: String, evoId: String) = Unit
+
     override suspend fun saveHistoriaClinicaSection(hospId: String, key: HcSectionKey, data: Any) {
         saveCallCount++
         lastSavedKey = key
