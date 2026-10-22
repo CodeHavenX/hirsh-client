@@ -6,8 +6,8 @@ import com.cramsan.hirsh.model.AccountRole
 import com.cramsan.hirsh.model.AccountStatus
 import com.cramsan.hirsh.model.NewAccount
 import com.cramsan.hirsh.model.SYSTEM_ADMIN_ROLE
+import com.cramsan.hirsh.network.getAllPages
 import com.cramsan.hirsh.network.dto.CreateUserRequest
-import com.cramsan.hirsh.network.dto.PageResponse
 import com.cramsan.hirsh.network.dto.PasswordResetResponse
 import com.cramsan.hirsh.network.dto.PatchUserRequest
 import com.cramsan.hirsh.network.dto.RoleAssignmentRequest
@@ -18,8 +18,6 @@ import com.cramsan.hirsh.network.dto.toDomain
 import com.cramsan.hirsh.network.dto.toDto
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
-import io.ktor.client.request.get
-import io.ktor.client.request.parameter
 import io.ktor.client.request.patch
 import io.ktor.client.request.post
 import io.ktor.client.request.put
@@ -133,32 +131,11 @@ class KtorAccountRepository(
     override val accounts: StateFlow<List<Account>> = _accounts.asStateFlow()
 
     override suspend fun refresh() {
-        _accounts.value = fetchAllPages()
+        _accounts.value = httpClient.getAllPages<UserResponse>("/api/v1/users").map { it.toDomain() }
     }
 
-    private suspend fun fetchAllPages(): List<Account> {
-        val firstPage = fetchPage(0)
-        val pages = buildList {
-            addAll(firstPage.content)
-            for (page in 1 until firstPage.page.totalPages) {
-                addAll(fetchPage(page).content)
-            }
-        }
-        return pages.map { it.toDomain() }
-    }
-
-    private suspend fun fetchPage(page: Int): PageResponse<UserResponse> =
-        httpClient.get("/api/v1/users") {
-            parameter("page", page)
-            parameter("size", PAGE_SIZE)
-        }.body()
-
-    /** The six seeded roles fit one page; a deployment with more than [PAGE_SIZE] roles would need paging here. */
     override suspend fun roles(): List<AccountRole> =
-        httpClient.get("/api/v1/roles") {
-            parameter("page", 0)
-            parameter("size", PAGE_SIZE)
-        }.body<PageResponse<RoleResponse>>().content.map { it.toDomain() }
+        httpClient.getAllPages<RoleResponse>("/api/v1/roles").map { it.toDomain() }
 
     override suspend fun addAccount(account: NewAccount, temporaryPassword: String): Account {
         val created = httpClient.post("/api/v1/users") {
@@ -205,10 +182,6 @@ class KtorAccountRepository(
             setBody(UpdateUserStatusRequest(status.toDto()))
         }.body<UserResponse>().toDomain()
         _accounts.update { list -> list.map { if (it.id == id) updated else it } }
-    }
-
-    private companion object {
-        const val PAGE_SIZE = 100
     }
 }
 
