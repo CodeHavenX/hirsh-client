@@ -2,6 +2,7 @@ package com.cramsan.hirsh.ui.screens.patientrecord
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.cramsan.hirsh.model.EpisodeStatus
 import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.repository.EpisodeRepository
@@ -19,7 +20,14 @@ data class PatientRecordUiState(
     val isLoading: Boolean = true,
     val patient: Patient? = null,
     val hospitalizations: List<Hospitalizacion> = emptyList(),
-)
+) {
+    /**
+     * The backend allows one open inpatient stay per patient. Read off [hospitalizations] rather
+     * than the patient's `activeEpisode`, which is a snapshot from when the record was opened --
+     * the episode list is updated in place by admission and discharge.
+     */
+    val canAdmit: Boolean get() = hospitalizations.none { it.status == EpisodeStatus.ACTIVE }
+}
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PatientRecordViewModel(

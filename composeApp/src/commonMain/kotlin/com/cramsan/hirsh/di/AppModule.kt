@@ -6,6 +6,7 @@ import com.cramsan.hirsh.network.installApiErrorValidator
 import com.cramsan.hirsh.preferences.AppPreferences
 import com.cramsan.hirsh.repository.AccessLogRepository
 import com.cramsan.hirsh.repository.AccountRepository
+import com.cramsan.hirsh.repository.AdmissionCatalogRepository
 import com.cramsan.hirsh.repository.AuthRepository
 import com.cramsan.hirsh.repository.ClinicalNoteRepository
 import com.cramsan.hirsh.repository.DefaultSessionRepository
@@ -13,8 +14,9 @@ import com.cramsan.hirsh.repository.EpisodeRepository
 import com.cramsan.hirsh.repository.Icd10Repository
 import com.cramsan.hirsh.repository.InMemoryAccountRepository
 import com.cramsan.hirsh.repository.InMemoryClinicalNoteRepository
-import com.cramsan.hirsh.repository.InMemoryEpisodeRepository
+import com.cramsan.hirsh.repository.KtorAdmissionCatalogRepository
 import com.cramsan.hirsh.repository.KtorAuthRepository
+import com.cramsan.hirsh.repository.KtorEpisodeRepository
 import com.cramsan.hirsh.repository.KtorIcd10Repository
 import com.cramsan.hirsh.repository.KtorAccessLogRepository
 import com.cramsan.hirsh.repository.KtorPatientRepository
@@ -85,7 +87,8 @@ private val sharedModule = module {
     singleOf(::KtorPatientRepository) bind PatientRepository::class
     singleOf(::KtorAccessLogRepository) bind AccessLogRepository::class
     singleOf(::InMemoryAccountRepository) bind AccountRepository::class
-    singleOf(::InMemoryEpisodeRepository) bind EpisodeRepository::class
+    singleOf(::KtorEpisodeRepository) bind EpisodeRepository::class
+    singleOf(::KtorAdmissionCatalogRepository) bind AdmissionCatalogRepository::class
     singleOf(::InMemoryClinicalNoteRepository) bind ClinicalNoteRepository::class
     singleOf(::KtorIcd10Repository) bind Icd10Repository::class
     singleOf(::DefaultClock) bind Clock::class

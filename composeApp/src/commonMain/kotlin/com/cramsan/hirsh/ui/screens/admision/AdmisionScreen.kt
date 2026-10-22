@@ -24,9 +24,9 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cramsan.hirsh.model.BedRef
 import com.cramsan.hirsh.model.ServiceRef
 import com.cramsan.hirsh.model.UserRef
-import com.cramsan.hirsh.repository.PlaceholderCatalog
 import com.cramsan.hirsh.ui.components.FieldFontSize
 import com.cramsan.hirsh.ui.components.FormSectionCaption
 import com.cramsan.hirsh.ui.components.RequiredFieldLabel
@@ -35,10 +35,6 @@ import com.cramsan.hirsh.ui.components.fieldShape
 import com.cramsan.hirsh.ui.theme.HissInk
 import com.cramsan.hirsh.ui.theme.HissInk2
 import org.koin.compose.viewmodel.koinViewModel
-
-// Placeholder choices until the real service/bed/physician pickers (HISS-634).
-private val serviceOptions = PlaceholderCatalog.services
-private val physicianOptions = PlaceholderCatalog.physicians
 
 @Composable
 fun AdmisionScreen(
@@ -75,7 +71,7 @@ internal fun AdmisionScreenContent(
     patientId: String,
     onCancel: () -> Unit,
     onServicioChange: (ServiceRef) -> Unit,
-    onCamaChange: (String) -> Unit,
+    onCamaChange: (BedRef) -> Unit,
     onMedicoResponsableChange: (UserRef) -> Unit,
     onMotivoChange: (String) -> Unit,
     onRegister: () -> Unit,
@@ -105,7 +101,7 @@ private fun AdmisionForm(
     patientName: String,
     onCancel: () -> Unit,
     onServicioChange: (ServiceRef) -> Unit,
-    onCamaChange: (String) -> Unit,
+    onCamaChange: (BedRef) -> Unit,
     onMedicoResponsableChange: (UserRef) -> Unit,
     onMotivoChange: (String) -> Unit,
     onRegister: () -> Unit,
@@ -129,25 +125,17 @@ private fun AdmisionForm(
                 FormSectionCaption("Datos de ingreso")
                 SelectField(
                     label = { RequiredFieldLabel("Servicio") },
-                    options = serviceOptions.map { it.name },
+                    options = uiState.services.map { it.name },
                     selected = uiState.service?.name.orEmpty(),
-                    onSelect = { name -> serviceOptions.firstOrNull { it.name == name }?.let(onServicioChange) },
+                    onSelect = { name -> uiState.services.firstOrNull { it.name == name }?.let(onServicioChange) },
                     testTag = "admision_servicio_field",
                 )
-                OutlinedTextField(
-                    value = uiState.cama,
-                    onValueChange = onCamaChange,
-                    label = { RequiredFieldLabel("Cama") },
-                    placeholder = { Text("Ej: 12", fontSize = FieldFontSize) },
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
-                    shape = fieldShape,
-                    modifier = Modifier.fillMaxWidth().testTag("admision_cama_field"),
-                )
+                BedPicker(uiState = uiState, onCamaChange = onCamaChange)
                 SelectField(
                     label = { RequiredFieldLabel("Medico responsable") },
-                    options = physicianOptions.map { it.fullName },
+                    options = uiState.physicians.map { it.fullName },
                     selected = uiState.attendingPhysician?.fullName.orEmpty(),
-                    onSelect = { name -> physicianOptions.firstOrNull { it.fullName == name }?.let(onMedicoResponsableChange) },
+                    onSelect = { name -> uiState.physicians.firstOrNull { it.fullName == name }?.let(onMedicoResponsableChange) },
                     testTag = "admision_medico_field",
                 )
             }
@@ -178,8 +166,13 @@ private fun AdmisionForm(
             }
         }
 
-        uiState.error?.let { error ->
-            Text(error, color = MaterialTheme.colorScheme.error)
+        when {
+            uiState.error != null -> Text(uiState.error, color = MaterialTheme.colorScheme.error)
+            uiState.hasActiveHospitalization -> Text(
+                "El paciente ya tiene una hospitalizacion activa. Dale de alta antes de registrar otra.",
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.testTag("admision_active_stay_notice"),
+            )
         }
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
@@ -195,7 +188,7 @@ private fun AdmisionForm(
             }
             Button(
                 onClick = onRegister,
-                enabled = !uiState.isSaving,
+                enabled = !uiState.isSaving && !uiState.hasActiveHospitalization,
                 shape = fieldShape,
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
                 modifier = Modifier.padding(start = 10.dp).testTag("admision_submit_button"),
@@ -203,5 +196,30 @@ private fun AdmisionForm(
                 Text("Admitir paciente", fontSize = FieldFontSize, fontWeight = FontWeight.Medium)
             }
         }
+    }
+}
+
+/**
+ * A select rather than the mock's free-text bed number: the backend admits into a bed by id, and
+ * only into an available bed of the chosen service.
+ */
+@Composable
+private fun BedPicker(uiState: AdmisionUiState, onCamaChange: (BedRef) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        SelectField(
+            label = { RequiredFieldLabel("Cama") },
+            options = uiState.beds.map { it.number },
+            selected = uiState.bed?.number.orEmpty(),
+            onSelect = { number -> uiState.beds.firstOrNull { it.number == number }?.let(onCamaChange) },
+            testTag = "admision_cama_field",
+            enabled = uiState.beds.isNotEmpty(),
+        )
+        val hint = when {
+            uiState.service == null -> "Elige primero el servicio"
+            uiState.isLoadingBeds -> "Cargando camas..."
+            uiState.beds.isEmpty() -> "Sin camas disponibles en este servicio"
+            else -> null
+        }
+        hint?.let { Text(it, fontFamily = FontFamily.Monospace, fontSize = 10.sp, color = HissInk2) }
     }
 }

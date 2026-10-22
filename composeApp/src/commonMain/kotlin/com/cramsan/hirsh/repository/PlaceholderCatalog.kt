@@ -5,9 +5,9 @@ import com.cramsan.hirsh.model.ServiceRef
 import com.cramsan.hirsh.model.UserRef
 
 /**
- * Stand-in services and physicians, with fixed ids, for the in-memory hospitalizations and the
- * admission form until the real pickers exist (`GET /clinical-services`, `GET /users`: HISS-634).
- * The names are the prototype's own option lists.
+ * Stand-in services and physicians, with fixed ids, for [InMemoryEpisodeRepository]'s seed and the previews. The
+ * admission form reads the real ones through [AdmissionCatalogRepository]. The names are the
+ * prototype's own option lists.
  */
 object PlaceholderCatalog {
     val services: List<ServiceRef> = listOf(

@@ -108,6 +108,7 @@ internal fun PatientRecordScreenContent(
                 RecordHeader(
                     patient = patient,
                     onEditProfile = onEditProfile,
+                    canAdmit = uiState.canAdmit,
                     onNewHospitalization = onNewHospitalization,
                 )
                 Row(
@@ -135,6 +136,7 @@ internal fun PatientRecordScreenContent(
 private fun RecordHeader(
     patient: Patient,
     onEditProfile: () -> Unit,
+    canAdmit: Boolean,
     onNewHospitalization: () -> Unit,
 ) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -152,13 +154,15 @@ private fun RecordHeader(
             ) {
                 Text("Editar perfil", fontWeight = FontWeight.Medium, color = HissInk)
             }
-            Button(
-                onClick = onNewHospitalization,
-                shape = ButtonShape,
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
-                modifier = Modifier.testTag("record_new_hospitalization_button"),
-            ) {
-                Text("+ Nueva hospitalizacion", fontWeight = FontWeight.Medium)
+            if (canAdmit) {
+                Button(
+                    onClick = onNewHospitalization,
+                    shape = ButtonShape,
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                    modifier = Modifier.testTag("record_new_hospitalization_button"),
+                ) {
+                    Text("+ Nueva hospitalizacion", fontWeight = FontWeight.Medium)
+                }
             }
         }
     }
