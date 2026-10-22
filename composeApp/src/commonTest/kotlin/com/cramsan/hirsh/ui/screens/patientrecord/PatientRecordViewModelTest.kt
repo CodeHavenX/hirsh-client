@@ -9,9 +9,6 @@ import com.cramsan.hirsh.model.DischargeDetails
 import com.cramsan.hirsh.model.DischargeType
 import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.EpisodeStatus
-import com.cramsan.hirsh.model.Evolucion
-import com.cramsan.hirsh.model.HcSectionKey
-import com.cramsan.hirsh.model.HistoriaClinica
 import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.ServiceRef
