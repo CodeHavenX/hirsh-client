@@ -169,10 +169,7 @@ class KtorAccountRepository(
         return created
     }
 
-    /**
-     * Sends only the fields that differ from the cached account: the backend reads a null field
-     * as "leave it", and re-sending an unchanged CMP or RNE would re-run its uniqueness check.
-     */
+    /** Sends only the fields that differ from the cached account; the backend reads a null field as "leave it". */
     override suspend fun updateAccount(id: String, profile: AccountProfile) {
         val current = _accounts.value.find { it.id == id }?.profile ?: AccountProfile()
         fun changed(new: String, old: String) = new.trim().takeIf { it != old }

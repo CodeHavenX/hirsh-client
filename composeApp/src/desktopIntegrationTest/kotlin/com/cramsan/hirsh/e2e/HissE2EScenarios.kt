@@ -21,9 +21,9 @@ import kotlin.test.assertTrue
  * Each @Test method here runs against its OWN freshly-launched app instance -- see
  * [DesktopE2ETest]/[WebE2ETest]'s [Before][org.junit.Before]/[After][org.junit.After]
  * (not [BeforeClass][org.junit.BeforeClass]/[AfterClass][org.junit.AfterClass]) setup.
- * `InMemoryClinicalNoteRepository`/`InMemoryAccountRepository` (wired in `AppModule.kt`) are
- * in-process Koin singletons with no external persistence, so a fresh process launch is a full,
- * free reset back to their seeded fixture data below. **As of HISS-611, `AuthRepository`** is
+ * `InMemoryClinicalNoteRepository` (wired in `AppModule.kt`) is an
+ * in-process Koin singleton with no external persistence, so a fresh process launch is a full,
+ * free reset back to its seeded fixture data. **As of HISS-611, `AuthRepository`** is
  * `KtorAuthRepository`, and **as of HISS-622, `PatientRepository`** is `KtorPatientRepository` --
  * both backed by a real, separately-running instance of this project's backend (see
  * `network/ApiConfig.kt`) -- this whole suite now needs that backend up and reachable to pass at
@@ -39,17 +39,15 @@ import kotlin.test.assertTrue
  * A consequence: any test that needs to be signed in calls [loginAsAdmin] itself as its first
  * step. Likewise, since HISS-622, any test that needs a patient calls [registerE2eTestPatient]
  * itself to create one through the real backend rather than assuming a seeded id still exists --
- * the same pattern the accounts CRUD tests (`test17`-`test19`) already used for
- * [createE2eTestDoctorAccount] (that repository is still fake, unaffected by HISS-611/622, but the
- * "don't assume an earlier test's fixture" discipline is the same). Where a step needs to
+ * the same pattern the accounts CRUD tests (`test16`-`test19`) use with [createE2eTestAccount],
+ * which since HISS-652 creates a real, uniquely named account on the backend. Where a step needs to
  * create+immediately use a dynamically-generated id (a new patient, hospitalization, or evolucion
  * id, which cmp-bridge has no way to read out of a URL the way a browser location bar would), it
  * either stays inline in ONE test method, or -- when a later step needs to find that same row
  * again from a list without knowing its id -- matches on rendered content instead via
  * [tagOfNodeContaining].
  *
- * Seeded fixture data still referenced below (from `InMemoryEpisodeRepository`/
- * `InMemoryAccountRepository`, seeded from `prototype/shared/data.js`): accounts `admin`/ADMIN.
+ * The only fixture referenced below is the backend's bootstrap admin account.
  * Patients are no longer seeded fixtures as of HISS-622 -- every patient-dependent test below
  * registers its own. `test02`/`test03` below are `@Ignore`d: they need a seeded inactive account
  * and a seeded non-admin account respectively, and only an admin account is seeded in the real
@@ -567,54 +565,66 @@ abstract class HissE2EScenarios {
     // --- Accounts (admin only) ------------------------------------------------------------
 
     @Test
-    fun test16_accounts_addDoctor_createsAccountRow() {
+    fun test16_accounts_addAccount_createsAccountRow() {
         driver.loginAsAdmin()
-        driver.createE2eTestDoctorAccount()
-        assertTrue(driver.getHierarchy().containsText("Dr. E2E Test"))
+        val username = driver.createE2eTestAccount()
+        val hierarchy = driver.getHierarchy()
+        assertTrue(hierarchy.containsText(username))
+        assertTrue(hierarchy.containsTag("account_edit_$username"), "a new account is active, so it offers Editar")
     }
 
     @Test
-    fun test17_accounts_editDoctor_updatesRow() {
+    fun test17_accounts_editAccount_savesProfile() {
         driver.loginAsAdmin()
-        driver.createE2eTestDoctorAccount()
-        driver.clickTag("account_edit_e2etest")
-        driver.waitForTag("account_edit_name_field")
-        driver.type("account_edit_name_field", "Dr. E2E Test Editado")
+        val username = driver.createE2eTestAccount()
+        val phone = "555-${System.nanoTime().toString().takeLast(4)}"
+        driver.clickTag("account_edit_$username")
+        driver.waitForTag("account_edit_phone_field")
+        assertFalse(driver.getHierarchy().containsTag("account_edit_name_field"), "the API can't rename an account (HISS-653)")
+        driver.type("account_edit_phone_field", phone)
         driver.clickTag("account_edit_confirm_button")
-        driver.waitUntil { it.containsText("Dr. E2E Test Editado") }
-        assertTrue(driver.getHierarchy().containsText("Dr. E2E Test Editado"))
+        driver.waitUntil { !it.containsTag("account_edit_confirm_button") }
+
+        // The phone isn't a table column, so reopen the dialog to read it back.
+        driver.clickTag("account_edit_$username")
+        driver.waitForTag("account_edit_phone_field")
+        assertTrue(driver.getHierarchy().containsText(phone), "the saved phone must come back from the backend")
     }
 
     @Test
-    fun test18_accounts_resetPassword_showsTempPassword() {
+    fun test18_accounts_resetPassword_showsGeneratedPassword() {
         driver.loginAsAdmin()
-        driver.createE2eTestDoctorAccount()
-        driver.clickTag("account_reset_e2etest")
+        val username = driver.createE2eTestAccount()
+        driver.clickTag("account_reset_$username")
         driver.waitForTag("account_reset_confirm_button")
         assertTrue(driver.getHierarchy().containsText("Reset contraseña"))
         driver.clickTag("account_reset_confirm_button")
+        driver.waitForTag("account_reset_password_field")
+
+        driver.clickTag("account_reset_confirm_button")
         driver.waitUntil { !it.containsTag("account_reset_confirm_button") }
-        assertFalse(driver.getHierarchy().containsTag("account_reset_confirm_button"), "confirming reset must close the dialog")
+        assertFalse(driver.getHierarchy().containsTag("account_reset_password_field"), "Listo must close the dialog")
     }
 
     @Test
     fun test19_accounts_deactivateThenReactivate_togglesStatus() {
         driver.loginAsAdmin()
-        driver.createE2eTestDoctorAccount()
-        driver.clickTag("account_deactivate_e2etest")
+        val username = driver.createE2eTestAccount()
+        driver.clickTag("account_deactivate_$username")
         driver.waitForTag("account_deactivate_confirm_button")
         driver.clickTag("account_deactivate_confirm_button")
-        driver.waitForTag("account_reactivate_e2etest")
-        assertTrue(driver.getHierarchy().containsTag("account_reactivate_e2etest"), "a deactivated account's row must offer Reactivar instead of Editar/Desactivar")
+        driver.waitForTag("account_reactivate_$username")
+        assertTrue(
+            driver.getHierarchy().containsTag("account_reactivate_$username"),
+            "a deactivated account's row must offer Reactivar instead of Editar/Desactivar",
+        )
 
-        driver.clickTag("account_reactivate_e2etest")
-        // Reactivating swaps the row back from a single "Reactivar" link to the full
-        // Editar/Reset clave/Desactivar set, which (per createE2eTestDoctorAccount's own doc)
-        // renders taller at this column width -- the row can grow past the previous scroll
-        // position, pushing account_edit_e2etest below the fold again.
+        driver.clickTag("account_reactivate_$username")
+        // Reactivating swaps the single "Reactivar" link back to the full action set, which can
+        // render taller and push the row's links below the fold again.
         driver.scrollDown("screen_scroll_container")
-        driver.waitForTag("account_edit_e2etest")
-        assertTrue(driver.getHierarchy().containsTag("account_edit_e2etest"), "reactivating must restore the normal action set")
+        driver.waitForTag("account_edit_$username")
+        assertTrue(driver.getHierarchy().containsTag("account_edit_$username"), "reactivating must restore the normal action set")
     }
 
     // --- Sign out ---------------------------------------------------------------------------

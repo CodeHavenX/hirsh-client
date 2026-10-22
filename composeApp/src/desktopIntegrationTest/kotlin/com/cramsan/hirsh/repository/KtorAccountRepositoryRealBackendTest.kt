@@ -1,13 +1,15 @@
 package com.cramsan.hirsh.repository
 
+import com.cramsan.hirsh.model.AccountDocumentType
+import com.cramsan.hirsh.model.AccountProfile
 import com.cramsan.hirsh.model.AccountRole
 import com.cramsan.hirsh.model.AccountStatus
+import com.cramsan.hirsh.model.NewAccount
 import com.cramsan.hirsh.network.ApiConfig
 import com.cramsan.hirsh.network.XsrfHeaderPlugin
 import com.cramsan.hirsh.network.dto.LoginRequest
 import com.cramsan.hirsh.network.installApiErrorValidator
 import io.ktor.client.HttpClient
-import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.cookies.HttpCookies
@@ -22,12 +24,6 @@ import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.add
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.put
-import kotlinx.serialization.json.putJsonArray
 import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Test
@@ -37,11 +33,12 @@ import kotlin.random.Random
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /**
  * [KtorAccountRepository] against a real, separately-running backend (Tier 1 of
- * `.claude/skills/_shared/real-backend-check.md`). Creates its own user -- the repository can't
- * yet (HISS-652) -- then lists, deactivates and reactivates it. Skips like
+ * `.claude/skills/_shared/real-backend-check.md`). Creates its own user through the repository,
+ * then lists, edits, resets, deactivates and reactivates it. Skips like
  * [KtorEpisodeRepositoryRealBackendTest] when there's no backend or no credentials.
  */
 class KtorAccountRepositoryRealBackendTest {
@@ -77,50 +74,60 @@ class KtorAccountRepositoryRealBackendTest {
     }
 
     @Test
-    fun listsDeactivatesAndReactivatesAUser() = runTest {
+    fun createsListsEditsResetsAndTogglesAUser() = runTest {
         val client = realHttpClient()
         client.post("/api/v1/auth/login") {
             contentType(ContentType.Application.Json)
             setBody(LoginRequest(username!!, password!!))
         }
-
-        val suffix = Random.nextInt(100_000, 999_999).toString()
-        val created = client.post("/api/v1/users") {
-            contentType(ContentType.Application.Json)
-            setBody(
-                buildJsonObject {
-                    put("username", "e2e$suffix")
-                    put("temporaryPassword", "Temp0ral-$suffix")
-                    put("firstName", "Cuenta")
-                    put("lastName", "Prueba")
-                    put("documentNumber", "8$suffix")
-                    putJsonArray("roleAssignments") {
-                        add(buildJsonObject { put("roleCode", "ATTENDING_PHYSICIAN") })
-                    }
-                },
-            )
-        }.body<JsonObject>()
-        val id = created.getValue("id").jsonPrimitive.content
-
         val repository = KtorAccountRepository(client)
-        repository.refresh()
+        val suffix = Random.nextInt(100_000, 999_999).toString()
 
-        val listed = assertNotNull(repository.accounts.value.find { it.id == id })
-        assertEquals("e2e$suffix", listed.username)
-        assertEquals("Cuenta Prueba", listed.name)
-        assertEquals(listOf("ATTENDING_PHYSICIAN"), listed.roles.map(AccountRole::code))
-        assertEquals(AccountStatus.ACTIVE, listed.status)
-        assertNull(listed.lastAccess)
+        val roles = repository.roles()
+        assertTrue(
+            roles.map(AccountRole::code).containsAll(
+                listOf("SYSTEM_ADMIN", "ATTENDING_PHYSICIAN", "RESIDENT", "NURSING", "PSYCHOLOGIST", "AUDITOR"),
+            ),
+        )
+
+        val created = repository.addAccount(
+            NewAccount(
+                firstName = "Cuenta",
+                lastName = "Prueba",
+                secondLastName = "Real",
+                username = "e2e$suffix",
+                documentType = AccountDocumentType.FOREIGN_ID,
+                documentNumber = "8$suffix",
+                roleCode = "RESIDENT",
+                profile = AccountProfile(email = "e2e$suffix@hospital.pe", medicalLicense = "CMP-$suffix"),
+            ),
+            temporaryPassword = "Temp0ral-$suffix",
+        )
+        assertEquals("Cuenta Prueba Real", created.name)
+        assertEquals(listOf("RESIDENT"), created.roles.map(AccountRole::code))
+        assertEquals(AccountStatus.ACTIVE, created.status)
+        assertNull(created.lastAccess)
+        assertEquals("CMP-$suffix", created.profile.medicalLicense)
+
+        repository.refresh()
+        assertEquals(created, repository.accounts.value.single { it.id == created.id })
         // The logged-in admin has logged in, so its lastAccess must decode from a real OffsetDateTime.
         assertNotNull(repository.accounts.value.single { it.username == username }.lastAccess)
 
-        repository.deactivate(id)
-        assertEquals(AccountStatus.INACTIVE, repository.accounts.value.single { it.id == id }.status)
-
-        repository.reactivate(id)
-        assertEquals(AccountStatus.ACTIVE, repository.accounts.value.single { it.id == id }.status)
-
+        repository.updateAccount(created.id, created.profile.copy(phone = "555-$suffix", specialistRegistry = "RNE-$suffix"))
         repository.refresh()
-        assertEquals(AccountStatus.ACTIVE, repository.accounts.value.single { it.id == id }.status)
+        val edited = repository.accounts.value.single { it.id == created.id }.profile
+        assertEquals("555-$suffix", edited.phone)
+        assertEquals("RNE-$suffix", edited.specialistRegistry)
+        assertEquals("CMP-$suffix", edited.medicalLicense)
+
+        val temporary = repository.resetPassword(created.id)
+        assertTrue(temporary.length >= 8)
+
+        repository.deactivate(created.id)
+        assertEquals(AccountStatus.INACTIVE, repository.accounts.value.single { it.id == created.id }.status)
+
+        repository.reactivate(created.id)
+        assertEquals(AccountStatus.ACTIVE, repository.accounts.value.single { it.id == created.id }.status)
     }
 }
