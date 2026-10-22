@@ -261,15 +261,30 @@ fun HierarchyNode.tagsWithPrefix(prefix: String): List<String> = buildList {
  * (non-seeded) Activa hospitalization to open, now that hospitalizations are only ever findable
  * under whichever patient id the real backend actually assigned.
  */
-fun BridgeDriver.admitPatient(motivo: String = "E2E: sintomas respiratorios", cama: String = "12") {
+fun BridgeDriver.admitPatient(motivo: String = "E2E: sintomas respiratorios") {
+    ensureAdmissionCatalog()
     clickTag("record_new_hospitalization_button")
     waitForTag("admision_submit_button")
-    selectOption("admision_servicio_field", 0)
-    type("admision_cama_field", cama)
-    selectOption("admision_medico_field", 0)
+    fillAdmissionPickers()
     type("admision_motivo_field", motivo)
     clickTag("admision_submit_button")
     waitForTag("hosp_discharge_button")
+}
+
+/**
+ * Picks the first service, its first available bed and the first physician on the open Admision
+ * form. [ensureAdmissionCatalog] guarantees the first service has a free bed; the bed select only
+ * enables once that service's beds have loaded.
+ */
+fun BridgeDriver.fillAdmissionPickers() {
+    selectOption("admision_servicio_field", 0)
+    // The bed select stays disabled (a click doesn't open it) until the service's beds arrive.
+    waitUntil(timeoutMs = 15_000) {
+        clickTag("admision_cama_field")
+        runCatching { waitForTag("admision_cama_field_option_0", timeoutMs = 1_000) }.isSuccess
+    }
+    clickTag("admision_cama_field_option_0")
+    selectOption("admision_medico_field", 0)
 }
 
 /**

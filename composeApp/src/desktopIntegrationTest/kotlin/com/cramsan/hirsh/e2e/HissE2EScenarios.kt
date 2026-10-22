@@ -21,7 +21,7 @@ import kotlin.test.assertTrue
  * Each @Test method here runs against its OWN freshly-launched app instance -- see
  * [DesktopE2ETest]/[WebE2ETest]'s [Before][org.junit.Before]/[After][org.junit.After]
  * (not [BeforeClass][org.junit.BeforeClass]/[AfterClass][org.junit.AfterClass]) setup.
- * `InMemoryEpisodeRepository`/`InMemoryClinicalNoteRepository`/`InMemoryAccountRepository` (wired in `AppModule.kt`) are
+ * `InMemoryClinicalNoteRepository`/`InMemoryAccountRepository` (wired in `AppModule.kt`) are
  * in-process Koin singletons with no external persistence, so a fresh process launch is a full,
  * free reset back to their seeded fixture data below. **As of HISS-611, `AuthRepository`** is
  * `KtorAuthRepository`, and **as of HISS-622, `PatientRepository`** is `KtorPatientRepository` --
@@ -54,10 +54,10 @@ import kotlin.test.assertTrue
  * registers its own. `test02`/`test03` below are `@Ignore`d: they need a seeded inactive account
  * and a seeded non-admin account respectively, and only an admin account is seeded in the real
  * backend as of this ticket -- re-enable once account provisioning is real too (HISS-651+).
- * `test06`/`test13` below need a hospitalization with a specific state (populated/Activa) but
- * `InMemoryEpisodeRepository` itself is still fake and unaffected by HISS-622 -- they get
- * there by driving the real Admision flow ([admitPatient]) against a patient they just registered,
- * rather than by depending on that repository's own (now-orphaned) seeded hospitalizations.
+ * `test06`/`test13` below need a hospitalization with a specific state (populated/Activa) -- they
+ * get there by driving the real Admision flow ([admitPatient]) against a patient they just
+ * registered. Since HISS-634 that admission is real too ([ensureAdmissionCatalog] provides the
+ * service, bed and physician it picks).
  *
  * It is fine for a test here to fail -- some flows (documented per-test below) are known
  * gaps in the app itself (e.g. no backend yet) or in cmp-bridge's own web-driver coverage
@@ -128,7 +128,10 @@ abstract class HissE2EScenarios {
         driver.reopenPatientRecord(patient)
         val hierarchy = driver.getHierarchy()
         assertTrue(hierarchy.containsText(patient.fullName))
-        assertTrue(hierarchy.containsTag("record_new_hospitalization_button"))
+        assertFalse(
+            hierarchy.containsTag("record_new_hospitalization_button"),
+            "a patient with an open stay can't be admitted again (HISS-634)",
+        )
         assertTrue(hierarchy.containsText(motivo), "the hospitalization just admitted must render its own VisitCard")
         assertTrue(hierarchy.containsText("Activa"), "a freshly-admitted hospitalization must show as Activa")
     }
@@ -416,6 +419,7 @@ abstract class HissE2EScenarios {
     fun test14_admisionToDischarge_fullHospitalizationLifecycle() {
         driver.loginAsAdmin()
         val patient = driver.registerE2eTestPatient()
+        ensureAdmissionCatalog()
         driver.clickTag("record_new_hospitalization_button")
         driver.waitForTag("admision_submit_button")
 
@@ -423,9 +427,7 @@ abstract class HissE2EScenarios {
         driver.clickTag("admision_submit_button")
         assertTrue(driver.getHierarchy().containsText("Completa los campos requeridos"))
 
-        driver.selectOption("admision_servicio_field", 0)
-        driver.type("admision_cama_field", "12")
-        driver.selectOption("admision_medico_field", 0)
+        driver.fillAdmissionPickers()
         driver.type("admision_motivo_field", "E2E: sintomas respiratorios")
         driver.clickTag("admision_submit_button")
         driver.waitForTag("hosp_discharge_button")
