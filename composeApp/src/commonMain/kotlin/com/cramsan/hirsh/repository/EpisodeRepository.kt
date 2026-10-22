@@ -80,9 +80,8 @@ interface EpisodeRepository {
 }
 
 /**
- * In-memory stand-in, seeded from prototype/shared/data.js's HOSPITALIZATIONS. Still the bound
- * implementation: admission sends [PlaceholderCatalog] ids that [KtorEpisodeRepository]'s backend
- * would reject, until the real pickers land (HISS-634).
+ * In-memory stand-in, seeded from prototype/shared/data.js's HOSPITALIZATIONS. No longer bound
+ * since the admission form gained real pickers (HISS-634); kept for tests that need seeded stays.
  *
  * A single flat [MutableStateFlow] rather than one per patient -- every mutating call updates this
  * same backing state via [MutableStateFlow.update], and every read is a derived [Flow] off it, per

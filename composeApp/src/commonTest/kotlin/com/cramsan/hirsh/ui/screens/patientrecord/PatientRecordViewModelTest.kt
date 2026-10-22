@@ -220,6 +220,29 @@ class PatientRecordViewModelTest {
     }
 
     @Test
+    fun `a patient with an active stay can't be admitted again until it's discharged`() = runTest(dispatcher) {
+        val episodeRepository = FakeEpisodeRepository(
+            listOf(sampleHospitalization("h1", samplePatient.id)),
+        )
+        val viewModel = PatientRecordViewModel(FakePatientRepository(listOf(samplePatient)), episodeRepository)
+
+        viewModel.uiState.test {
+            awaitItem()
+            viewModel.load(samplePatient.id)
+            assertEquals(false, awaitItem().canAdmit)
+
+            episodeRepository.discharge(
+                "h1",
+                DischargeDetails(DischargeType.MEDICAL, DischargeCondition.IMPROVED, "F32.2"),
+                jpaVersion = 0L,
+            )
+
+            assertEquals(true, awaitItem().canAdmit)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
     fun `a hospitalization mutated elsewhere is reflected without calling load again`() = runTest(dispatcher) {
         val episodeRepository = FakeEpisodeRepository(
             listOf(sampleHospitalization("h1", samplePatient.id)),
