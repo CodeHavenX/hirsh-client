@@ -144,10 +144,11 @@ fix to commit, not noise to discard.
 ## Auth / data
 
 Every repository bound in `di/AppModule.kt` is a `Ktor*` implementation backed by
-the separate backend service (see `network/ApiConfig.kt`), except
-`ClinicalNoteRepository`, which is still `InMemoryClinicalNoteRepository` seeded from
-`prototype/shared/data.js` until Historia Clinica/Evolucion map onto the backend's
-clinical documents. The app needs a running backend to sign in at all. A session is
+the separate backend service (see `network/ApiConfig.kt`). The Historia Clinica and
+evoluciones are the backend's clinical documents (HCEM-79), created from its `HC_PSIQ`
+and `EVOL_PSIQ` templates -- a backend without those templates seeded can't store
+either. The `InMemory*` repositories remain only for tests. The app needs a running
+backend to sign in at all. A session is
 the backend's cookie, restored on launch through `GET /api/v1/auth/me` (HISS-611);
 the app persists nothing of its own about it (HISS-664).
 

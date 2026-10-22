@@ -13,9 +13,12 @@ import com.cramsan.hirsh.model.HcSection
 import com.cramsan.hirsh.model.HcSectionKey
 import com.cramsan.hirsh.model.HistoriaClinica
 import com.cramsan.hirsh.model.MotivoIngreso
+import com.cramsan.hirsh.model.NoteStatus
 import com.cramsan.hirsh.model.Plan
 import com.cramsan.hirsh.model.Pronostico
 import com.cramsan.hirsh.model.Vitals
+import com.cramsan.hirsh.network.ApiError
+import com.cramsan.hirsh.network.ApiException
 import com.cramsan.hirsh.util.Clock
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,35 +26,46 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 
 /**
- * A hospital stay's Historia Clinica and evoluciones, keyed by its id (HISS-641). Client-only: the
- * backend has no 1:1 equivalent -- it models clinical notes as template-driven
- * `ClinicalDocument`/`DocumentVersion` rows -- so there is no Ktor implementation until that
- * mapping is designed (HCEM-74).
+ * A hospital stay's Historia Clinica and evoluciones, keyed by its id (HISS-641). On the backend
+ * they are clinical documents (HCEM-74): the Historia Clinica is the stay's one ADMISSION document
+ * and each evolucion a PROGRESS_NOTE, both created as drafts and frozen once signed.
  *
  * Keyed by the stay id alone: callers resolve the stay through
  * [EpisodeRepository.getHospitalization] (patient and stay together) first, and show nothing from
  * here unless that resolved.
  */
 interface ClinicalNoteRepository {
-    /** An empty [HistoriaClinica] for a stay with no notes yet, such as one just admitted. */
+    /** An empty [HistoriaClinica] (null [HistoriaClinica.status]) for a stay with no notes yet, such as one just admitted. */
     fun getHistoriaClinica(hospId: String): Flow<HistoriaClinica>
 
-    /** Newest first. */
+    /** Newest first. Voided notes are left out. */
     fun getEvoluciones(hospId: String): Flow<List<Evolucion>>
 
     fun getEvolucion(hospId: String, evoId: String): Flow<Evolucion?>
 
     /**
-     * Marks the [key] section complete with [data]. [data]'s runtime type must match
-     * [key] (e.g. [HcSectionKey.FILIACION] requires a [Filiacion]) -- throws
-     * [IllegalArgumentException] otherwise. [key] must be one of the currently
-     * implemented sections ([HcSectionKey.implemented]); the other four have no
-     * digital form yet.
+     * Marks the [key] section complete with [data], creating the stay's Historia Clinica as a
+     * draft if it has none yet. [data]'s runtime type must match [key] (e.g.
+     * [HcSectionKey.FILIACION] requires a [Filiacion]) -- throws [IllegalArgumentException]
+     * otherwise. [key] must be one of the currently implemented sections
+     * ([HcSectionKey.implemented]); the other four have no digital form yet.
+     *
+     * Throws [com.cramsan.hirsh.network.ApiException] wrapping
+     * [com.cramsan.hirsh.network.ApiError.Conflict] when someone else saved since this
+     * repository last read the document, or when the document is no longer a draft. The flow
+     * from [getHistoriaClinica] already shows the newer content by then, so the caller only has
+     * to tell the user and let them save again -- nothing is retried over the other edit.
      */
     suspend fun saveHistoriaClinicaSection(hospId: String, key: HcSectionKey, data: Any)
 
-    /** [evolucion]'s own `id` is ignored -- this repository assigns its own. */
+    /** Signs the draft as the signed-in user. Same conflict rule as [saveHistoriaClinicaSection]. */
+    suspend fun signHistoriaClinica(hospId: String)
+
+    /** Saves [evolucion] as a new draft; its own `id` and `status` are ignored. */
     suspend fun addEvolucion(hospId: String, evolucion: Evolucion): Evolucion
+
+    /** Signs a draft evolucion as the signed-in user. */
+    suspend fun signEvolucion(hospId: String, evoId: String)
 }
 
 /** Everything [ClinicalNoteRepository] holds for one stay. */
@@ -62,7 +76,9 @@ private data class ClinicalNotes(
 
 /**
  * Seeded with the prototype's notes for [InMemoryEpisodeRepository]'s seeded stays. Any other stay
- * id -- including a real backend episode -- starts empty, so notes can be written for it.
+ * id starts empty, so notes can be written for it. No longer bound since [KtorClinicalNoteRepository]
+ * (HCEM-79); kept for tests that need seeded notes. Seeded evoluciones are signed and the seeded
+ * Historias Clinicas, all partly filled in, drafts.
  */
 class InMemoryClinicalNoteRepository(
     private val clock: Clock,
@@ -81,13 +97,34 @@ class InMemoryClinicalNoteRepository(
 
     override suspend fun saveHistoriaClinicaSection(hospId: String, key: HcSectionKey, data: Any) {
         require(key.implemented) { "HistoriaClinica section $key has no digital form yet" }
-        update(hospId) { it.copy(historiaClinica = it.historiaClinica.withSection(key, data)) }
+        update(hospId) { notes ->
+            val historiaClinica = notes.historiaClinica
+            if (historiaClinica.status != null && historiaClinica.status != NoteStatus.DRAFT) {
+                throw ApiException(ApiError.Conflict(hospId))
+            }
+            notes.copy(historiaClinica = historiaClinica.withSection(key, data).copy(status = NoteStatus.DRAFT))
+        }
+    }
+
+    override suspend fun signHistoriaClinica(hospId: String) {
+        update(hospId) { notes ->
+            if (notes.historiaClinica.status != NoteStatus.DRAFT) throw ApiException(ApiError.Conflict(hospId))
+            notes.copy(historiaClinica = notes.historiaClinica.copy(status = NoteStatus.SIGNED, draftDeadline = null))
+        }
     }
 
     override suspend fun addEvolucion(hospId: String, evolucion: Evolucion): Evolucion {
-        val newEvolucion = evolucion.copy(id = "evo_" + clock.now().toEpochMilliseconds())
+        val newEvolucion = evolucion.copy(id = "evo_" + clock.now().toEpochMilliseconds(), status = NoteStatus.DRAFT)
         update(hospId) { it.copy(evoluciones = listOf(newEvolucion) + it.evoluciones) }
         return newEvolucion
+    }
+
+    override suspend fun signEvolucion(hospId: String, evoId: String) {
+        update(hospId) { notes ->
+            val evolucion = notes.evoluciones.find { it.id == evoId } ?: throw ApiException(ApiError.NotFound(evoId))
+            if (evolucion.status != NoteStatus.DRAFT) throw ApiException(ApiError.Conflict(evoId))
+            notes.copy(evoluciones = notes.evoluciones.map { if (it.id == evoId) it.copy(status = NoteStatus.SIGNED) else it })
+        }
     }
 
     private fun update(hospId: String, transform: (ClinicalNotes) -> ClinicalNotes) {
@@ -113,6 +150,7 @@ private fun HistoriaClinica.withSection(key: HcSectionKey, data: Any): HistoriaC
 private fun seedClinicalNotes(): Map<String, ClinicalNotes> = mapOf(
     "h_ricaldi_1" to ClinicalNotes(
         historiaClinica = HistoriaClinica(
+            status = NoteStatus.DRAFT,
             filiacion = HcSection(
                 complete = true,
                 data = Filiacion(
@@ -203,6 +241,7 @@ private fun seedClinicalNotes(): Map<String, ClinicalNotes> = mapOf(
     ),
     "h_mendoza_1" to ClinicalNotes(
         historiaClinica = HistoriaClinica(
+            status = NoteStatus.DRAFT,
             filiacion = HcSection(
                 complete = true,
                 data = Filiacion(
@@ -566,6 +605,7 @@ private fun seedClinicalNotes(): Map<String, ClinicalNotes> = mapOf(
     ),
     "h_gonzalez_1" to ClinicalNotes(
         historiaClinica = HistoriaClinica(
+            status = NoteStatus.DRAFT,
             filiacion = HcSection(
                 complete = true,
                 data = Filiacion(

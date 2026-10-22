@@ -13,6 +13,7 @@ import com.cramsan.hirsh.model.HcSectionKey
 import com.cramsan.hirsh.model.HistoriaClinica
 import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.MotivoIngreso
+import com.cramsan.hirsh.model.NoteStatus
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.Plan
 import com.cramsan.hirsh.model.Sex
@@ -50,7 +51,8 @@ private fun previewFiliacion() = Filiacion(
     servicioIngreso = "Emergencia de Pediatria, luego UHSMA",
 )
 
-private fun previewHistoriaClinica(partial: Boolean) = HistoriaClinica(
+private fun previewHistoriaClinica(partial: Boolean, status: NoteStatus = NoteStatus.DRAFT) = HistoriaClinica(
+    status = status,
     filiacion = HcSection(complete = true, data = previewFiliacion()),
     motivoIngreso = HcSection(
         complete = true,
@@ -138,6 +140,8 @@ private val previewHospitalizacion = Hospitalizacion(
 private fun previewUiState(
     historiaClinica: HistoriaClinica,
     activeSection: HcSectionKey = HcSectionKey.FILIACION,
+    canSign: Boolean = false,
+    error: String? = null,
 ) = HistoriaClinicaUiState(
     isLoading = false,
     patient = previewPatient,
@@ -146,6 +150,9 @@ private fun previewUiState(
     activeSection = activeSection,
     fieldValues = fieldMapFor(activeSection, historiaClinica).orEmpty(),
     motivoIngresoDraft = historiaClinica.motivoIngreso.data ?: MotivoIngreso(),
+    isReadOnly = historiaClinica.status == NoteStatus.SIGNED,
+    canSign = canSign,
+    error = error,
 )
 
 @PreviewResponsive
@@ -154,7 +161,7 @@ private fun HistoriaClinicaScreenFiliacionPreview() {
     val historiaClinica = previewHistoriaClinica(partial = false)
     HirshTheme {
         HistoriaClinicaScreenContent(
-            uiState = previewUiState(historiaClinica),
+            uiState = previewUiState(historiaClinica, canSign = true),
             onClose = {},
             onOpenPrintPreview = {},
             onClosePrintPreview = {},
@@ -163,19 +170,23 @@ private fun HistoriaClinicaScreenFiliacionPreview() {
             onMotivoOtrosDetalleChange = { _, _ -> },
             onFieldChange = { _, _ -> },
             onSave = {},
+            onSign = {},
             onRetry = {},
         )
     }
 }
 
-/** Only Filiacion/Motivo/Enfermedad Actual complete -- exercises the rail's mixed done/pending markers. */
+/**
+ * Only Filiacion/Motivo/Enfermedad Actual complete -- exercises the rail's mixed done/pending
+ * markers, and the message a save that lost to another user's edit leaves under the form.
+ */
 @PreviewResponsive
 @Composable
 private fun HistoriaClinicaScreenPartialPreview() {
     val historiaClinica = previewHistoriaClinica(partial = true)
     HirshTheme {
         HistoriaClinicaScreenContent(
-            uiState = previewUiState(historiaClinica),
+            uiState = previewUiState(historiaClinica, error = SAVE_CONFLICT_ERROR),
             onClose = {},
             onOpenPrintPreview = {},
             onClosePrintPreview = {},
@@ -184,6 +195,7 @@ private fun HistoriaClinicaScreenPartialPreview() {
             onMotivoOtrosDetalleChange = { _, _ -> },
             onFieldChange = { _, _ -> },
             onSave = {},
+            onSign = {},
             onRetry = {},
         )
     }
@@ -205,6 +217,29 @@ private fun HistoriaClinicaScreenMotivoIngresoPreview() {
             onMotivoOtrosDetalleChange = { _, _ -> },
             onFieldChange = { _, _ -> },
             onSave = {},
+            onSign = {},
+            onRetry = {},
+        )
+    }
+}
+
+/** Signed: the sections stay readable, but there is nothing left to save or sign. */
+@PreviewResponsive
+@Composable
+private fun HistoriaClinicaScreenSignedPreview() {
+    val historiaClinica = previewHistoriaClinica(partial = false, status = NoteStatus.SIGNED)
+    HirshTheme {
+        HistoriaClinicaScreenContent(
+            uiState = previewUiState(historiaClinica),
+            onClose = {},
+            onOpenPrintPreview = {},
+            onClosePrintPreview = {},
+            onSelectSection = {},
+            onMotivoOptionChange = { _, _, _ -> },
+            onMotivoOtrosDetalleChange = { _, _ -> },
+            onFieldChange = { _, _ -> },
+            onSave = {},
+            onSign = {},
             onRetry = {},
         )
     }

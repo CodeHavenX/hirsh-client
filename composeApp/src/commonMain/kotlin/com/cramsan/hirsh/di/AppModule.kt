@@ -11,9 +11,9 @@ import com.cramsan.hirsh.repository.ClinicalNoteRepository
 import com.cramsan.hirsh.repository.DefaultSessionRepository
 import com.cramsan.hirsh.repository.EpisodeRepository
 import com.cramsan.hirsh.repository.Icd10Repository
-import com.cramsan.hirsh.repository.InMemoryClinicalNoteRepository
 import com.cramsan.hirsh.repository.KtorAdmissionCatalogRepository
 import com.cramsan.hirsh.repository.KtorAuthRepository
+import com.cramsan.hirsh.repository.KtorClinicalNoteRepository
 import com.cramsan.hirsh.repository.KtorEpisodeRepository
 import com.cramsan.hirsh.repository.KtorIcd10Repository
 import com.cramsan.hirsh.repository.KtorAccessLogRepository
@@ -87,7 +87,7 @@ private val sharedModule = module {
     singleOf(::KtorAccountRepository) bind AccountRepository::class
     singleOf(::KtorEpisodeRepository) bind EpisodeRepository::class
     singleOf(::KtorAdmissionCatalogRepository) bind AdmissionCatalogRepository::class
-    singleOf(::InMemoryClinicalNoteRepository) bind ClinicalNoteRepository::class
+    singleOf(::KtorClinicalNoteRepository) bind ClinicalNoteRepository::class
     singleOf(::KtorIcd10Repository) bind Icd10Repository::class
     singleOf(::DefaultClock) bind Clock::class
 

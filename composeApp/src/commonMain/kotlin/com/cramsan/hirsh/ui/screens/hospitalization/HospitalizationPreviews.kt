@@ -10,6 +10,7 @@ import com.cramsan.hirsh.model.EvolucionResultado
 import com.cramsan.hirsh.model.HcSection
 import com.cramsan.hirsh.model.HistoriaClinica
 import com.cramsan.hirsh.model.Hospitalizacion
+import com.cramsan.hirsh.model.NoteStatus
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.Plan
 import com.cramsan.hirsh.model.Pronostico
@@ -33,7 +34,7 @@ private val previewPatient = Patient(
     sex = Sex.MALE,
 )
 
-private fun previewEvolucion(id: String, resultado: EvolucionResultado) = Evolucion(
+private fun previewEvolucion(id: String, resultado: EvolucionResultado, status: NoteStatus = NoteStatus.SIGNED) = Evolucion(
     id = id,
     fecha = "18 Jun 2026",
     hora = "22:30",
@@ -49,6 +50,7 @@ private fun previewEvolucion(id: String, resultado: EvolucionResultado) = Evoluc
     resultado = resultado,
     examenes = emptyList(),
     examenesObs = "",
+    status = status,
 )
 
 private fun previewHospitalizacion(
@@ -82,11 +84,15 @@ private val previewHistoriaClinica = HistoriaClinica(
     ),
 )
 
-private fun previewUiState(hospitalizacion: Hospitalizacion, evoluciones: List<Evolucion>) = HospitalizationUiState(
+private fun previewUiState(
+    hospitalizacion: Hospitalizacion,
+    evoluciones: List<Evolucion>,
+    hcStatus: NoteStatus = NoteStatus.SIGNED,
+) = HospitalizationUiState(
     isLoading = false,
     patient = previewPatient,
     hospitalizacion = hospitalizacion,
-    historiaClinica = previewHistoriaClinica,
+    historiaClinica = previewHistoriaClinica.copy(status = hcStatus),
     evoluciones = evoluciones,
 )
 
@@ -98,12 +104,12 @@ private fun HospitalizationScreenActivaPreview() {
         status = EpisodeStatus.ACTIVE,
     )
     val evoluciones = listOf(
-        previewEvolucion("v5c", EvolucionResultado.FAVORABLE),
+        previewEvolucion("v5c", EvolucionResultado.FAVORABLE, NoteStatus.DRAFT),
         previewEvolucion("v5", EvolucionResultado.ESTACIONARIA),
     )
     HirshTheme {
         HospitalizationScreenContent(
-            uiState = previewUiState(hospitalizacion, evoluciones),
+            uiState = previewUiState(hospitalizacion, evoluciones, hcStatus = NoteStatus.DRAFT),
             onNewEvolucion = {},
             onOpenHistoriaClinica = {},
             onEvolucionSelected = {},

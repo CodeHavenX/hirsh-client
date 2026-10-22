@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.cramsan.hirsh.model.Evolucion
+import com.cramsan.hirsh.model.NoteStatus
 import com.cramsan.hirsh.model.toDisplayLabel
 import com.cramsan.hirsh.ui.components.BadgeTone
 import com.cramsan.hirsh.ui.components.Chip
@@ -43,6 +44,7 @@ import com.cramsan.hirsh.ui.components.EncounterTopBar
 import com.cramsan.hirsh.ui.components.FormSectionCaption
 import com.cramsan.hirsh.ui.components.KeyValueRow
 import com.cramsan.hirsh.ui.components.LoadErrorMessage
+import com.cramsan.hirsh.ui.components.NoteStatusBadge
 import com.cramsan.hirsh.ui.components.ReadOnlyField
 import com.cramsan.hirsh.ui.components.StatusBadge
 import com.cramsan.hirsh.ui.components.fieldShape
@@ -74,6 +76,7 @@ fun EvolucionViewScreen(
         onClosePrintPreview = viewModel::closePrintPreview,
         onSelectTab = viewModel::selectTab,
         onRetry = viewModel::retry,
+        onSign = viewModel::sign,
     )
 }
 
@@ -86,6 +89,7 @@ internal fun EvolucionViewScreenContent(
     onClosePrintPreview: () -> Unit,
     onSelectTab: (EvolucionViewTab) -> Unit,
     onRetry: () -> Unit,
+    onSign: () -> Unit,
 ) {
     val patient = uiState.patient
     val hospitalizacion = uiState.hospitalizacion
@@ -121,9 +125,24 @@ internal fun EvolucionViewScreenContent(
                     meta = {
                         Chip("${evolucion.fecha} · ${evolucion.hora}")
                         Chip(evolucion.medico)
-                        StatusBadge(text = "Registrada · solo lectura", tone = BadgeTone.Done)
+                        if (evolucion.status == NoteStatus.SIGNED) {
+                            StatusBadge(text = "Registrada · solo lectura", tone = BadgeTone.Done)
+                        } else {
+                            NoteStatusBadge(evolucion.status)
+                        }
                     },
                     actions = {
+                        if (uiState.canSign) {
+                            Button(
+                                onClick = onSign,
+                                enabled = !uiState.isSigning,
+                                shape = fieldShape,
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                                modifier = Modifier.testTag("evo_view_sign_button"),
+                            ) {
+                                Text("Firmar", fontWeight = FontWeight.Medium)
+                            }
+                        }
                         Button(
                             onClick = onOpenPrintPreview,
                             shape = fieldShape,
@@ -146,6 +165,14 @@ internal fun EvolucionViewScreenContent(
                             onBack = onClosePrintPreview,
                         )
                     }
+                }
+                uiState.error?.let {
+                    Text(
+                        it,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp).testTag("evo_view_error"),
+                    )
                 }
                 EvoTabBar(selectedTab = uiState.selectedTab, examCount = evolucion.examenes.size, onSelectTab = onSelectTab)
                 Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp).testTag("screen_scroll_container")) {

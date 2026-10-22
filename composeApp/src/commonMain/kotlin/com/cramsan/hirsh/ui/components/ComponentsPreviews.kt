@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.cramsan.hirsh.model.Allergy
 import com.cramsan.hirsh.model.AllergyType
+import com.cramsan.hirsh.model.NoteStatus
 import com.cramsan.hirsh.model.Severity
 import com.cramsan.hirsh.ui.preview.PreviewComponent
 import com.cramsan.hirsh.ui.preview.PreviewResponsive
@@ -58,6 +59,19 @@ private fun StatusBadgePreview() {
             StatusBadge("Alergia", BadgeTone.Warn)
             Spacer(Modifier.height(4.dp))
             StatusBadge("Inactivo", BadgeTone.Off)
+        }
+    }
+}
+
+@PreviewComponent
+@Composable
+private fun NoteStatusBadgePreview() {
+    HirshTheme {
+        Column {
+            NoteStatus.entries.forEach { status ->
+                NoteStatusBadge(status)
+                Spacer(Modifier.height(4.dp))
+            }
         }
     }
 }

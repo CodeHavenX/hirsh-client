@@ -23,6 +23,7 @@ data class Evolucion(
     val resultado: EvolucionResultado,
     val examenes: List<Examen>,
     val examenesObs: String,
+    val status: NoteStatus = NoteStatus.SIGNED,
 )
 
 data class Vitals(
