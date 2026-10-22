@@ -19,6 +19,7 @@ import com.cramsan.hirsh.model.HcSectionKey
 import com.cramsan.hirsh.model.HistoriaClinica
 import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.Patient
+import com.cramsan.hirsh.model.Permission
 import com.cramsan.hirsh.model.Pronostico
 import com.cramsan.hirsh.model.ServiceRef
 import com.cramsan.hirsh.model.Session
@@ -39,6 +40,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -157,7 +159,13 @@ private class FakeClinicalNoteRepository : ClinicalNoteRepository {
 
     override suspend fun signHistoriaClinica(hospId: String) = Unit
 
-    override suspend fun signEvolucion(hospId: String, evoId: String) = Unit
+    val signedEvolucionIds = mutableListOf<String>()
+    var signFailure: Throwable? = null
+
+    override suspend fun signEvolucion(hospId: String, evoId: String) {
+        signFailure?.let { throw it }
+        signedEvolucionIds += evoId
+    }
 
     override suspend fun addEvolucion(hospId: String, evolucion: Evolucion): Evolucion {
         addEvolucionCallCount++
@@ -182,6 +190,8 @@ private class FakeClock(private val instant: Instant) : Clock {
 }
 
 private val sampleSession = Session(username = "drpatel", displayName = "Dr. A. Patel", roles = listOf("PSYCHIATRIST"))
+
+private val signerSession = sampleSession.copy(permissions = setOf(Permission.DOCUMENT_SIGN.name))
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NuevaEvolucionViewModelTest {
@@ -438,6 +448,60 @@ class NuevaEvolucionViewModelTest {
             assertEquals("evo_new", vm.uiState.value.createdEvolucionId)
             assertEquals(false, vm.uiState.value.isSaving)
         }
+
+    @Test
+    fun `save leaves a draft when the user cannot sign`() = runTest(dispatcher) {
+        val notes = FakeClinicalNoteRepository()
+        val vm = loadedViewModel(notes, sampleSession)
+        filledState(vm)
+
+        vm.save()
+        advanceUntilIdle()
+
+        assertEquals(emptyList(), notes.signedEvolucionIds)
+        assertEquals("evo_new", vm.uiState.value.createdEvolucionId)
+    }
+
+    @Test
+    fun `save signs the new note when the user can sign`() = runTest(dispatcher) {
+        val notes = FakeClinicalNoteRepository()
+        val vm = loadedViewModel(notes, signerSession)
+        filledState(vm)
+
+        vm.save()
+        advanceUntilIdle()
+
+        assertEquals(listOf("evo_new"), notes.signedEvolucionIds)
+        assertEquals("evo_new", vm.uiState.value.createdEvolucionId)
+    }
+
+    @Test
+    fun `a failed signature still opens the saved draft`() = runTest(dispatcher) {
+        val notes = FakeClinicalNoteRepository().apply { signFailure = ApiException(ApiError.Forbidden) }
+        val vm = loadedViewModel(notes, signerSession)
+        filledState(vm)
+
+        vm.save()
+        advanceUntilIdle()
+
+        assertEquals("evo_new", vm.uiState.value.createdEvolucionId)
+        assertNull(vm.uiState.value.error)
+        assertEquals(false, vm.uiState.value.isSaving)
+    }
+
+    private fun TestScope.loadedViewModel(notes: FakeClinicalNoteRepository, session: Session): NuevaEvolucionViewModel {
+        val hospitalization = sampleHospitalization("h1", samplePatient.id)
+        val vm = NuevaEvolucionViewModel(
+            FakePatientRepository(listOf(samplePatient)),
+            FakeEpisodeRepository(listOf(hospitalization)),
+            notes,
+            FakeSessionRepository(session),
+            FakeClock(Instant.parse("2026-06-18T22:30:00Z")),
+        )
+        vm.load(samplePatient.id, hospitalization.id)
+        advanceUntilIdle()
+        return vm
+    }
 
     @Test
     fun `save ignores a second call while already saving`() = runTest(dispatcher) {

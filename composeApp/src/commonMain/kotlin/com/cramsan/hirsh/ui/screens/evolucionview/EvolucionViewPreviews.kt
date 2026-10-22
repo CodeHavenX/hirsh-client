@@ -8,6 +8,7 @@ import com.cramsan.hirsh.model.Evolucion
 import com.cramsan.hirsh.model.EvolucionResultado
 import com.cramsan.hirsh.model.Examen
 import com.cramsan.hirsh.model.Hospitalizacion
+import com.cramsan.hirsh.model.NoteStatus
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.Pronostico
 import com.cramsan.hirsh.model.Sex
@@ -31,7 +32,7 @@ private val previewPatient = Patient(
     sex = Sex.MALE,
 )
 
-private fun previewEvolucion(examenes: List<Examen>) = Evolucion(
+private fun previewEvolucion(examenes: List<Examen>, status: NoteStatus = NoteStatus.SIGNED) = Evolucion(
     id = "v5c",
     fecha = "18 Jun 2026",
     hora = "22:30",
@@ -50,6 +51,7 @@ private fun previewEvolucion(examenes: List<Examen>) = Evolucion(
     resultado = EvolucionResultado.FAVORABLE,
     examenes = examenes,
     examenesObs = if (examenes.isEmpty()) "" else "Mejoria gasometrica respecto al ingreso. BK de esputo aun pendiente.",
+    status = status,
 )
 
 private fun previewHospitalizacion(evolucion: Evolucion) = Hospitalizacion(
@@ -87,12 +89,16 @@ private fun previewUiState(
     hospitalizacion: Hospitalizacion,
     evolucion: Evolucion,
     selectedTab: EvolucionViewTab = EvolucionViewTab.EVOLUCION,
+    canSign: Boolean = false,
+    error: String? = null,
 ) = EvolucionViewUiState(
     isLoading = false,
     patient = previewPatient,
     hospitalizacion = hospitalizacion,
     evolucion = evolucion,
     selectedTab = selectedTab,
+    canSign = canSign,
+    error = error,
 )
 
 @PreviewResponsive
@@ -108,6 +114,7 @@ private fun EvolucionViewScreenPreview() {
             onClosePrintPreview = {},
             onSelectTab = {},
             onRetry = {},
+            onSign = {},
         )
     }
 }
@@ -126,6 +133,7 @@ private fun EvolucionViewScreenNoExamenesPreview() {
             onClosePrintPreview = {},
             onSelectTab = {},
             onRetry = {},
+            onSign = {},
         )
     }
 }
@@ -144,6 +152,26 @@ private fun EvolucionViewScreenExamenesTabPreview() {
             onClosePrintPreview = {},
             onSelectTab = {},
             onRetry = {},
+            onSign = {},
+        )
+    }
+}
+
+/** A draft awaiting a signer, seen by someone who can sign it, after a refused signature. */
+@PreviewResponsive
+@Composable
+private fun EvolucionViewScreenDraftPreview() {
+    val evolucion = previewEvolucion(previewExamenes, status = NoteStatus.DRAFT)
+    val hospitalizacion = previewHospitalizacion(evolucion)
+    HirshTheme {
+        EvolucionViewScreenContent(
+            uiState = previewUiState(hospitalizacion, evolucion, canSign = true, error = EVO_SIGN_FORBIDDEN_ERROR),
+            onClose = {},
+            onOpenPrintPreview = {},
+            onClosePrintPreview = {},
+            onSelectTab = {},
+            onRetry = {},
+            onSign = {},
         )
     }
 }

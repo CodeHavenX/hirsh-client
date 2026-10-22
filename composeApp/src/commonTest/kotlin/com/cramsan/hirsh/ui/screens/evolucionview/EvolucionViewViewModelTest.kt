@@ -19,9 +19,12 @@ import com.cramsan.hirsh.model.EvolucionResultado
 import com.cramsan.hirsh.model.HcSectionKey
 import com.cramsan.hirsh.model.HistoriaClinica
 import com.cramsan.hirsh.model.Hospitalizacion
+import com.cramsan.hirsh.model.NoteStatus
 import com.cramsan.hirsh.model.Patient
+import com.cramsan.hirsh.model.Permission
 import com.cramsan.hirsh.model.Pronostico
 import com.cramsan.hirsh.model.ServiceRef
+import com.cramsan.hirsh.model.Session
 import com.cramsan.hirsh.model.Severity
 import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.model.UserRef
@@ -29,6 +32,7 @@ import com.cramsan.hirsh.model.Vitals
 import com.cramsan.hirsh.repository.ClinicalNoteRepository
 import com.cramsan.hirsh.repository.EpisodeRepository
 import com.cramsan.hirsh.repository.PatientRepository
+import com.cramsan.hirsh.repository.SessionRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -36,7 +40,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -154,23 +160,50 @@ private class FakeEpisodeRepository(hospitalizations: List<Hospitalizacion> = em
     override suspend fun discharge(hospId: String, details: DischargeDetails, jpaVersion: Long) = Unit
 }
 
-private class FakeClinicalNoteRepository(private val evoluciones: Map<String, List<Evolucion>> = emptyMap()) :
+private class FakeClinicalNoteRepository(evoluciones: Map<String, List<Evolucion>> = emptyMap()) :
     ClinicalNoteRepository {
+    private val evoluciones = MutableStateFlow(evoluciones)
+    var signFailure: Throwable? = null
+    var signCallCount = 0
+        private set
+
     override fun getHistoriaClinica(hospId: String): Flow<HistoriaClinica> = MutableStateFlow(HistoriaClinica())
 
-    override fun getEvoluciones(hospId: String): Flow<List<Evolucion>> = MutableStateFlow(evoluciones[hospId].orEmpty())
+    override fun getEvoluciones(hospId: String): Flow<List<Evolucion>> = evoluciones.map { it[hospId].orEmpty() }
 
     override fun getEvolucion(hospId: String, evoId: String): Flow<Evolucion?> =
-        MutableStateFlow(evoluciones[hospId]?.find { it.id == evoId })
+        evoluciones.map { map -> map[hospId]?.find { it.id == evoId } }
 
     override suspend fun saveHistoriaClinicaSection(hospId: String, key: HcSectionKey, data: Any) = Unit
 
     override suspend fun signHistoriaClinica(hospId: String) = Unit
 
-    override suspend fun signEvolucion(hospId: String, evoId: String) = Unit
+    override suspend fun signEvolucion(hospId: String, evoId: String) {
+        signCallCount++
+        signFailure?.let { throw it }
+        evoluciones.update { map ->
+            map + (hospId to map[hospId].orEmpty().map { if (it.id == evoId) it.copy(status = NoteStatus.SIGNED) else it })
+        }
+    }
 
     override suspend fun addEvolucion(hospId: String, evolucion: Evolucion): Evolucion = evolucion
 }
+
+private class FakeSessionRepository(session: Session?) : SessionRepository {
+    private val _session = MutableStateFlow(session)
+    override val session: StateFlow<Session?> = _session.asStateFlow()
+    override val isRestoring: StateFlow<Boolean> = MutableStateFlow(false).asStateFlow()
+    override suspend fun login(username: String, password: String): Result<Session> = error("not used by this test")
+    override suspend fun restore() = Unit
+    override suspend fun logout() = Unit
+    override fun forceLogout() = Unit
+}
+
+private val signerSession = Session(
+    username = "drpatel",
+    displayName = "Dr. A. Patel",
+    permissions = setOf(Permission.DOCUMENT_SIGN.name),
+)
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class EvolucionViewViewModelTest {
@@ -195,6 +228,7 @@ class EvolucionViewViewModelTest {
             FakePatientRepository(listOf(samplePatient)),
             FakeEpisodeRepository(listOf(hospitalization)),
             FakeClinicalNoteRepository(mapOf("h1" to listOf(evolucion))),
+            FakeSessionRepository(null),
         )
 
         viewModel.uiState.test {
@@ -216,6 +250,7 @@ class EvolucionViewViewModelTest {
             FakePatientRepository(listOf(samplePatient)),
             FakeEpisodeRepository(listOf(hospitalization)),
             FakeClinicalNoteRepository(mapOf("h1" to listOf(evolucion))),
+            FakeSessionRepository(null),
         )
 
         viewModel.uiState.test {
@@ -235,6 +270,7 @@ class EvolucionViewViewModelTest {
             FakePatientRepository(emptyList()),
             FakeEpisodeRepository(),
             FakeClinicalNoteRepository(),
+            FakeSessionRepository(null),
         )
 
         viewModel.uiState.test {
@@ -255,6 +291,7 @@ class EvolucionViewViewModelTest {
             FakePatientRepository(listOf(samplePatient)),
             FakeEpisodeRepository(listOf(hospitalization)),
             FakeClinicalNoteRepository(mapOf("h1" to listOf(sampleEvolucion("evo1")))),
+            FakeSessionRepository(null),
         )
 
         viewModel.uiState.test {
@@ -275,6 +312,7 @@ class EvolucionViewViewModelTest {
             FakePatientRepository(listOf(samplePatient)),
             FakeEpisodeRepository(listOf(hospitalization)),
             FakeClinicalNoteRepository(mapOf("h1" to listOf(evolucion))),
+            FakeSessionRepository(null),
         )
 
         viewModel.uiState.test {
@@ -297,6 +335,7 @@ class EvolucionViewViewModelTest {
             FakePatientRepository(listOf(samplePatient)),
             FakeEpisodeRepository(listOf(hospitalization)),
             FakeClinicalNoteRepository(mapOf("h1" to listOf(evolucion))),
+            FakeSessionRepository(null),
         )
 
         viewModel.uiState.test {
@@ -320,6 +359,7 @@ class EvolucionViewViewModelTest {
             patients,
             FakeEpisodeRepository(listOf(sampleHospitalization("h1", samplePatient.id))),
             FakeClinicalNoteRepository(mapOf("h1" to listOf(sampleEvolucion("evo1")))),
+            FakeSessionRepository(null),
         )
         backgroundScope.launch { viewModel.uiState.collect {} }
         viewModel.load(samplePatient.id, "h1", "evo1")
@@ -337,6 +377,7 @@ class EvolucionViewViewModelTest {
             patients,
             FakeEpisodeRepository(listOf(sampleHospitalization("h1", samplePatient.id))),
             FakeClinicalNoteRepository(mapOf("h1" to listOf(sampleEvolucion("evo1")))),
+            FakeSessionRepository(null),
         )
         backgroundScope.launch { viewModel.uiState.collect {} }
         viewModel.load(samplePatient.id, "h1", "evo1")
@@ -350,5 +391,82 @@ class EvolucionViewViewModelTest {
         val state = viewModel.uiState.value
         assertNull(state.loadError)
         assertEquals(samplePatient, state.patient)
+    }
+
+    @Test
+    fun `a signer can sign a draft, which then shows as signed`() = runTest(dispatcher) {
+        val notes = FakeClinicalNoteRepository(mapOf("h1" to listOf(sampleEvolucion("evo1").copy(status = NoteStatus.DRAFT))))
+        val viewModel = draftViewModel(notes, signerSession)
+        assertEquals(true, viewModel.uiState.value.canSign)
+
+        viewModel.sign()
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(1, notes.signCallCount)
+        assertEquals(NoteStatus.SIGNED, state.evolucion?.status)
+        assertEquals(false, state.canSign)
+        assertEquals(false, state.isSigning)
+        assertNull(state.error)
+    }
+
+    @Test
+    fun `a user without the sign permission cannot sign a draft`() = runTest(dispatcher) {
+        val notes = FakeClinicalNoteRepository(mapOf("h1" to listOf(sampleEvolucion("evo1").copy(status = NoteStatus.DRAFT))))
+        val viewModel = draftViewModel(notes, signerSession.copy(permissions = emptySet()))
+        assertEquals(false, viewModel.uiState.value.canSign)
+
+        viewModel.sign()
+        advanceUntilIdle()
+
+        assertEquals(0, notes.signCallCount)
+    }
+
+    @Test
+    fun `a signed note offers no signature`() = runTest(dispatcher) {
+        val notes = FakeClinicalNoteRepository(mapOf("h1" to listOf(sampleEvolucion("evo1"))))
+        val viewModel = draftViewModel(notes, signerSession)
+
+        assertEquals(false, viewModel.uiState.value.canSign)
+    }
+
+    @Test
+    fun `a refused signature explains the missing license`() = runTest(dispatcher) {
+        val notes = FakeClinicalNoteRepository(mapOf("h1" to listOf(sampleEvolucion("evo1").copy(status = NoteStatus.DRAFT))))
+            .apply { signFailure = ApiException(ApiError.Forbidden) }
+        val viewModel = draftViewModel(notes, signerSession)
+
+        viewModel.sign()
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(EVO_SIGN_FORBIDDEN_ERROR, state.error)
+        assertEquals(NoteStatus.DRAFT, state.evolucion?.status)
+        assertEquals(false, state.isSigning)
+    }
+
+    @Test
+    fun `any other signing failure shows a generic error`() = runTest(dispatcher) {
+        val notes = FakeClinicalNoteRepository(mapOf("h1" to listOf(sampleEvolucion("evo1").copy(status = NoteStatus.DRAFT))))
+            .apply { signFailure = RuntimeException("Connection refused") }
+        val viewModel = draftViewModel(notes, signerSession)
+
+        viewModel.sign()
+        advanceUntilIdle()
+
+        assertEquals(EVO_SIGN_ERROR, viewModel.uiState.value.error)
+    }
+
+    private fun TestScope.draftViewModel(notes: FakeClinicalNoteRepository, session: Session): EvolucionViewViewModel {
+        val viewModel = EvolucionViewViewModel(
+            FakePatientRepository(listOf(samplePatient)),
+            FakeEpisodeRepository(listOf(sampleHospitalization("h1", samplePatient.id))),
+            notes,
+            FakeSessionRepository(session),
+        )
+        backgroundScope.launch { viewModel.uiState.collect {} }
+        viewModel.load(samplePatient.id, "h1", "evo1")
+        advanceUntilIdle()
+        return viewModel
     }
 }

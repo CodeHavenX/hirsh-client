@@ -8,8 +8,10 @@ import com.cramsan.hirsh.model.EvolucionResultado
 import com.cramsan.hirsh.model.Examen
 import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.Patient
+import com.cramsan.hirsh.model.Permission
 import com.cramsan.hirsh.model.Pronostico
 import com.cramsan.hirsh.model.Vitals
+import com.cramsan.hirsh.model.can
 import com.cramsan.hirsh.model.toDisplayLabel
 import com.cramsan.hirsh.repository.ClinicalNoteRepository
 import com.cramsan.hirsh.repository.EpisodeRepository
@@ -217,12 +219,29 @@ class NuevaEvolucionViewModel(
                         examenesObs = state.examenesObs,
                     ),
                 )
+                signIfAllowed(ids.second, created.id)
                 _uiState.update { it.copy(isSaving = false, createdEvolucionId = created.id) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 _uiState.update { it.copy(isSaving = false, error = "No se pudo guardar la evolucion") }
             }
+        }
+    }
+
+    /**
+     * "Guardar" finishes the note for whoever can sign it (HCEM-74's decision); anyone else leaves a
+     * draft for a signer. A failed signature still keeps the saved draft: the note view shows it as
+     * pending and offers to sign it again, so the user isn't stuck on this form.
+     */
+    private suspend fun signIfAllowed(hospId: String, evoId: String) {
+        if (sessionRepository.session.value?.can(Permission.DOCUMENT_SIGN) != true) return
+        try {
+            clinicalNoteRepository.signEvolucion(hospId, evoId)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Left as a draft, as described above.
         }
     }
 
