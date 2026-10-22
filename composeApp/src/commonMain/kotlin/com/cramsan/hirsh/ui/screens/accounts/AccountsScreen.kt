@@ -32,6 +32,9 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cramsan.hirsh.model.Account
+import com.cramsan.hirsh.model.AccountDocumentType
+import com.cramsan.hirsh.model.AccountProfile
+import com.cramsan.hirsh.model.AccountRole
 import com.cramsan.hirsh.model.AccountStatus
 import com.cramsan.hirsh.model.isAdmin
 import com.cramsan.hirsh.model.rolesLabel
@@ -41,6 +44,7 @@ import com.cramsan.hirsh.ui.components.DataTable
 import com.cramsan.hirsh.ui.components.DataTableColumn
 import com.cramsan.hirsh.ui.components.FieldFontSize
 import com.cramsan.hirsh.ui.components.RequiredFieldLabel
+import com.cramsan.hirsh.ui.components.SelectField
 import com.cramsan.hirsh.ui.components.StatusBadge
 import com.cramsan.hirsh.ui.components.fieldShape
 import com.cramsan.hirsh.ui.theme.HissAccent
@@ -68,10 +72,8 @@ fun AccountsScreen(
         onOpenDeactivateDialog = viewModel::openDeactivateDialog,
         onReactivate = viewModel::reactivate,
         onCloseDialog = viewModel::closeDialog,
-        onAddNameChange = viewModel::onAddNameChange,
-        onAddUsernameChange = viewModel::onAddUsernameChange,
-        onEditNameChange = viewModel::onEditNameChange,
-        onEditUsernameChange = viewModel::onEditUsernameChange,
+        onAddFormChange = viewModel::onAddFormChange,
+        onEditProfileChange = viewModel::onEditProfileChange,
         onConfirmAdd = viewModel::confirmAdd,
         onConfirmEdit = viewModel::confirmEdit,
         onConfirmReset = viewModel::confirmReset,
@@ -89,10 +91,8 @@ internal fun AccountsScreenContent(
     onOpenDeactivateDialog: (Account) -> Unit,
     onReactivate: (Account) -> Unit,
     onCloseDialog: () -> Unit,
-    onAddNameChange: (String) -> Unit,
-    onAddUsernameChange: (String) -> Unit,
-    onEditNameChange: (String) -> Unit,
-    onEditUsernameChange: (String) -> Unit,
+    onAddFormChange: (AddAccountForm) -> Unit,
+    onEditProfileChange: (AccountProfile) -> Unit,
     onConfirmAdd: () -> Unit,
     onConfirmEdit: () -> Unit,
     onConfirmReset: () -> Unit,
@@ -103,7 +103,7 @@ internal fun AccountsScreenContent(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                "Cuentas de medicos",
+                "Cuentas de usuario",
                 style = MaterialTheme.typography.headlineSmall.copy(fontSize = 20.sp, fontWeight = FontWeight.Bold),
                 modifier = Modifier.weight(1f),
             )
@@ -113,7 +113,7 @@ internal fun AccountsScreenContent(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
                 modifier = Modifier.testTag("accounts_add_button"),
             ) {
-                Text("+ Agregar medico", fontSize = CellFontSize, fontWeight = FontWeight.Medium)
+                Text("+ Agregar cuenta", fontSize = CellFontSize, fontWeight = FontWeight.Medium)
             }
         }
 
@@ -140,6 +140,10 @@ internal fun AccountsScreenContent(
             )
         }
 
+        uiState.error?.let {
+            Text(it, fontSize = 12.sp, color = HissWarn, modifier = Modifier.padding(top = 8.dp).testTag("accounts_error"))
+        }
+
         Column(modifier = Modifier.padding(top = 12.dp)) {
             DataTable(
                 columns = accountColumns(
@@ -157,8 +161,8 @@ internal fun AccountsScreenContent(
 
     when (val dialog = uiState.dialog) {
         is AccountDialog.None -> Unit
-        is AccountDialog.Add -> AddAccountDialog(dialog, onCloseDialog, onAddNameChange, onAddUsernameChange, onConfirmAdd)
-        is AccountDialog.Edit -> EditAccountDialog(dialog, onCloseDialog, onEditNameChange, onEditUsernameChange, onConfirmEdit)
+        is AccountDialog.Add -> AddAccountDialog(dialog, uiState.roles, onCloseDialog, onAddFormChange, onConfirmAdd)
+        is AccountDialog.Edit -> EditAccountDialog(dialog, onCloseDialog, onEditProfileChange, onConfirmEdit)
         is AccountDialog.Reset -> ResetPasswordDialog(dialog, onCloseDialog, onConfirmReset)
         is AccountDialog.Deactivate -> DeactivateAccountDialog(dialog, onCloseDialog, onConfirmDeactivate)
     }
@@ -231,34 +235,68 @@ private fun ActionLink(text: String, color: Color, testTag: String, onClick: () 
 @Composable
 private fun AddAccountDialog(
     dialog: AccountDialog.Add,
+    roles: List<AccountRole>,
     onCloseDialog: () -> Unit,
-    onAddNameChange: (String) -> Unit,
-    onAddUsernameChange: (String) -> Unit,
+    onFormChange: (AddAccountForm) -> Unit,
     onConfirmAdd: () -> Unit,
 ) {
+    val form = dialog.form
     AlertDialog(
         onDismissRequest = onCloseDialog,
-        title = { Text("Agregar medico", fontWeight = FontWeight.Bold) },
+        title = { Text("Agregar cuenta", fontWeight = FontWeight.Bold) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedTextField(
-                    value = dialog.name,
-                    onValueChange = onAddNameChange,
-                    label = { RequiredFieldLabel("Nombre completo") },
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
-                    shape = fieldShape,
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth().testTag("account_add_name_field"),
+            Column(
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+            ) {
+                DialogField(form.firstName, { onFormChange(form.copy(firstName = it)) }, "Nombres", "account_add_first_name_field", required = true)
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    DialogField(
+                        form.lastName,
+                        { onFormChange(form.copy(lastName = it)) },
+                        "Apellido paterno",
+                        "account_add_last_name_field",
+                        required = true,
+                        modifier = Modifier.weight(1f),
+                    )
+                    DialogField(
+                        form.secondLastName,
+                        { onFormChange(form.copy(secondLastName = it)) },
+                        "Apellido materno",
+                        "account_add_second_last_name_field",
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                DialogField(form.username, { onFormChange(form.copy(username = it)) }, "Usuario", "account_add_username_field", required = true)
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    SelectField(
+                        label = { Text("Tipo de documento") },
+                        options = AccountDocumentType.entries.map { it.toDisplayLabel() },
+                        selected = form.documentType.toDisplayLabel(),
+                        onSelect = { label ->
+                            AccountDocumentType.entries.firstOrNull { it.toDisplayLabel() == label }
+                                ?.let { onFormChange(form.copy(documentType = it)) }
+                        },
+                        testTag = "account_add_document_type_field",
+                        modifier = Modifier.weight(1f),
+                    )
+                    DialogField(
+                        form.documentNumber,
+                        { onFormChange(form.copy(documentNumber = it)) },
+                        "Numero de documento",
+                        "account_add_document_number_field",
+                        required = true,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                SelectField(
+                    label = { RequiredFieldLabel("Rol") },
+                    options = roles.map { it.name },
+                    selected = form.role?.name.orEmpty(),
+                    onSelect = { name -> roles.firstOrNull { it.name == name }?.let { onFormChange(form.copy(role = it)) } },
+                    testTag = "account_add_role_field",
                 )
-                OutlinedTextField(
-                    value = dialog.username,
-                    onValueChange = onAddUsernameChange,
-                    label = { RequiredFieldLabel("Usuario") },
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
-                    shape = fieldShape,
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth().testTag("account_add_username_field"),
-                )
+                ProfileFields(form.profile, { onFormChange(form.copy(profile = it)) }, tagPrefix = "account_add")
                 OutlinedTextField(
                     value = dialog.tempPassword,
                     onValueChange = {},
@@ -270,7 +308,7 @@ private fun AddAccountDialog(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Text(
-                    "Rol fijo: Medico. Se le pedira cambiar la contraseña en el primer inicio de sesion.",
+                    "Se le pedira cambiar la contraseña en el primer inicio de sesion.",
                     fontFamily = FontFamily.Monospace,
                     fontSize = 10.sp,
                     color = HissInk2,
@@ -281,7 +319,11 @@ private fun AddAccountDialog(
             }
         },
         confirmButton = {
-            Button(onClick = onConfirmAdd, modifier = Modifier.testTag("account_add_confirm_button")) { Text("Crear cuenta") }
+            Button(
+                onClick = onConfirmAdd,
+                enabled = !dialog.isSaving,
+                modifier = Modifier.testTag("account_add_confirm_button"),
+            ) { Text("Crear cuenta") }
         },
         dismissButton = {
             TextButton(onClick = onCloseDialog, modifier = Modifier.testTag("account_add_cancel_button")) { Text("Cancelar") }
@@ -293,44 +335,81 @@ private fun AddAccountDialog(
 private fun EditAccountDialog(
     dialog: AccountDialog.Edit,
     onCloseDialog: () -> Unit,
-    onEditNameChange: (String) -> Unit,
-    onEditUsernameChange: (String) -> Unit,
+    onProfileChange: (AccountProfile) -> Unit,
     onConfirmEdit: () -> Unit,
 ) {
     AlertDialog(
         onDismissRequest = onCloseDialog,
-        title = { Text("Editar medico · ${dialog.name}", fontWeight = FontWeight.Bold) },
+        title = { Text("Editar cuenta · ${dialog.account.name}", fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedTextField(
-                    value = dialog.name,
-                    onValueChange = onEditNameChange,
-                    label = { RequiredFieldLabel("Nombre completo") },
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
-                    shape = fieldShape,
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth().testTag("account_edit_name_field"),
+                Text(
+                    "Usuario: ${dialog.account.username}. El nombre y el usuario no se pueden cambiar.",
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 10.sp,
+                    color = HissInk2,
                 )
-                OutlinedTextField(
-                    value = dialog.username,
-                    onValueChange = onEditUsernameChange,
-                    label = { RequiredFieldLabel("Usuario") },
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
-                    shape = fieldShape,
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth().testTag("account_edit_username_field"),
-                )
+                ProfileFields(dialog.profile, onProfileChange, tagPrefix = "account_edit")
                 if (dialog.error != null) {
                     Text(dialog.error, fontSize = 12.sp, color = HissWarn)
                 }
             }
         },
         confirmButton = {
-            Button(onClick = onConfirmEdit, modifier = Modifier.testTag("account_edit_confirm_button")) { Text("Guardar cambios") }
+            Button(
+                onClick = onConfirmEdit,
+                enabled = !dialog.isSaving,
+                modifier = Modifier.testTag("account_edit_confirm_button"),
+            ) { Text("Guardar cambios") }
         },
         dismissButton = {
             TextButton(onClick = onCloseDialog, modifier = Modifier.testTag("account_edit_cancel_button")) { Text("Cancelar") }
         },
+    )
+}
+
+/** The optional contact and registry fields both dialogs share; see [AccountProfile]. */
+@Composable
+private fun ProfileFields(profile: AccountProfile, onChange: (AccountProfile) -> Unit, tagPrefix: String) {
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        DialogField(profile.email, { onChange(profile.copy(email = it)) }, "Correo", "${tagPrefix}_email_field", modifier = Modifier.weight(1f))
+        DialogField(profile.phone, { onChange(profile.copy(phone = it)) }, "Telefono", "${tagPrefix}_phone_field", modifier = Modifier.weight(1f))
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        DialogField(
+            profile.medicalLicense,
+            { onChange(profile.copy(medicalLicense = it)) },
+            "CMP",
+            "${tagPrefix}_cmp_field",
+            modifier = Modifier.weight(1f),
+        )
+        DialogField(
+            profile.specialistRegistry,
+            { onChange(profile.copy(specialistRegistry = it)) },
+            "RNE",
+            "${tagPrefix}_rne_field",
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+@Composable
+private fun DialogField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    testTag: String,
+    required: Boolean = false,
+    modifier: Modifier = Modifier.fillMaxWidth(),
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { if (required) RequiredFieldLabel(label) else Text(label) },
+        textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
+        shape = fieldShape,
+        singleLine = true,
+        modifier = modifier.testTag(testTag),
     )
 }
 
@@ -340,34 +419,52 @@ private fun ResetPasswordDialog(
     onCloseDialog: () -> Unit,
     onConfirmReset: () -> Unit,
 ) {
+    val password = dialog.temporaryPassword
     AlertDialog(
         onDismissRequest = onCloseDialog,
         title = { Text("Reset contraseña · ${dialog.account.name}", fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedTextField(
-                    value = dialog.tempPassword,
-                    onValueChange = {},
-                    label = { Text("Nueva contraseña temporal") },
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
-                    shape = fieldShape,
-                    readOnly = true,
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Text(
-                    "El medico debera cambiar esta contraseña en su proximo inicio de sesion.",
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 10.sp,
-                    color = HissInk2,
-                )
+                if (password == null) {
+                    Text(
+                        "Se generara una nueva contraseña temporal y la actual dejara de funcionar.",
+                        fontSize = 13.sp,
+                        color = HissInk2,
+                    )
+                } else {
+                    OutlinedTextField(
+                        value = password,
+                        onValueChange = {},
+                        label = { Text("Nueva contraseña temporal") },
+                        textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
+                        shape = fieldShape,
+                        readOnly = true,
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth().testTag("account_reset_password_field"),
+                    )
+                    Text(
+                        "Entregala al usuario: no se volvera a mostrar. Debera cambiarla en su proximo inicio de sesion.",
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 10.sp,
+                        color = HissInk2,
+                    )
+                }
+                if (dialog.error != null) {
+                    Text(dialog.error, fontSize = 12.sp, color = HissWarn)
+                }
             }
         },
         confirmButton = {
-            Button(onClick = onConfirmReset, modifier = Modifier.testTag("account_reset_confirm_button")) { Text("Confirmar reset") }
+            Button(
+                onClick = onConfirmReset,
+                enabled = !dialog.isSaving,
+                modifier = Modifier.testTag("account_reset_confirm_button"),
+            ) { Text(if (password == null) "Confirmar reset" else "Listo") }
         },
         dismissButton = {
-            TextButton(onClick = onCloseDialog, modifier = Modifier.testTag("account_reset_cancel_button")) { Text("Cancelar") }
+            if (password == null) {
+                TextButton(onClick = onCloseDialog, modifier = Modifier.testTag("account_reset_cancel_button")) { Text("Cancelar") }
+            }
         },
     )
 }
@@ -383,7 +480,7 @@ private fun DeactivateAccountDialog(
         title = { Text("Desactivar cuenta", fontWeight = FontWeight.Bold) },
         text = {
             Text(
-                "¿Desactivar la cuenta de ${dialog.account.name}? El medico no podra iniciar sesion. " +
+                "¿Desactivar la cuenta de ${dialog.account.name}? El usuario no podra iniciar sesion. " +
                     "Sus evoluciones e historias clinicas previas se mantendran intactas y visibles. " +
                     "Un administrador puede reactivar la cuenta en cualquier momento.",
                 fontSize = 13.sp,

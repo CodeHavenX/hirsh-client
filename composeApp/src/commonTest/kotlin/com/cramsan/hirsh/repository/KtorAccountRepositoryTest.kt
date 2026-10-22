@@ -1,8 +1,11 @@
 package com.cramsan.hirsh.repository
 
 import com.cramsan.hirsh.model.Account
+import com.cramsan.hirsh.model.AccountDocumentType
+import com.cramsan.hirsh.model.AccountProfile
 import com.cramsan.hirsh.model.AccountRole
 import com.cramsan.hirsh.model.AccountStatus
+import com.cramsan.hirsh.model.NewAccount
 import com.cramsan.hirsh.network.ApiException
 import com.cramsan.hirsh.network.installApiErrorValidator
 import io.ktor.client.HttpClient
@@ -58,6 +61,8 @@ private fun userJson(
     username: String = "atorres",
     status: String = "ACTIVE",
     lastAccess: String? = "2026-06-26T08:30:00-05:00",
+    medicalLicense: String? = null,
+    phone: String? = null,
 ): String = """
     {
       "id": "$id",
@@ -69,6 +74,8 @@ private fun userJson(
       "documentType": "NID",
       "documentNumber": "45821337",
       "email": null,
+      "phone": ${phone?.let { "\"$it\"" } ?: "null"},
+      "medicalLicense": ${medicalLicense?.let { "\"$it\"" } ?: "null"},
       "status": "$status",
       "lastAccess": ${lastAccess?.let { "\"$it\"" } ?: "null"},
       "roles": [
@@ -194,10 +201,116 @@ class KtorAccountRepositoryTest {
     }
 
     @Test
-    fun `add and edit are not supported yet`() = runTest {
-        val repository = KtorAccountRepository(mockClient { error("no request expected") })
+    fun `roles maps the backend's role list`() = runTest {
+        val recorded = mutableListOf<RecordedUserRequest>()
+        val repository = KtorAccountRepository(
+            mockClient(recorded) {
+                jsonResponse(
+                    HttpStatusCode.OK,
+                    pageJson(
+                        listOf(
+                            """{"id": "r1", "code": "AUDITOR", "name": "Auditor", "active": true, "permissions": []}""",
+                            """{"id": "r2", "code": "NURSING", "name": "Nursing", "active": true, "permissions": []}""",
+                        ),
+                        0,
+                        1,
+                    ),
+                )
+            },
+        )
 
-        assertFailsWith<UnsupportedOperationException> { repository.addAccount("Ana", "atorres") }
-        assertFailsWith<UnsupportedOperationException> { repository.updateAccount("u1", "Ana", "atorres") }
+        assertEquals(listOf(AccountRole("AUDITOR", "Auditor"), AccountRole("NURSING", "Nursing")), repository.roles())
+        assertEquals("/api/v1/roles", recorded.single().path)
+    }
+
+    @Test
+    fun `addAccount posts a CreateUserRequest with one hospital-wide role and lists the new account`() = runTest {
+        val recorded = mutableListOf<RecordedUserRequest>()
+        val repository = KtorAccountRepository(
+            mockClient(recorded) { jsonResponse(HttpStatusCode.Created, userJson(id = "u-new")) },
+        )
+        val newAccount = NewAccount(
+            firstName = " Ana ",
+            lastName = "Torres",
+            secondLastName = "",
+            username = "atorres",
+            documentType = AccountDocumentType.PASSPORT,
+            documentNumber = "X123",
+            roleCode = "RESIDENT",
+            profile = AccountProfile(medicalLicense = "CMP-45821"),
+        )
+
+        val created = repository.addAccount(newAccount, "Tr7-9kPq")
+
+        val request = recorded.single()
+        assertEquals(HttpMethod.Post, request.method)
+        assertEquals("/api/v1/users", request.path)
+        assertEquals(
+            Json.parseToJsonElement(
+                """
+                {"username": "atorres", "temporaryPassword": "Tr7-9kPq", "firstName": "Ana", "lastName": "Torres",
+                 "secondLastName": null, "documentType": "PASSPORT", "documentNumber": "X123", "email": null,
+                 "phone": null, "medicalLicense": "CMP-45821", "specialistRegistry": null,
+                 "roleAssignments": [{"roleCode": "RESIDENT"}]}
+                """.trimIndent(),
+            ),
+            Json.parseToJsonElement(request.body),
+        )
+        assertEquals(listOf(created), repository.accounts.value)
+    }
+
+    @Test
+    fun `updateAccount sends only the changed fields and writes the response back`() = runTest {
+        val recorded = mutableListOf<RecordedUserRequest>()
+        val repository = KtorAccountRepository(
+            mockClient(recorded) { request ->
+                if (request.method == HttpMethod.Get) {
+                    jsonResponse(HttpStatusCode.OK, pageJson(listOf(userJson(id = "u1", medicalLicense = "CMP-1")), 0, 1))
+                } else {
+                    jsonResponse(HttpStatusCode.OK, userJson(id = "u1", medicalLicense = "CMP-1", phone = "999"))
+                }
+            },
+        )
+        repository.refresh()
+
+        repository.updateAccount("u1", AccountProfile(phone = " 999 ", medicalLicense = "CMP-1"))
+
+        val patch = recorded.last()
+        assertEquals(HttpMethod.Patch, patch.method)
+        assertEquals("/api/v1/users/u1", patch.path)
+        assertEquals("""{"phone":"999"}""", patch.body)
+        assertEquals("999", repository.accounts.value.single().profile.phone)
+    }
+
+    @Test
+    fun `updateAccount with nothing changed sends nothing`() = runTest {
+        val recorded = mutableListOf<RecordedUserRequest>()
+        val repository = KtorAccountRepository(
+            mockClient(recorded) { jsonResponse(HttpStatusCode.OK, pageJson(listOf(userJson(id = "u1")), 0, 1)) },
+        )
+        repository.refresh()
+
+        repository.updateAccount("u1", AccountProfile())
+
+        assertEquals(1, recorded.size)
+    }
+
+    @Test
+    fun `resetPassword returns the generated password and releases a locked account`() = runTest {
+        val recorded = mutableListOf<RecordedUserRequest>()
+        val repository = KtorAccountRepository(
+            mockClient(recorded) { request ->
+                if (request.method == HttpMethod.Get) {
+                    jsonResponse(HttpStatusCode.OK, pageJson(listOf(userJson(id = "u1", status = "LOCKED")), 0, 1))
+                } else {
+                    jsonResponse(HttpStatusCode.OK, """{"userId": "u1", "temporaryPassword": "Gen3rated", "mustChangeOnLogin": true}""")
+                }
+            },
+        )
+        repository.refresh()
+
+        assertEquals("Gen3rated", repository.resetPassword("u1"))
+        assertEquals("/api/v1/users/u1/password-reset", recorded.last().path)
+        assertEquals(AccountStatus.ACTIVE, repository.accounts.value.single().status)
     }
 }

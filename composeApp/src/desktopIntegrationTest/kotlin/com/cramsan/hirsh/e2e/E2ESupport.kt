@@ -137,34 +137,33 @@ fun BridgeDriver.loginAsAdmin() {
 }
 
 /**
- * Creates the `e2etest` doctor account used by the accounts CRUD scenarios (edit/reset/
- * deactivate) if it doesn't already exist, then waits for its row to appear either way. On
- * [DesktopE2ETest] (fresh app per test) it never already exists, so every scenario creates it
- * itself rather than depending on a `test16`-equivalent having run first. On [WebE2ETest]
- * (one shared page for the whole class -- see its doc comment) an earlier scenario's row is
- * still there, so this skips straight to waiting for it instead of trying to create a duplicate.
- * Caller must already be logged in as ADMIN (see [loginAsAdmin]).
+ * Creates a fresh account through the real Accounts form (HISS-652) and returns its username,
+ * which is unique per call: accounts now live on the real backend, where a username can only be
+ * used once. The surname "Zzz" sorts it last in the backend's list (by surname), so it's at the
+ * bottom of the table, where [scrollDown] can reach it. The role is the first one listed,
+ * ATTENDING_PHYSICIAN, since roles come sorted by code. Caller must already be logged in as an admin
+ * (see [loginAsAdmin]).
  */
-fun BridgeDriver.createE2eTestDoctorAccount() {
+fun BridgeDriver.createE2eTestAccount(): String {
+    val suffix = System.nanoTime().toString().takeLast(9)
+    val username = "e2e$suffix"
     clickTag("nav_accounts")
-    if (!getHierarchy().containsTag("account_row_e2etest")) {
-        waitForTag("accounts_add_button")
-        clickTag("accounts_add_button")
-        waitForTag("account_add_name_field")
-        type("account_add_name_field", "Dr. E2E Test")
-        type("account_add_username_field", "e2etest")
-        clickTag("account_add_confirm_button")
-    }
-    // The row (whether just-created or pre-existing) is appended last -- below the fold once
-    // the seeded 5 + this one no longer fit the window; see scrollDown's own doc.
+    waitForTag("accounts_add_button")
+    clickTag("accounts_add_button")
+    waitForTag("account_add_first_name_field")
+    type("account_add_first_name_field", "Cuenta")
+    type("account_add_last_name_field", "Zzz")
+    type("account_add_username_field", username)
+    type("account_add_document_number_field", "E2E$suffix")
+    selectOption("account_add_role_field", 0)
+    clickTag("account_add_confirm_button")
+    waitUntil { !it.containsTag("account_add_confirm_button") }
     scrollDown("screen_scroll_container")
-    waitForTag("account_row_e2etest")
-    // The e2etest row renders taller than the seeded rows (its action buttons wrap onto their
-    // own line at this column width), so it only reaches its final height after this point --
-    // the scrollDown above, issued before the row existed, undershoots that final height and
-    // can leave account_deactivate_e2etest just past the visible bottom. One more scroll now
-    // that the row exists reaches the container's true bottom.
+    waitForTag("account_row_$username")
+    // The row reaches its final height only once it renders (its action links can wrap), so one
+    // more scroll is needed to reach the container's true bottom.
     scrollDown("screen_scroll_container")
+    return username
 }
 
 /** [registerE2eTestPatient]'s result: the two identifiers its callers actually need back. */
