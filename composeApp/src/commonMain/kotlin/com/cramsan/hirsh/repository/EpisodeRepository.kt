@@ -170,10 +170,17 @@ class KtorEpisodeRepository(
     /** Per-episode cache backing [getHospitalization], kept apart from [_lists] like [KtorPatientRepository]'s `_details`. */
     private val _details = MutableStateFlow<Map<String, Hospitalizacion>>(emptyMap())
 
+    /** An unknown [patientId] (a `404`) has no stays, so its record screen shows its own not-found state. */
     override fun getHospitalizations(patientId: String): Flow<List<Hospitalizacion>> = flow {
-        val fetched = httpClient.getAllPages<EpisodeSummary>("/api/v1/patients/$patientId/episodes") {
-            parameter("episodeType", EpisodeTypeDto.INPATIENT)
-        }.map { it.toDomain() }
+        val fetched = try {
+            httpClient.getAllPages<EpisodeSummary>("/api/v1/patients/$patientId/episodes") {
+                parameter("episodeType", EpisodeTypeDto.INPATIENT)
+            }.map { it.toDomain() }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: ApiException) {
+            if (e.error is ApiError.NotFound) emptyList() else throw e
+        }
         _lists.update { it + (patientId to fetched) }
         emitAll(_lists.map { it[patientId].orEmpty() }.distinctUntilChanged())
     }

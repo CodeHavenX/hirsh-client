@@ -185,3 +185,15 @@ private fun AllergyListPreview() {
         }
     }
 }
+
+@PreviewComponent
+@Composable
+private fun LoadErrorMessagePreview() {
+    HirshTheme {
+        Column {
+            LoadErrorMessage(LoadError.UNREACHABLE, onRetry = {})
+            Spacer(Modifier.height(16.dp))
+            LoadErrorMessage(LoadError.FORBIDDEN, onRetry = {})
+        }
+    }
+}
