@@ -15,7 +15,43 @@ data class Account(
     val status: AccountStatus,
     /** The last successful login, stamped by the backend; null if the user never logged in. */
     val lastAccess: Instant?,
+    val profile: AccountProfile = AccountProfile(),
 )
+
+/**
+ * The part of an account the edit dialog can change -- exactly `PatchUserRequest`'s editable
+ * fields minus specialty and signature, which have no picker yet (HISS-653). The API can't
+ * rename an account or change its username or document. An empty string means "not set".
+ */
+data class AccountProfile(
+    val email: String = "",
+    val phone: String = "",
+    /** CMP number. Without it the account can't sign documents. */
+    val medicalLicense: String = "",
+    /** RNE number, for specialists. */
+    val specialistRegistry: String = "",
+)
+
+/** What `POST /api/v1/users` needs to open an account (HISS-652). The account gets one role, hospital-wide. */
+data class NewAccount(
+    val firstName: String,
+    val lastName: String,
+    val secondLastName: String,
+    val username: String,
+    val documentType: AccountDocumentType,
+    val documentNumber: String,
+    val roleCode: String,
+    val profile: AccountProfile,
+)
+
+/** The backend's `UserDocumentType`. */
+enum class AccountDocumentType { NID, FOREIGN_ID, PASSPORT }
+
+fun AccountDocumentType.toDisplayLabel(): String = when (this) {
+    AccountDocumentType.NID -> "DNI"
+    AccountDocumentType.FOREIGN_ID -> "Carne de extranjeria"
+    AccountDocumentType.PASSPORT -> "Pasaporte"
+}
 
 /**
  * One role the account holds, as `UserRoleResponse` carries it. [code] is one of the backend's

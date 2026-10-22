@@ -1,10 +1,17 @@
 package com.cramsan.hirsh.repository
 
 import com.cramsan.hirsh.model.Account
+import com.cramsan.hirsh.model.AccountProfile
 import com.cramsan.hirsh.model.AccountRole
 import com.cramsan.hirsh.model.AccountStatus
+import com.cramsan.hirsh.model.NewAccount
 import com.cramsan.hirsh.model.SYSTEM_ADMIN_ROLE
+import com.cramsan.hirsh.network.dto.CreateUserRequest
 import com.cramsan.hirsh.network.dto.PageResponse
+import com.cramsan.hirsh.network.dto.PasswordResetResponse
+import com.cramsan.hirsh.network.dto.PatchUserRequest
+import com.cramsan.hirsh.network.dto.RoleAssignmentRequest
+import com.cramsan.hirsh.network.dto.RoleResponse
 import com.cramsan.hirsh.network.dto.UpdateUserStatusRequest
 import com.cramsan.hirsh.network.dto.UserResponse
 import com.cramsan.hirsh.network.dto.toDomain
@@ -13,6 +20,8 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
+import io.ktor.client.request.patch
+import io.ktor.client.request.post
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
@@ -29,15 +38,23 @@ interface AccountRepository {
     /** Loads [accounts]; see [PatientRepository.refresh] for why callers trigger this explicitly. */
     suspend fun refresh()
 
-    /**
-     * The new account is always an attending physician and [AccountStatus.ACTIVE] -- matches
-     * accounts.html's own "Rol fijo: Medico" copy. The real `CreateUserRequest` needs fields this
-     * doesn't take (HISS-652).
-     */
-    suspend fun addAccount(name: String, username: String): Account
+    /** The roles an account can be given, for the create dialog's picker. */
+    suspend fun roles(): List<AccountRole>
 
-    /** No-op for an unknown [id]. The real API can't rename an account (HISS-653). */
-    suspend fun updateAccount(id: String, name: String, username: String)
+    /**
+     * Opens an [AccountStatus.ACTIVE] account holding [NewAccount.roleCode]. The user must change
+     * [temporaryPassword] at first login.
+     */
+    suspend fun addAccount(account: NewAccount, temporaryPassword: String): Account
+
+    /** Saves [profile] over [id]'s; only changed fields are sent. No-op for an unknown [id]. */
+    suspend fun updateAccount(id: String, profile: AccountProfile)
+
+    /**
+     * Replaces [id]'s password with a generated one-time password and returns it -- this is the
+     * only time it can be read. Also releases a [AccountStatus.LOCKED] account.
+     */
+    suspend fun resetPassword(id: String): String
 
     /** Sets [id]'s status to [AccountStatus.INACTIVE]; the user can no longer log in. */
     suspend fun deactivate(id: String)
@@ -48,8 +65,8 @@ interface AccountRepository {
 
 /**
  * In-memory stand-in, seeded from prototype/shared/data.js's ACCOUNTS (with the backend's real
- * role codes and names). Still the bound implementation: the Accounts screen's add and edit
- * dialogs need HISS-652/653 before [KtorAccountRepository] can replace it.
+ * role codes and names). No longer bound since HISS-652 made every Accounts action real; kept for
+ * [FakeAuthRepository] and tests.
  */
 class InMemoryAccountRepository : AccountRepository {
 
@@ -60,21 +77,31 @@ class InMemoryAccountRepository : AccountRepository {
 
     override suspend fun refresh() = Unit
 
-    override suspend fun addAccount(name: String, username: String): Account {
+    override suspend fun roles(): List<AccountRole> = SEEDED_ROLES
+
+    override suspend fun addAccount(account: NewAccount, temporaryPassword: String): Account {
         val created = Account(
             id = "acc_${nextId++}",
-            name = name,
-            username = username,
-            roles = listOf(ATTENDING_PHYSICIAN),
+            name = assembleFullName(account.firstName, account.lastName, account.secondLastName),
+            username = account.username,
+            roles = SEEDED_ROLES.filter { it.code == account.roleCode },
             status = AccountStatus.ACTIVE,
             lastAccess = null,
+            profile = account.profile,
         )
         _accounts.update { it + created }
         return created
     }
 
-    override suspend fun updateAccount(id: String, name: String, username: String) {
-        _accounts.update { list -> list.map { if (it.id == id) it.copy(name = name, username = username) else it } }
+    override suspend fun updateAccount(id: String, profile: AccountProfile) {
+        _accounts.update { list -> list.map { if (it.id == id) it.copy(profile = profile) else it } }
+    }
+
+    override suspend fun resetPassword(id: String): String {
+        _accounts.update { list ->
+            list.map { if (it.id == id && it.status == AccountStatus.LOCKED) it.copy(status = AccountStatus.ACTIVE) else it }
+        }
+        return "Temp0ral-${id.takeLast(4)}"
     }
 
     /** No-op for an unknown [id]. */
@@ -94,12 +121,9 @@ class InMemoryAccountRepository : AccountRepository {
 }
 
 /**
- * Real implementation over `/api/v1/users` (HISS-651). Not bound yet -- see
- * [InMemoryAccountRepository]. [addAccount]/[updateAccount] throw [UnsupportedOperationException]:
- * the real create and edit requests take different fields, which HISS-652/653 bring in.
- *
- * [refresh] loads every page, like [KtorPatientRepository.refresh]; a status change writes the
- * response back into [accounts], so an open list shows it without a reload.
+ * Real implementation over `/api/v1/users` (HISS-651/652/653). [refresh] loads every page, like
+ * [KtorPatientRepository.refresh]; every mutation writes its result back into [accounts], so an
+ * open list shows it without a reload.
  */
 class KtorAccountRepository(
     private val httpClient: HttpClient,
@@ -129,11 +153,50 @@ class KtorAccountRepository(
             parameter("size", PAGE_SIZE)
         }.body()
 
-    override suspend fun addAccount(name: String, username: String): Account =
-        throw UnsupportedOperationException("Account creation needs CreateUserRequest's fields (HISS-652)")
+    /** The six seeded roles fit one page; a deployment with more than [PAGE_SIZE] roles would need paging here. */
+    override suspend fun roles(): List<AccountRole> =
+        httpClient.get("/api/v1/roles") {
+            parameter("page", 0)
+            parameter("size", PAGE_SIZE)
+        }.body<PageResponse<RoleResponse>>().content.map { it.toDomain() }
 
-    override suspend fun updateAccount(id: String, name: String, username: String): Unit =
-        throw UnsupportedOperationException("The API can't rename an account (HISS-653)")
+    override suspend fun addAccount(account: NewAccount, temporaryPassword: String): Account {
+        val created = httpClient.post("/api/v1/users") {
+            contentType(ContentType.Application.Json)
+            setBody(account.toRequest(temporaryPassword))
+        }.body<UserResponse>().toDomain()
+        _accounts.update { it + created }
+        return created
+    }
+
+    /**
+     * Sends only the fields that differ from the cached account: the backend reads a null field
+     * as "leave it", and re-sending an unchanged CMP or RNE would re-run its uniqueness check.
+     */
+    override suspend fun updateAccount(id: String, profile: AccountProfile) {
+        val current = _accounts.value.find { it.id == id }?.profile ?: AccountProfile()
+        fun changed(new: String, old: String) = new.trim().takeIf { it != old }
+        val request = PatchUserRequest(
+            email = changed(profile.email, current.email),
+            phone = changed(profile.phone, current.phone),
+            medicalLicense = changed(profile.medicalLicense, current.medicalLicense),
+            specialistRegistry = changed(profile.specialistRegistry, current.specialistRegistry),
+        )
+        if (request == PatchUserRequest()) return
+        val updated = httpClient.patch("/api/v1/users/$id") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }.body<UserResponse>().toDomain()
+        _accounts.update { list -> list.map { if (it.id == id) updated else it } }
+    }
+
+    override suspend fun resetPassword(id: String): String {
+        val reset = httpClient.post("/api/v1/users/$id/password-reset").body<PasswordResetResponse>()
+        _accounts.update { list ->
+            list.map { if (it.id == id && it.status == AccountStatus.LOCKED) it.copy(status = AccountStatus.ACTIVE) else it }
+        }
+        return reset.temporaryPassword
+    }
 
     override suspend fun deactivate(id: String) = setStatus(id, AccountStatus.INACTIVE)
 
@@ -154,6 +217,31 @@ class KtorAccountRepository(
 
 private val ATTENDING_PHYSICIAN = AccountRole("ATTENDING_PHYSICIAN", "Attending Physician")
 private val SYSTEM_ADMINISTRATOR = AccountRole(SYSTEM_ADMIN_ROLE, "System Administrator")
+
+/** The backend's seeded roles, in its own order (by code). */
+private val SEEDED_ROLES = listOf(
+    ATTENDING_PHYSICIAN,
+    AccountRole("AUDITOR", "Auditor"),
+    AccountRole("NURSING", "Nursing"),
+    AccountRole("PSYCHOLOGIST", "Psychologist"),
+    AccountRole("RESIDENT", "Resident"),
+    SYSTEM_ADMINISTRATOR,
+)
+
+private fun NewAccount.toRequest(temporaryPassword: String) = CreateUserRequest(
+    username = username.trim(),
+    temporaryPassword = temporaryPassword,
+    firstName = firstName.trim(),
+    lastName = lastName.trim(),
+    secondLastName = secondLastName.trim().ifEmpty { null },
+    documentType = documentType.name,
+    documentNumber = documentNumber.trim(),
+    email = profile.email.trim().ifEmpty { null },
+    phone = profile.phone.trim().ifEmpty { null },
+    medicalLicense = profile.medicalLicense.trim().ifEmpty { null },
+    specialistRegistry = profile.specialistRegistry.trim().ifEmpty { null },
+    roleAssignments = listOf(RoleAssignmentRequest(roleCode)),
+)
 
 /** Ported from prototype/shared/data.js's ACCOUNTS; its relative "last login" strings became fixed instants. */
 private fun seedAccounts(): List<Account> = listOf(

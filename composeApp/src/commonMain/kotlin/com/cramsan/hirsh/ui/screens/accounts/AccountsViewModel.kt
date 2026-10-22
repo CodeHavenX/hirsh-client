@@ -3,7 +3,14 @@ package com.cramsan.hirsh.ui.screens.accounts
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cramsan.hirsh.model.Account
+import com.cramsan.hirsh.model.AccountDocumentType
+import com.cramsan.hirsh.model.AccountProfile
+import com.cramsan.hirsh.model.AccountRole
+import com.cramsan.hirsh.model.NewAccount
+import com.cramsan.hirsh.network.ApiError
+import com.cramsan.hirsh.network.ApiException
 import com.cramsan.hirsh.repository.AccountRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -13,46 +20,79 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.random.Random
 
+/** The create dialog's fields; see [NewAccount] for what they become. */
+data class AddAccountForm(
+    val firstName: String = "",
+    val lastName: String = "",
+    val secondLastName: String = "",
+    val username: String = "",
+    val documentType: AccountDocumentType = AccountDocumentType.NID,
+    val documentNumber: String = "",
+    val role: AccountRole? = null,
+    val profile: AccountProfile = AccountProfile(),
+)
+
 sealed class AccountDialog {
     data object None : AccountDialog()
     data class Add(
-        val name: String = "",
-        val username: String = "",
+        val form: AddAccountForm = AddAccountForm(),
         val tempPassword: String,
         val error: String? = null,
         val isSaving: Boolean = false,
     ) : AccountDialog()
+
+    /** Only [profile] is editable: the API can't rename an account or change its username (HISS-653). */
     data class Edit(
-        val accountId: String,
-        val name: String,
-        val username: String,
+        val account: Account,
+        val profile: AccountProfile = account.profile,
         val error: String? = null,
         val isSaving: Boolean = false,
     ) : AccountDialog()
-    data class Reset(val account: Account, val tempPassword: String) : AccountDialog()
+
+    /** [temporaryPassword] is the backend's generated one, shown once after the reset succeeds. */
+    data class Reset(
+        val account: Account,
+        val isSaving: Boolean = false,
+        val temporaryPassword: String? = null,
+        val error: String? = null,
+    ) : AccountDialog()
     data class Deactivate(val account: Account, val isSaving: Boolean = false) : AccountDialog()
 }
 
 data class AccountsUiState(
     val accounts: List<Account> = emptyList(),
+    val roles: List<AccountRole> = emptyList(),
     val dialog: AccountDialog = AccountDialog.None,
+    /** A failed load or status change; dialog actions report their own errors inside the dialog. */
+    val error: String? = null,
 )
+
+private const val REQUIRED_FIELDS_ERROR = "Completa los campos requeridos"
 
 class AccountsViewModel(
     private val accountRepository: AccountRepository,
 ) : ViewModel() {
 
     private val dialogState = MutableStateFlow<AccountDialog>(AccountDialog.None)
+    private val roles = MutableStateFlow<List<AccountRole>>(emptyList())
+    private val error = MutableStateFlow<String?>(null)
 
     val uiState: StateFlow<AccountsUiState> = combine(
         accountRepository.accounts,
+        roles,
         dialogState,
-    ) { accounts, dialog ->
-        AccountsUiState(accounts = accounts, dialog = dialog)
+        error,
+    ) { accounts, roles, dialog, error ->
+        AccountsUiState(accounts = accounts, roles = roles, dialog = dialog, error = error)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AccountsUiState())
 
     init {
-        viewModelScope.launch { accountRepository.refresh() }
+        viewModelScope.launch {
+            runReporting("No se pudieron cargar las cuentas") {
+                accountRepository.refresh()
+                roles.value = accountRepository.roles()
+            }
+        }
     }
 
     fun openAddDialog() {
@@ -60,15 +100,11 @@ class AccountsViewModel(
     }
 
     fun openEditDialog(account: Account) {
-        dialogState.value = AccountDialog.Edit(
-            accountId = account.id,
-            name = account.name,
-            username = account.username,
-        )
+        dialogState.value = AccountDialog.Edit(account)
     }
 
     fun openResetDialog(account: Account) {
-        dialogState.value = AccountDialog.Reset(account, tempPassword = generateTempPassword())
+        dialogState.value = AccountDialog.Reset(account)
     }
 
     fun openDeactivateDialog(account: Account) {
@@ -79,24 +115,47 @@ class AccountsViewModel(
         dialogState.value = AccountDialog.None
     }
 
-    fun onAddNameChange(value: String) = updateAddDialog { it.copy(name = value, error = null) }
-    fun onAddUsernameChange(value: String) = updateAddDialog { it.copy(username = value, error = null) }
-    fun onEditNameChange(value: String) = updateEditDialog { it.copy(name = value, error = null) }
-    fun onEditUsernameChange(value: String) = updateEditDialog { it.copy(username = value, error = null) }
+    fun onAddFormChange(form: AddAccountForm) = updateDialog<AccountDialog.Add> { it.copy(form = form, error = null) }
+
+    fun onEditProfileChange(profile: AccountProfile) = updateDialog<AccountDialog.Edit> { it.copy(profile = profile, error = null) }
 
     fun confirmAdd() {
         val dialog = dialogState.value as? AccountDialog.Add ?: return
         if (dialog.isSaving) {
             return
         }
-        if (dialog.name.isBlank() || dialog.username.isBlank()) {
-            updateAddDialog { it.copy(error = "Completa los campos requeridos") }
+        val form = dialog.form
+        val role = form.role
+        val required = listOf(form.firstName, form.lastName, form.username, form.documentNumber)
+        if (required.any { it.isBlank() } || role == null) {
+            updateDialog<AccountDialog.Add> { it.copy(error = REQUIRED_FIELDS_ERROR) }
             return
         }
-        updateAddDialog { it.copy(isSaving = true, error = null) }
+        updateDialog<AccountDialog.Add> { it.copy(isSaving = true, error = null) }
         viewModelScope.launch {
-            accountRepository.addAccount(dialog.name, dialog.username)
-            dialogState.value = AccountDialog.None
+            val newAccount = NewAccount(
+                firstName = form.firstName,
+                lastName = form.lastName,
+                secondLastName = form.secondLastName,
+                username = form.username,
+                documentType = form.documentType,
+                documentNumber = form.documentNumber,
+                roleCode = role.code,
+                profile = form.profile,
+            )
+            try {
+                accountRepository.addAccount(newAccount, dialog.tempPassword)
+                dialogState.value = AccountDialog.None
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                val message = when ((e as? ApiException)?.error) {
+                    is ApiError.Conflict -> "Ya existe una cuenta con ese usuario, documento, CMP o RNE"
+                    is ApiError.Validation -> "Revisa los datos ingresados"
+                    else -> "No se pudo crear la cuenta"
+                }
+                updateDialog<AccountDialog.Add> { it.copy(isSaving = false, error = message) }
+            }
         }
     }
 
@@ -105,20 +164,45 @@ class AccountsViewModel(
         if (dialog.isSaving) {
             return
         }
-        if (dialog.name.isBlank() || dialog.username.isBlank()) {
-            updateEditDialog { it.copy(error = "Completa los campos requeridos") }
-            return
-        }
-        updateEditDialog { it.copy(isSaving = true, error = null) }
+        updateDialog<AccountDialog.Edit> { it.copy(isSaving = true, error = null) }
         viewModelScope.launch {
-            accountRepository.updateAccount(dialog.accountId, dialog.name, dialog.username)
-            dialogState.value = AccountDialog.None
+            try {
+                accountRepository.updateAccount(dialog.account.id, dialog.profile)
+                dialogState.value = AccountDialog.None
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                val message = when ((e as? ApiException)?.error) {
+                    is ApiError.Conflict -> "Ese CMP o RNE ya esta registrado en otra cuenta"
+                    is ApiError.Validation -> "Revisa los datos ingresados"
+                    else -> "No se pudieron guardar los cambios"
+                }
+                updateDialog<AccountDialog.Edit> { it.copy(isSaving = false, error = message) }
+            }
         }
     }
 
-    /** No repository call -- the temp password shown is a cosmetic, non-persisted placeholder (see HISS-401's own note). */
+    /** First call resets and shows the new password; once it's shown, the same button closes the dialog. */
     fun confirmReset() {
-        dialogState.value = AccountDialog.None
+        val dialog = dialogState.value as? AccountDialog.Reset ?: return
+        if (dialog.temporaryPassword != null) {
+            dialogState.value = AccountDialog.None
+            return
+        }
+        if (dialog.isSaving) {
+            return
+        }
+        updateDialog<AccountDialog.Reset> { it.copy(isSaving = true, error = null) }
+        viewModelScope.launch {
+            try {
+                val password = accountRepository.resetPassword(dialog.account.id)
+                updateDialog<AccountDialog.Reset> { it.copy(isSaving = false, temporaryPassword = password) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                updateDialog<AccountDialog.Reset> { it.copy(isSaving = false, error = "No se pudo restablecer la contraseña") }
+            }
+        }
     }
 
     fun confirmDeactivate() {
@@ -128,7 +212,7 @@ class AccountsViewModel(
         }
         dialogState.value = dialog.copy(isSaving = true)
         viewModelScope.launch {
-            accountRepository.deactivate(dialog.account.id)
+            runReporting("No se pudo desactivar la cuenta") { accountRepository.deactivate(dialog.account.id) }
             dialogState.value = AccountDialog.None
         }
     }
@@ -136,16 +220,24 @@ class AccountsViewModel(
     /** Direct action, no confirm dialog -- matches the mock's own reactivateAccount(), which has none either. */
     fun reactivate(account: Account) {
         viewModelScope.launch {
-            accountRepository.reactivate(account.id)
+            runReporting("No se pudo reactivar la cuenta") { accountRepository.reactivate(account.id) }
         }
     }
 
-    private fun updateAddDialog(transform: (AccountDialog.Add) -> AccountDialog.Add) = dialogState.update {
-        if (it is AccountDialog.Add) transform(it) else it
+    /** Runs [block], showing [message] as the screen's error if it fails and clearing a previous one if it succeeds. */
+    private suspend fun runReporting(message: String, block: suspend () -> Unit) {
+        try {
+            block()
+            error.value = null
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            error.value = message
+        }
     }
 
-    private fun updateEditDialog(transform: (AccountDialog.Edit) -> AccountDialog.Edit) = dialogState.update {
-        if (it is AccountDialog.Edit) transform(it) else it
+    private inline fun <reified T : AccountDialog> updateDialog(crossinline transform: (T) -> T) = dialogState.update {
+        if (it is T) transform(it) else it
     }
 }
 
