@@ -21,9 +21,8 @@ import kotlin.test.assertTrue
  * Each @Test method here runs against its OWN freshly-launched app instance -- see
  * [DesktopE2ETest]/[WebE2ETest]'s [Before][org.junit.Before]/[After][org.junit.After]
  * (not [BeforeClass][org.junit.BeforeClass]/[AfterClass][org.junit.AfterClass]) setup.
- * `InMemoryClinicalNoteRepository` (wired in `AppModule.kt`) is an
- * in-process Koin singleton with no external persistence, so a fresh process launch is a full,
- * free reset back to its seeded fixture data. **As of HISS-611, `AuthRepository`** is
+ * Nothing the app shows lives only in-process any more (HCEM-79 moved the clinical notes onto the
+ * backend too), so a fresh launch resets only client state. **As of HISS-611, `AuthRepository`** is
  * `KtorAuthRepository`, and **as of HISS-622, `PatientRepository`** is `KtorPatientRepository` --
  * both backed by a real, separately-running instance of this project's backend (see
  * `network/ApiConfig.kt`) -- this whole suite now needs that backend up and reachable to pass at
@@ -408,6 +407,53 @@ abstract class HissE2EScenarios {
             hierarchy.containsText("Sin evoluciones registradas"),
             "a hospitalization with zero evoluciones must show the empty-state copy",
         )
+    }
+
+    // --- Clinical notes as backend documents (HCEM-79) ----------------------------------------
+
+    @Test
+    fun test13b_historiaClinicaDraft_blocksDischargeUntilSigned() {
+        driver.loginAsAdmin()
+        driver.registerE2eTestPatient()
+        driver.admitPatient()
+
+        driver.clickTag("hosp_open_hc_button")
+        driver.waitForTag("hc_field_edad")
+        driver.type("hc_field_edad", "34")
+        driver.scrollDown("screen_scroll_container")
+        driver.clickTag("hc_save_section_button")
+        driver.waitUntil { it.containsText("Pendiente de firma") }
+        driver.clickTag("encounter_close_button")
+        driver.waitForTag("hosp_discharge_button")
+        assertTrue(driver.getHierarchy().containsText("Pendiente de firma"), "the stay must show the Historia Clinica as a draft")
+
+        // Same settle-delay stopgap as test14 (CodeHavenX/hirsh-client#31).
+        Thread.sleep(4_000)
+        driver.clickTag("hosp_discharge_button")
+        driver.waitForTag("discharge_unsigned_notes")
+        assertTrue(driver.getHierarchy().containsText("Historia clinica"), "the unsigned Historia Clinica must be listed")
+    }
+
+    /** The bootstrap admin holds DOCUMENT_SIGN; the backend also needs a medical license on that account. */
+    @Test
+    fun test13c_nuevaEvolucion_signerSavesASignedNote() {
+        driver.loginAsAdmin()
+        driver.registerE2eTestPatient()
+        driver.admitPatient()
+
+        driver.clickTag("hosp_new_evolucion_button")
+        driver.waitForTag("evo_new_subjective_field")
+        driver.type("evo_new_subjective_field", "E2E nota firmada.")
+        driver.type("evo_new_objective_field", "E2E signos vitales estables.")
+        driver.type("evo_new_dx_descripcion_0", "E2E diagnostico de prueba")
+        driver.selectOption("evo_new_pronostico_field", 0)
+        driver.selectOption("evo_new_resultado_field", 0)
+        driver.scrollDown("screen_scroll_container")
+        driver.clickTag("evo_new_save_button")
+        driver.waitForTag("evo_view_print_button")
+        val hierarchy = driver.getHierarchy()
+        assertTrue(hierarchy.containsText("Registrada · solo lectura"), "a signer's evolucion must be signed on save")
+        assertFalse(hierarchy.containsTag("evo_view_sign_button"), "a signed evolucion offers no signature")
     }
 
     // --- Full clinical documentation lifecycle: admision -> HC -> evolucion -> discharge -----

@@ -48,8 +48,8 @@ binding in `di/AppModule.kt`:
 grep -n "bind <Feature>Repository::class" composeApp/src/commonMain/kotlin/com/cramsan/hirsh/di/AppModule.kt
 ```
 
-- **Bound to a `Fake*`/`InMemory*` implementation** (as of HISS-664 only
-  `ClinicalNoteRepository` → `InMemoryClinicalNoteRepository`): **Tier 1
+- **Bound to a `Fake*`/`InMemory*` implementation** (none as of HCEM-79,
+  which moved `ClinicalNoteRepository` onto `KtorClinicalNoteRepository`): **Tier 1
   only, and only if the diff itself touches `network/`** (HttpClient config,
   plugins, error/response mapping). A UI E2E test against this feature would
   drive the UI against the fake and never touch the real backend at all —
@@ -58,8 +58,8 @@ grep -n "bind <Feature>Repository::class" composeApp/src/commonMain/kotlin/com/c
   feature's repository is still Fake/InMemory, so real-backend coverage isn't
   possible yet (name which ticket, if any, is tracked to migrate it — e.g.
   HISS-622 for `PatientRepository`).
-- **Bound to a real, HTTP-backed implementation** (today: only `AuthRepository`
-  via `KtorAuthRepository`, since HISS-611): **Tier 2 applies** — add or extend
+- **Bound to a real, HTTP-backed implementation** (today: every repository —
+  the last one, `ClinicalNoteRepository`, since HCEM-79): **Tier 2 applies** — add or extend
   a scenario in the existing e2e suite, not just a network-layer test, since
   the whole point of that repository existing is that the UI now genuinely
   depends on the backend.
