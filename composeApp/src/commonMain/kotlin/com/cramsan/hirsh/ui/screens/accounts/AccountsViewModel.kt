@@ -23,7 +23,7 @@ sealed class AccountDialog {
         val isSaving: Boolean = false,
     ) : AccountDialog()
     data class Edit(
-        val originalUsername: String,
+        val accountId: String,
         val name: String,
         val username: String,
         val error: String? = null,
@@ -51,13 +51,17 @@ class AccountsViewModel(
         AccountsUiState(accounts = accounts, dialog = dialog)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AccountsUiState())
 
+    init {
+        viewModelScope.launch { accountRepository.refresh() }
+    }
+
     fun openAddDialog() {
         dialogState.value = AccountDialog.Add(tempPassword = generateTempPassword())
     }
 
     fun openEditDialog(account: Account) {
         dialogState.value = AccountDialog.Edit(
-            originalUsername = account.username,
+            accountId = account.id,
             name = account.name,
             username = account.username,
         )
@@ -107,7 +111,7 @@ class AccountsViewModel(
         }
         updateEditDialog { it.copy(isSaving = true, error = null) }
         viewModelScope.launch {
-            accountRepository.updateAccount(dialog.originalUsername, dialog.name, dialog.username)
+            accountRepository.updateAccount(dialog.accountId, dialog.name, dialog.username)
             dialogState.value = AccountDialog.None
         }
     }
@@ -124,7 +128,7 @@ class AccountsViewModel(
         }
         dialogState.value = dialog.copy(isSaving = true)
         viewModelScope.launch {
-            accountRepository.deactivate(dialog.account.username)
+            accountRepository.deactivate(dialog.account.id)
             dialogState.value = AccountDialog.None
         }
     }
@@ -132,7 +136,7 @@ class AccountsViewModel(
     /** Direct action, no confirm dialog -- matches the mock's own reactivateAccount(), which has none either. */
     fun reactivate(account: Account) {
         viewModelScope.launch {
-            accountRepository.reactivate(account.username)
+            accountRepository.reactivate(account.id)
         }
     }
 

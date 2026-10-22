@@ -33,7 +33,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cramsan.hirsh.model.Account
 import com.cramsan.hirsh.model.AccountStatus
-import com.cramsan.hirsh.model.Role
+import com.cramsan.hirsh.model.isAdmin
+import com.cramsan.hirsh.model.rolesLabel
 import com.cramsan.hirsh.model.toDisplayLabel
 import com.cramsan.hirsh.ui.components.BadgeTone
 import com.cramsan.hirsh.ui.components.DataTable
@@ -48,6 +49,7 @@ import com.cramsan.hirsh.ui.theme.HissInk2
 import com.cramsan.hirsh.ui.theme.HissRadiusDefault
 import com.cramsan.hirsh.ui.theme.HissRadiusTag
 import com.cramsan.hirsh.ui.theme.HissWarn
+import com.cramsan.hirsh.util.formatDateTime
 import org.koin.compose.viewmodel.koinViewModel
 
 private val CellFontSize = 13.sp
@@ -147,7 +149,7 @@ internal fun AccountsScreenContent(
                     onReactivate = onReactivate,
                 ),
                 rows = uiState.accounts,
-                rowAlpha = { account -> if (account.status == AccountStatus.INACTIVE) 0.5f else 1f },
+                rowAlpha = { account -> if (account.status == AccountStatus.ACTIVE) 1f else 0.5f },
                 rowTestTag = { account -> "account_row_${account.username}" },
             )
         }
@@ -168,21 +170,23 @@ private fun accountColumns(
     onDeactivate: (Account) -> Unit,
     onReactivate: (Account) -> Unit,
 ): List<DataTableColumn<Account>> = listOf(
-    DataTableColumn(label = "Nombre", weight = 2f) { account ->
+    DataTableColumn(label = "Nombre", weight = 1.6f) { account ->
         Text(account.name, fontSize = CellFontSize, fontWeight = FontWeight.SemiBold)
     },
     DataTableColumn(label = "Usuario", weight = 1f) { account ->
         Text(account.username, fontFamily = FontFamily.Monospace, fontSize = 11.sp)
     },
-    DataTableColumn(label = "Rol", weight = 0.8f) { account -> Text(account.role.toDisplayLabel(), fontSize = CellFontSize) },
+    DataTableColumn(label = "Rol", weight = 1.2f) { account -> Text(account.rolesLabel, fontSize = CellFontSize) },
     DataTableColumn(label = "Estado", weight = 1f) { account ->
         StatusBadge(
             text = account.status.toDisplayLabel(),
             tone = if (account.status == AccountStatus.ACTIVE) BadgeTone.Done else BadgeTone.Off,
         )
     },
-    DataTableColumn(label = "Ultimo acceso", weight = 0.6f) { account -> Text(account.lastLogin, fontSize = CellFontSize) },
-    DataTableColumn(label = "Acciones", weight = 2.6f) { account ->
+    DataTableColumn(label = "Ultimo acceso", weight = 1.2f) { account ->
+        Text(account.lastAccess?.let { formatDateTime(it) } ?: "—", fontSize = CellFontSize)
+    },
+    DataTableColumn(label = "Acciones", weight = 2f) { account ->
         AccountActions(account, onEdit, onReset, onDeactivate, onReactivate)
     },
 )
@@ -196,7 +200,7 @@ private fun AccountActions(
     onReactivate: (Account) -> Unit,
 ) {
     when {
-        account.role == Role.ADMIN -> Text("—", fontSize = CellFontSize, color = HissInk2)
+        account.isAdmin -> Text("—", fontSize = CellFontSize, color = HissInk2)
         account.status == AccountStatus.ACTIVE -> Row(verticalAlignment = Alignment.CenterVertically) {
             ActionLink("Editar", HissAccent, "account_edit_${account.username}") { onEdit(account) }
             ActionSeparator()
