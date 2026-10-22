@@ -8,10 +8,10 @@ import com.cramsan.hirsh.model.Severity
 import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.network.ApiError
 import com.cramsan.hirsh.network.ApiException
+import com.cramsan.hirsh.network.getAllPages
 import com.cramsan.hirsh.network.dto.AllergySummary
 import com.cramsan.hirsh.network.dto.CreateAllergyRequest
 import com.cramsan.hirsh.network.dto.CreatePatientRequest
-import com.cramsan.hirsh.network.dto.PageResponse
 import com.cramsan.hirsh.network.dto.PatchAllergyRequest
 import com.cramsan.hirsh.network.dto.PatchPatientRequest
 import com.cramsan.hirsh.network.dto.PatientResponse
@@ -22,7 +22,6 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
-import io.ktor.client.request.parameter
 import io.ktor.client.request.patch
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
@@ -329,14 +328,13 @@ class InMemoryPatientRepository : PatientRepository {
  *
  * [patients] has no server-push equivalent, so [refresh] (from the [PatientRepository] interface --
  * see its own doc comment on why this is an explicit suspend function rather than a background
- * launch this class would manage itself) does one "fetch all pages" pass via [fetchAllPages] and
+ * launch this class would manage itself) does one "fetch all pages" pass via [getAllPages] and
  * replaces [_patients] wholesale. Callers that mutate (create/update) instead patch [_patients]
  * directly from that call's own response, matching [InMemoryPatientRepository]'s own
  * update-in-place pattern -- no need to re-fetch everything just to reflect one changed row.
  *
  * [getPatient] makes its own `GET /{patientId}` call every time it's collected, rather than
- * filtering [patients]'s "fetch all pages" cache -- the ticket lists it as its own endpoint, and a
- * real deployment could have more patients than any single "fetch all" pass caps at ([PAGE_SIZE]).
+ * filtering [patients]'s "fetch all pages" cache -- the ticket lists it as its own endpoint.
  * After that fetch it keeps observing [_details], so a later mutation through this repository
  * (an edit, an allergy add/update/delete) reaches an already-open record screen without a
  * re-fetch (HISS-623). [_details] is kept separate from [_patients] so a concurrent [refresh]
@@ -357,7 +355,7 @@ class KtorPatientRepository(
     private val _details = MutableStateFlow<Map<String, Patient>>(emptyMap())
 
     override suspend fun refresh() {
-        _patients.value = fetchAllPages()
+        _patients.value = httpClient.getAllPages<PatientResponse>("/api/v1/patients").map { it.toDomain() }
     }
 
     /** Writes [patient] through to both caches -- [_patients] only if it's already listed there. */
@@ -373,23 +371,6 @@ class KtorPatientRepository(
             details + (patientId to patient.copy(allergies = transform(patient.allergies)))
         }
     }
-
-    private suspend fun fetchAllPages(): List<Patient> {
-        val firstPage = fetchPage(0)
-        val pages = buildList {
-            addAll(firstPage.content)
-            for (page in 1 until firstPage.page.totalPages) {
-                addAll(fetchPage(page).content)
-            }
-        }
-        return pages.map { it.toDomain() }
-    }
-
-    private suspend fun fetchPage(page: Int): PageResponse<PatientResponse> =
-        httpClient.get("/api/v1/patients") {
-            parameter("page", page)
-            parameter("size", PAGE_SIZE)
-        }.body()
 
     override fun getPatient(id: String): Flow<Patient?> = flow {
         val fetched = try {
@@ -504,10 +485,6 @@ class KtorPatientRepository(
     override suspend fun deleteAllergy(patientId: String, allergyId: String) {
         httpClient.delete("/api/v1/patients/$patientId/allergies/$allergyId")
         updateAllergies(patientId) { list -> list.filterNot { it.id == allergyId } }
-    }
-
-    private companion object {
-        const val PAGE_SIZE = 100
     }
 }
 

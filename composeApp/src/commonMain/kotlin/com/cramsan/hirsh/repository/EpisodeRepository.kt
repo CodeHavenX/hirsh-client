@@ -9,11 +9,11 @@ import com.cramsan.hirsh.model.ServiceRef
 import com.cramsan.hirsh.model.UserRef
 import com.cramsan.hirsh.network.ApiError
 import com.cramsan.hirsh.network.ApiException
+import com.cramsan.hirsh.network.getAllPages
 import com.cramsan.hirsh.network.dto.CreateEpisodeRequest
 import com.cramsan.hirsh.network.dto.EpisodeResponse
 import com.cramsan.hirsh.network.dto.EpisodeSummary
 import com.cramsan.hirsh.network.dto.EpisodeTypeDto
-import com.cramsan.hirsh.network.dto.PageResponse
 import com.cramsan.hirsh.network.dto.toRequest
 import com.cramsan.hirsh.network.dto.toDomain
 import com.cramsan.hirsh.util.Clock
@@ -171,28 +171,12 @@ class KtorEpisodeRepository(
     private val _details = MutableStateFlow<Map<String, Hospitalizacion>>(emptyMap())
 
     override fun getHospitalizations(patientId: String): Flow<List<Hospitalizacion>> = flow {
-        val fetched = fetchAllPages(patientId)
+        val fetched = httpClient.getAllPages<EpisodeSummary>("/api/v1/patients/$patientId/episodes") {
+            parameter("episodeType", EpisodeTypeDto.INPATIENT)
+        }.map { it.toDomain() }
         _lists.update { it + (patientId to fetched) }
         emitAll(_lists.map { it[patientId].orEmpty() }.distinctUntilChanged())
     }
-
-    private suspend fun fetchAllPages(patientId: String): List<Hospitalizacion> {
-        val firstPage = fetchPage(patientId, 0)
-        val pages = buildList {
-            addAll(firstPage.content)
-            for (page in 1 until firstPage.page.totalPages) {
-                addAll(fetchPage(patientId, page).content)
-            }
-        }
-        return pages.map { it.toDomain() }
-    }
-
-    private suspend fun fetchPage(patientId: String, page: Int): PageResponse<EpisodeSummary> =
-        httpClient.get("/api/v1/patients/$patientId/episodes") {
-            parameter("episodeType", EpisodeTypeDto.INPATIENT)
-            parameter("page", page)
-            parameter("size", PAGE_SIZE)
-        }.body()
 
     /**
      * The real endpoint is keyed by episode id alone, so [patientId] is checked here against the
@@ -259,10 +243,6 @@ class KtorEpisodeRepository(
                 list.map { if (it.id == hospId) it.copy(status = discharged.status, endDate = discharged.endDate) else it }
             }
         }
-    }
-
-    private companion object {
-        const val PAGE_SIZE = 100
     }
 }
 
