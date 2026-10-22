@@ -11,7 +11,7 @@ import com.cramsan.hirsh.model.Icd10Code
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.network.ApiError
 import com.cramsan.hirsh.network.ApiException
-import com.cramsan.hirsh.repository.HospitalizationRepository
+import com.cramsan.hirsh.repository.EpisodeRepository
 import com.cramsan.hirsh.repository.Icd10Repository
 import com.cramsan.hirsh.repository.PatientRepository
 import kotlinx.coroutines.CancellationException
@@ -66,7 +66,7 @@ private const val GENERIC_ERROR = "No se pudo dar de alta al paciente"
 @OptIn(FlowPreview::class)
 class DischargeViewModel(
     private val patientRepository: PatientRepository,
-    private val hospitalizationRepository: HospitalizationRepository,
+    private val episodeRepository: EpisodeRepository,
     private val icd10Repository: Icd10Repository,
 ) : ViewModel() {
 
@@ -105,7 +105,7 @@ class DischargeViewModel(
         _uiState.value = DischargeUiState(isLoading = true)
         viewModelScope.launch {
             val patient = patientRepository.getPatient(patientId).first()
-            val hospitalizacion = hospitalizationRepository.getHospitalization(patientId, hospId).first()
+            val hospitalizacion = episodeRepository.getHospitalization(patientId, hospId).first()
             _uiState.update { it.copy(isLoading = false, patient = patient, hospitalizacion = hospitalizacion) }
         }
     }
@@ -153,9 +153,9 @@ class DischargeViewModel(
         _uiState.update { it.copy(isSaving = true, error = null) }
         viewModelScope.launch {
             try {
-                val jpaVersion = hospitalizationRepository.getHospitalization(patientId, hospId).first()?.jpaVersion
+                val jpaVersion = episodeRepository.getHospitalization(patientId, hospId).first()?.jpaVersion
                     ?: throw ApiException(ApiError.NotFound(hospId))
-                hospitalizationRepository.discharge(
+                episodeRepository.discharge(
                     hospId = hospId,
                     details = DischargeDetails(
                         type = type,

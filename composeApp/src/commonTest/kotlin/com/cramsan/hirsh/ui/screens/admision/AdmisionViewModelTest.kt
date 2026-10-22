@@ -7,9 +7,6 @@ import com.cramsan.hirsh.model.BedRef
 import com.cramsan.hirsh.model.DischargeDetails
 import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.EpisodeStatus
-import com.cramsan.hirsh.model.Evolucion
-import com.cramsan.hirsh.model.HcSectionKey
-import com.cramsan.hirsh.model.HistoriaClinica
 import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.ServiceRef
@@ -18,7 +15,7 @@ import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.model.UserRef
 import com.cramsan.hirsh.network.ApiError
 import com.cramsan.hirsh.network.ApiException
-import com.cramsan.hirsh.repository.HospitalizationRepository
+import com.cramsan.hirsh.repository.EpisodeRepository
 import com.cramsan.hirsh.repository.PatientRepository
 import com.cramsan.hirsh.repository.PlaceholderCatalog
 import kotlinx.coroutines.Dispatchers
@@ -86,10 +83,10 @@ private class FakePatientRepository(patients: List<Patient> = listOf(samplePatie
     override suspend fun deleteAllergy(patientId: String, allergyId: String) = error("not used by this test")
 }
 
-private class FakeHospitalizationRepository(
+private class FakeEpisodeRepository(
     private val existing: List<Hospitalizacion> = emptyList(),
     private val addError: ApiError? = null,
-) : HospitalizationRepository {
+) : EpisodeRepository {
     var addHospitalizationCalls = 0
         private set
     var lastAdmissionReason: String? = null
@@ -106,8 +103,6 @@ private class FakeHospitalizationRepository(
 
     override fun getHospitalization(patientId: String, hospId: String): Flow<Hospitalizacion?> =
         MutableStateFlow(null)
-
-    override fun getEvolucion(hospId: String, evoId: String): Flow<Evolucion?> = MutableStateFlow(null)
 
     override suspend fun addHospitalization(
         patientId: String,
@@ -132,16 +127,10 @@ private class FakeHospitalizationRepository(
             endDate = null,
             admissionReason = admissionReason,
             status = EpisodeStatus.ACTIVE,
-            historiaClinica = HistoriaClinica(),
-            evoluciones = emptyList(),
         )
     }
 
     override suspend fun discharge(hospId: String, details: DischargeDetails, jpaVersion: Long) = Unit
-
-    override suspend fun saveHistoriaClinicaSection(hospId: String, key: HcSectionKey, data: Any) = Unit
-
-    override suspend fun addEvolucion(hospId: String, evolucion: Evolucion): Evolucion = evolucion
 }
 
 private fun stay(status: EpisodeStatus) = Hospitalizacion(
@@ -154,8 +143,6 @@ private fun stay(status: EpisodeStatus) = Hospitalizacion(
     endDate = null,
     admissionReason = null,
     status = status,
-    historiaClinica = HistoriaClinica(),
-    evoluciones = emptyList(),
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -185,7 +172,7 @@ class AdmisionViewModelTest {
 
     @Test
     fun `load populates the patient`() = runTest(dispatcher) {
-        val viewModel = AdmisionViewModel(FakePatientRepository(), FakeHospitalizationRepository())
+        val viewModel = AdmisionViewModel(FakePatientRepository(), FakeEpisodeRepository())
 
         viewModel.uiState.test {
             skipItems(1)
@@ -199,7 +186,7 @@ class AdmisionViewModelTest {
 
     @Test
     fun `load leaves patient null when the patient does not exist`() = runTest(dispatcher) {
-        val viewModel = AdmisionViewModel(FakePatientRepository(emptyList()), FakeHospitalizationRepository())
+        val viewModel = AdmisionViewModel(FakePatientRepository(emptyList()), FakeEpisodeRepository())
 
         viewModel.uiState.test {
             skipItems(1)
@@ -213,7 +200,7 @@ class AdmisionViewModelTest {
 
     @Test
     fun `register does nothing when the patient was not found`() = runTest(dispatcher) {
-        val repository = FakeHospitalizationRepository()
+        val repository = FakeEpisodeRepository()
         val viewModel = AdmisionViewModel(FakePatientRepository(emptyList()), repository)
         viewModel.load("unknown-patient-id")
         dispatcher.scheduler.advanceUntilIdle()
@@ -226,7 +213,7 @@ class AdmisionViewModelTest {
 
     @Test
     fun `register blocks save when no servicio is chosen`() = runTest(dispatcher) {
-        val repository = FakeHospitalizationRepository()
+        val repository = FakeEpisodeRepository()
         val viewModel = AdmisionViewModel(FakePatientRepository(), repository)
         viewModel.load(samplePatient.id)
         dispatcher.scheduler.advanceUntilIdle()
@@ -239,7 +226,7 @@ class AdmisionViewModelTest {
 
     @Test
     fun `register blocks save when cama is blank`() = runTest(dispatcher) {
-        val repository = FakeHospitalizationRepository()
+        val repository = FakeEpisodeRepository()
         val viewModel = AdmisionViewModel(FakePatientRepository(), repository)
         viewModel.load(samplePatient.id)
         dispatcher.scheduler.advanceUntilIdle()
@@ -253,7 +240,7 @@ class AdmisionViewModelTest {
 
     @Test
     fun `register blocks save when no medico responsable is chosen`() = runTest(dispatcher) {
-        val repository = FakeHospitalizationRepository()
+        val repository = FakeEpisodeRepository()
         val viewModel = AdmisionViewModel(FakePatientRepository(), repository)
         viewModel.load(samplePatient.id)
         dispatcher.scheduler.advanceUntilIdle()
@@ -266,7 +253,7 @@ class AdmisionViewModelTest {
 
     @Test
     fun `register sends a blank motivo as no admission reason`() = runTest(dispatcher) {
-        val repository = FakeHospitalizationRepository()
+        val repository = FakeEpisodeRepository()
         val viewModel = AdmisionViewModel(FakePatientRepository(), repository)
         viewModel.load(samplePatient.id)
         dispatcher.scheduler.advanceUntilIdle()
@@ -288,7 +275,7 @@ class AdmisionViewModelTest {
 
     @Test
     fun `register succeeds with all fields filled`() = runTest(dispatcher) {
-        val repository = FakeHospitalizationRepository()
+        val repository = FakeEpisodeRepository()
         val viewModel = AdmisionViewModel(FakePatientRepository(), repository)
         viewModel.load(samplePatient.id)
         dispatcher.scheduler.advanceUntilIdle()
@@ -307,7 +294,7 @@ class AdmisionViewModelTest {
 
     @Test
     fun `register ignores a second call while a save is already in flight`() = runTest(dispatcher) {
-        val repository = FakeHospitalizationRepository()
+        val repository = FakeEpisodeRepository()
         val viewModel = AdmisionViewModel(FakePatientRepository(), repository)
         viewModel.load(samplePatient.id)
         dispatcher.scheduler.advanceUntilIdle()
@@ -322,7 +309,7 @@ class AdmisionViewModelTest {
 
     @Test
     fun `load flags a patient who already has an active stay`() = runTest(dispatcher) {
-        val repository = FakeHospitalizationRepository(existing = listOf(stay(EpisodeStatus.ACTIVE)))
+        val repository = FakeEpisodeRepository(existing = listOf(stay(EpisodeStatus.ACTIVE)))
         val viewModel = AdmisionViewModel(FakePatientRepository(), repository)
 
         viewModel.load(samplePatient.id)
@@ -333,7 +320,7 @@ class AdmisionViewModelTest {
 
     @Test
     fun `load does not flag a patient whose stays are all closed`() = runTest(dispatcher) {
-        val repository = FakeHospitalizationRepository(existing = listOf(stay(EpisodeStatus.CLOSED)))
+        val repository = FakeEpisodeRepository(existing = listOf(stay(EpisodeStatus.CLOSED)))
         val viewModel = AdmisionViewModel(FakePatientRepository(), repository)
 
         viewModel.load(samplePatient.id)
@@ -344,7 +331,7 @@ class AdmisionViewModelTest {
 
     @Test
     fun `register refuses a patient with an active stay without calling the repository`() = runTest(dispatcher) {
-        val repository = FakeHospitalizationRepository(existing = listOf(stay(EpisodeStatus.ACTIVE)))
+        val repository = FakeEpisodeRepository(existing = listOf(stay(EpisodeStatus.ACTIVE)))
         val viewModel = AdmisionViewModel(FakePatientRepository(), repository)
         viewModel.load(samplePatient.id)
         dispatcher.scheduler.advanceUntilIdle()
@@ -358,7 +345,7 @@ class AdmisionViewModelTest {
 
     @Test
     fun `register shows the active-stay message for the backend's open-episode conflict`() = runTest(dispatcher) {
-        val repository = FakeHospitalizationRepository(addError = ApiError.Conflict("h_opened_elsewhere"))
+        val repository = FakeEpisodeRepository(addError = ApiError.Conflict("h_opened_elsewhere"))
         val viewModel = AdmisionViewModel(FakePatientRepository(), repository)
         viewModel.load(samplePatient.id)
         dispatcher.scheduler.advanceUntilIdle()
@@ -373,7 +360,7 @@ class AdmisionViewModelTest {
 
     @Test
     fun `register shows a bed message for a conflict without a resource id`() = runTest(dispatcher) {
-        val repository = FakeHospitalizationRepository(addError = ApiError.Conflict(""))
+        val repository = FakeEpisodeRepository(addError = ApiError.Conflict(""))
         val viewModel = AdmisionViewModel(FakePatientRepository(), repository)
         viewModel.load(samplePatient.id)
         dispatcher.scheduler.advanceUntilIdle()

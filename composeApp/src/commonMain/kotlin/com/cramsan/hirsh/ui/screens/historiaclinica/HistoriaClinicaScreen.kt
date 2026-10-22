@@ -126,7 +126,7 @@ internal fun HistoriaClinicaScreenContent(
                 modifier = Modifier.padding(24.dp),
             )
             else -> {
-                val historiaClinica = hospitalizacion.historiaClinica
+                val historiaClinica = uiState.historiaClinica
                 EncounterTopBar(
                     title = "Historia Clinica · ${patient.fullName} ${patient.medicalRecordNumber}",
                     onClose = onClose,
@@ -154,6 +154,7 @@ internal fun HistoriaClinicaScreenContent(
                         HistoriaClinicaPrintable(
                             patient = patient,
                             hospitalizacion = hospitalizacion,
+                            historiaClinica = historiaClinica,
                             onBack = onClosePrintPreview,
                         )
                     }

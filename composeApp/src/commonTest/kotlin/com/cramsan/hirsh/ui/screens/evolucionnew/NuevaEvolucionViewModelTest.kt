@@ -20,7 +20,8 @@ import com.cramsan.hirsh.model.Severity
 import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.model.UserRef
 import com.cramsan.hirsh.model.toDisplayLabel
-import com.cramsan.hirsh.repository.HospitalizationRepository
+import com.cramsan.hirsh.repository.ClinicalNoteRepository
+import com.cramsan.hirsh.repository.EpisodeRepository
 import com.cramsan.hirsh.repository.PatientRepository
 import com.cramsan.hirsh.repository.SessionRepository
 import com.cramsan.hirsh.util.Clock
@@ -31,7 +32,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -69,8 +69,6 @@ private fun sampleHospitalization(id: String, patientId: String) = Hospitalizaci
     endDate = null,
     admissionReason = "Tos productiva con fiebre",
     status = EpisodeStatus.ACTIVE,
-    historiaClinica = HistoriaClinica(),
-    evoluciones = emptyList(),
 )
 
 private class FakePatientRepository(patients: List<Patient>) : PatientRepository {
@@ -108,22 +106,15 @@ private class FakePatientRepository(patients: List<Patient>) : PatientRepository
     override suspend fun deleteAllergy(patientId: String, allergyId: String) = error("not used by this test")
 }
 
-private class FakeHospitalizationRepository(hospitalizations: List<Hospitalizacion> = emptyList()) :
-    HospitalizationRepository {
+private class FakeEpisodeRepository(hospitalizations: List<Hospitalizacion> = emptyList()) :
+    EpisodeRepository {
     private val _hospitalizations = MutableStateFlow(hospitalizations)
-    var lastAddedEvolucion: Evolucion? = null
-        private set
-    var addEvolucionCallCount = 0
-        private set
 
     override fun getHospitalizations(patientId: String): Flow<List<Hospitalizacion>> =
         _hospitalizations.map { list -> list.filter { it.patientId == patientId } }
 
     override fun getHospitalization(patientId: String, hospId: String): Flow<Hospitalizacion?> =
         _hospitalizations.map { list -> list.find { it.patientId == patientId && it.id == hospId } }
-
-    override fun getEvolucion(hospId: String, evoId: String): Flow<Evolucion?> =
-        _hospitalizations.map { list -> list.find { it.id == hospId }?.evoluciones?.find { it.id == evoId } }
 
     override suspend fun addHospitalization(
         patientId: String,
@@ -134,6 +125,19 @@ private class FakeHospitalizationRepository(hospitalizations: List<Hospitalizaci
     ): Hospitalizacion = error("not used by this test")
 
     override suspend fun discharge(hospId: String, details: DischargeDetails, jpaVersion: Long) = Unit
+}
+
+private class FakeClinicalNoteRepository : ClinicalNoteRepository {
+    var lastAddedEvolucion: Evolucion? = null
+        private set
+    var addEvolucionCallCount = 0
+        private set
+
+    override fun getHistoriaClinica(hospId: String): Flow<HistoriaClinica> = MutableStateFlow(HistoriaClinica())
+
+    override fun getEvoluciones(hospId: String): Flow<List<Evolucion>> = MutableStateFlow(emptyList())
+
+    override fun getEvolucion(hospId: String, evoId: String): Flow<Evolucion?> = MutableStateFlow(null)
 
     override suspend fun saveHistoriaClinicaSection(hospId: String, key: HcSectionKey, data: Any) = Unit
 
@@ -141,9 +145,6 @@ private class FakeHospitalizationRepository(hospitalizations: List<Hospitalizaci
         addEvolucionCallCount++
         val created = evolucion.copy(id = "evo_new")
         lastAddedEvolucion = created
-        _hospitalizations.update { list ->
-            list.map { if (it.id == hospId) it.copy(evoluciones = listOf(created) + it.evoluciones) else it }
-        }
         return created
     }
 }
@@ -185,7 +186,8 @@ class NuevaEvolucionViewModelTest {
         session: Session? = sampleSession,
     ) = NuevaEvolucionViewModel(
         FakePatientRepository(patients),
-        FakeHospitalizationRepository(hospitalizations),
+        FakeEpisodeRepository(hospitalizations),
+        FakeClinicalNoteRepository(),
         FakeSessionRepository(session),
         FakeClock(Instant.parse("2026-06-18T22:30:00Z")),
     )
@@ -211,7 +213,8 @@ class NuevaEvolucionViewModelTest {
         val fixedNow = LocalDateTime(2027, 1, 15, 10, 30).toInstant(TimeZone.currentSystemDefault())
         val vm = NuevaEvolucionViewModel(
             FakePatientRepository(listOf(samplePatient)),
-            FakeHospitalizationRepository(),
+            FakeEpisodeRepository(),
+            FakeClinicalNoteRepository(),
             FakeSessionRepository(sampleSession),
             FakeClock(fixedNow),
         )
@@ -263,10 +266,12 @@ class NuevaEvolucionViewModelTest {
     @Test
     fun `save blocks when subjective is blank`() = runTest(dispatcher) {
         val hospitalization = sampleHospitalization("h1", samplePatient.id)
-        val repository = FakeHospitalizationRepository(listOf(hospitalization))
+        val repository = FakeEpisodeRepository(listOf(hospitalization))
+        val notes = FakeClinicalNoteRepository()
         val vm = NuevaEvolucionViewModel(
             FakePatientRepository(listOf(samplePatient)),
             repository,
+            notes,
             FakeSessionRepository(sampleSession),
             FakeClock(Instant.parse("2026-06-18T22:30:00Z")),
         )
@@ -278,17 +283,19 @@ class NuevaEvolucionViewModelTest {
         vm.save()
         dispatcher.scheduler.advanceUntilIdle()
 
-        assertEquals(0, repository.addEvolucionCallCount)
+        assertEquals(0, notes.addEvolucionCallCount)
         assertEquals("Completa los campos requeridos", vm.uiState.value.error)
     }
 
     @Test
     fun `save blocks when objective is blank`() = runTest(dispatcher) {
         val hospitalization = sampleHospitalization("h1", samplePatient.id)
-        val repository = FakeHospitalizationRepository(listOf(hospitalization))
+        val repository = FakeEpisodeRepository(listOf(hospitalization))
+        val notes = FakeClinicalNoteRepository()
         val vm = NuevaEvolucionViewModel(
             FakePatientRepository(listOf(samplePatient)),
             repository,
+            notes,
             FakeSessionRepository(sampleSession),
             FakeClock(Instant.parse("2026-06-18T22:30:00Z")),
         )
@@ -300,17 +307,19 @@ class NuevaEvolucionViewModelTest {
         vm.save()
         dispatcher.scheduler.advanceUntilIdle()
 
-        assertEquals(0, repository.addEvolucionCallCount)
+        assertEquals(0, notes.addEvolucionCallCount)
         assertEquals("Completa los campos requeridos", vm.uiState.value.error)
     }
 
     @Test
     fun `save blocks when no diagnosis has a description`() = runTest(dispatcher) {
         val hospitalization = sampleHospitalization("h1", samplePatient.id)
-        val repository = FakeHospitalizationRepository(listOf(hospitalization))
+        val repository = FakeEpisodeRepository(listOf(hospitalization))
+        val notes = FakeClinicalNoteRepository()
         val vm = NuevaEvolucionViewModel(
             FakePatientRepository(listOf(samplePatient)),
             repository,
+            notes,
             FakeSessionRepository(sampleSession),
             FakeClock(Instant.parse("2026-06-18T22:30:00Z")),
         )
@@ -322,17 +331,19 @@ class NuevaEvolucionViewModelTest {
         vm.save()
         dispatcher.scheduler.advanceUntilIdle()
 
-        assertEquals(0, repository.addEvolucionCallCount)
+        assertEquals(0, notes.addEvolucionCallCount)
         assertEquals("Completa los campos requeridos", vm.uiState.value.error)
     }
 
     @Test
     fun `save blocks when pronostico is blank`() = runTest(dispatcher) {
         val hospitalization = sampleHospitalization("h1", samplePatient.id)
-        val repository = FakeHospitalizationRepository(listOf(hospitalization))
+        val repository = FakeEpisodeRepository(listOf(hospitalization))
+        val notes = FakeClinicalNoteRepository()
         val vm = NuevaEvolucionViewModel(
             FakePatientRepository(listOf(samplePatient)),
             repository,
+            notes,
             FakeSessionRepository(sampleSession),
             FakeClock(Instant.parse("2026-06-18T22:30:00Z")),
         )
@@ -344,17 +355,19 @@ class NuevaEvolucionViewModelTest {
         vm.save()
         dispatcher.scheduler.advanceUntilIdle()
 
-        assertEquals(0, repository.addEvolucionCallCount)
+        assertEquals(0, notes.addEvolucionCallCount)
         assertEquals("Completa los campos requeridos", vm.uiState.value.error)
     }
 
     @Test
     fun `save blocks when resultado evolucion is blank`() = runTest(dispatcher) {
         val hospitalization = sampleHospitalization("h1", samplePatient.id)
-        val repository = FakeHospitalizationRepository(listOf(hospitalization))
+        val repository = FakeEpisodeRepository(listOf(hospitalization))
+        val notes = FakeClinicalNoteRepository()
         val vm = NuevaEvolucionViewModel(
             FakePatientRepository(listOf(samplePatient)),
             repository,
+            notes,
             FakeSessionRepository(sampleSession),
             FakeClock(Instant.parse("2026-06-18T22:30:00Z")),
         )
@@ -366,7 +379,7 @@ class NuevaEvolucionViewModelTest {
         vm.save()
         dispatcher.scheduler.advanceUntilIdle()
 
-        assertEquals(0, repository.addEvolucionCallCount)
+        assertEquals(0, notes.addEvolucionCallCount)
         assertEquals("Completa los campos requeridos", vm.uiState.value.error)
     }
 
@@ -374,10 +387,12 @@ class NuevaEvolucionViewModelTest {
     fun `save succeeds, filters blank rows, defaults rx, and sets medico from the session display name`() =
         runTest(dispatcher) {
             val hospitalization = sampleHospitalization("h1", samplePatient.id)
-            val repository = FakeHospitalizationRepository(listOf(hospitalization))
+            val repository = FakeEpisodeRepository(listOf(hospitalization))
+            val notes = FakeClinicalNoteRepository()
             val vm = NuevaEvolucionViewModel(
                 FakePatientRepository(listOf(samplePatient)),
                 repository,
+                notes,
                 FakeSessionRepository(sampleSession),
                 FakeClock(Instant.parse("2026-06-18T22:30:00Z")),
             )
@@ -391,7 +406,7 @@ class NuevaEvolucionViewModelTest {
             vm.save()
             dispatcher.scheduler.advanceUntilIdle()
 
-            val created = repository.lastAddedEvolucion
+            val created = notes.lastAddedEvolucion
             requireNotNull(created)
             assertEquals(1, created.diagnosticos.size)
             assertEquals("Neumonia", created.diagnosticos.single().descripcion)
@@ -408,10 +423,12 @@ class NuevaEvolucionViewModelTest {
     @Test
     fun `save ignores a second call while already saving`() = runTest(dispatcher) {
         val hospitalization = sampleHospitalization("h1", samplePatient.id)
-        val repository = FakeHospitalizationRepository(listOf(hospitalization))
+        val repository = FakeEpisodeRepository(listOf(hospitalization))
+        val notes = FakeClinicalNoteRepository()
         val vm = NuevaEvolucionViewModel(
             FakePatientRepository(listOf(samplePatient)),
             repository,
+            notes,
             FakeSessionRepository(sampleSession),
             FakeClock(Instant.parse("2026-06-18T22:30:00Z")),
         )
@@ -423,7 +440,7 @@ class NuevaEvolucionViewModelTest {
         vm.save()
         dispatcher.scheduler.advanceUntilIdle()
 
-        assertEquals(1, repository.addEvolucionCallCount)
+        assertEquals(1, notes.addEvolucionCallCount)
     }
 
     @Test

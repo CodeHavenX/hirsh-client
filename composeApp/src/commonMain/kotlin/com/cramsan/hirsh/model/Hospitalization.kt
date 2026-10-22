@@ -4,11 +4,11 @@ import kotlin.time.Instant
 
 /**
  * One hospital stay -- the backend's `EpisodeResponse`/`EpisodeSummary` (HISS-631). Field names
- * follow the API; the class keeps the prototype's name until the repository split (HISS-641).
+ * follow the API; the class keeps the prototype's name. Its Historia Clinica and evoluciones are
+ * not part of it: they live in [com.cramsan.hirsh.repository.ClinicalNoteRepository] (HISS-641).
  *
  * [currentService]/[currentBed]/[attendingPhysician] are references to real backend rows, all
- * nullable as in the API (an outpatient episode has no bed). [historiaClinica]/[evoluciones] have
- * no episode-level equivalent server side and stay client-only until HISS-641 moves them out.
+ * nullable as in the API (an outpatient episode has no bed).
  */
 data class Hospitalizacion(
     val id: String,
@@ -21,11 +21,9 @@ data class Hospitalizacion(
     val endDate: Instant?,
     val admissionReason: String?,
     val status: EpisodeStatus,
-    val historiaClinica: HistoriaClinica,
-    val evoluciones: List<Evolucion>,
     /**
      * The real backend's optimistic-lock version on this row (HISS-604) -- a write against a
-     * stale version (e.g. [com.cramsan.hirsh.repository.HospitalizationRepository.discharge]'s
+     * stale version (e.g. [com.cramsan.hirsh.repository.EpisodeRepository.discharge]'s
      * `DischargeEpisodeRequest` equivalent) is rejected with
      * [com.cramsan.hirsh.network.ApiError.Conflict] rather than silently overwriting a
      * concurrent edit. See [Patient.jpaVersion]'s doc comment.

@@ -5,7 +5,6 @@ import com.cramsan.hirsh.model.DischargeCondition
 import com.cramsan.hirsh.model.DischargeDetails
 import com.cramsan.hirsh.model.DischargeType
 import com.cramsan.hirsh.model.EpisodeStatus
-import com.cramsan.hirsh.model.HistoriaClinica
 import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.ServiceRef
 import com.cramsan.hirsh.model.UserRef
@@ -16,7 +15,7 @@ import kotlin.time.Instant
  * Body of `POST /api/v1/episodes` -- schema `CreateEpisodeRequest`. Only the fields the admission
  * form collects are sent; `admissionType`/`referralSource` have no input yet, and `startDate` is
  * left to the server's own clock (the same "callers never supply it" rule as
- * [com.cramsan.hirsh.repository.HospitalizationRepository.addHospitalization]).
+ * [com.cramsan.hirsh.repository.EpisodeRepository.addHospitalization]).
  */
 @Serializable
 data class CreateEpisodeRequest(
@@ -195,8 +194,7 @@ fun BedRefDto.toDomain(): BedRef = BedRef(id = id, number = number)
 
 /**
  * Wire timestamps are `OffsetDateTime`s (e.g. `2026-06-01T10:00:00-05:00`); [Instant.parse]
- * accepts the offset form. [Hospitalizacion.historiaClinica]/[Hospitalizacion.evoluciones] have no
- * server-side equivalent (HISS-641), so a real episode always starts with both empty.
+ * accepts the offset form.
  */
 fun EpisodeResponse.toDomain(): Hospitalizacion = Hospitalizacion(
     id = id,
@@ -208,8 +206,6 @@ fun EpisodeResponse.toDomain(): Hospitalizacion = Hospitalizacion(
     endDate = endDate?.let(Instant::parse),
     admissionReason = admissionReason,
     status = status.toDomain(),
-    historiaClinica = HistoriaClinica(),
-    evoluciones = emptyList(),
     jpaVersion = audit.jpaVersion,
     discharge = dischargeDetails(),
 )
@@ -225,6 +221,4 @@ fun EpisodeSummary.toDomain(): Hospitalizacion = Hospitalizacion(
     endDate = endDate?.let(Instant::parse),
     admissionReason = admissionReason,
     status = status.toDomain(),
-    historiaClinica = HistoriaClinica(),
-    evoluciones = emptyList(),
 )

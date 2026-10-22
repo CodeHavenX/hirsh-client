@@ -21,7 +21,7 @@ import kotlin.test.assertTrue
  * Each @Test method here runs against its OWN freshly-launched app instance -- see
  * [DesktopE2ETest]/[WebE2ETest]'s [Before][org.junit.Before]/[After][org.junit.After]
  * (not [BeforeClass][org.junit.BeforeClass]/[AfterClass][org.junit.AfterClass]) setup.
- * `InMemoryHospitalizationRepository`/`InMemoryAccountRepository` (wired in `AppModule.kt`) are
+ * `InMemoryEpisodeRepository`/`InMemoryClinicalNoteRepository`/`InMemoryAccountRepository` (wired in `AppModule.kt`) are
  * in-process Koin singletons with no external persistence, so a fresh process launch is a full,
  * free reset back to their seeded fixture data below. **As of HISS-611, `AuthRepository`** is
  * `KtorAuthRepository`, and **as of HISS-622, `PatientRepository`** is `KtorPatientRepository` --
@@ -48,14 +48,14 @@ import kotlin.test.assertTrue
  * again from a list without knowing its id -- matches on rendered content instead via
  * [tagOfNodeContaining].
  *
- * Seeded fixture data still referenced below (from `InMemoryHospitalizationRepository`/
+ * Seeded fixture data still referenced below (from `InMemoryEpisodeRepository`/
  * `InMemoryAccountRepository`, seeded from `prototype/shared/data.js`): accounts `admin`/ADMIN.
  * Patients are no longer seeded fixtures as of HISS-622 -- every patient-dependent test below
  * registers its own. `test02`/`test03` below are `@Ignore`d: they need a seeded inactive account
  * and a seeded non-admin account respectively, and only an admin account is seeded in the real
  * backend as of this ticket -- re-enable once account provisioning is real too (HISS-651+).
  * `test06`/`test13` below need a hospitalization with a specific state (populated/Activa) but
- * `InMemoryHospitalizationRepository` itself is still fake and unaffected by HISS-622 -- they get
+ * `InMemoryEpisodeRepository` itself is still fake and unaffected by HISS-622 -- they get
  * there by driving the real Admision flow ([admitPatient]) against a patient they just registered,
  * rather than by depending on that repository's own (now-orphaned) seeded hospitalizations.
  *

@@ -16,8 +16,6 @@ class HospitalizationTest {
         endDate = null,
         admissionReason = null,
         status = EpisodeStatus.ACTIVE,
-        historiaClinica = HistoriaClinica(),
-        evoluciones = emptyList(),
     )
 
     @Test

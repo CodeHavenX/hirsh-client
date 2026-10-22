@@ -5,7 +5,6 @@ import com.cramsan.hirsh.model.DischargeCondition
 import com.cramsan.hirsh.model.DischargeType
 import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.EpisodeStatus
-import com.cramsan.hirsh.model.HistoriaClinica
 import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.Icd10Code
 import com.cramsan.hirsh.model.Patient
@@ -38,8 +37,6 @@ private val previewHospitalizacion = Hospitalizacion(
     endDate = null,
     admissionReason = "Ideacion suicida",
     status = EpisodeStatus.ACTIVE,
-    historiaClinica = HistoriaClinica(),
-    evoluciones = emptyList(),
 )
 
 private val depressionCodes = listOf(

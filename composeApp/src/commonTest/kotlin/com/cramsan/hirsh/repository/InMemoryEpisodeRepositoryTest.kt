@@ -1,17 +1,10 @@
 package com.cramsan.hirsh.repository
 
 import app.cash.turbine.test
-import com.cramsan.hirsh.model.DiagnosticoCie10
 import com.cramsan.hirsh.model.DischargeCondition
 import com.cramsan.hirsh.model.DischargeDetails
 import com.cramsan.hirsh.model.DischargeType
 import com.cramsan.hirsh.model.EpisodeStatus
-import com.cramsan.hirsh.model.Evolucion
-import com.cramsan.hirsh.model.EvolucionResultado
-import com.cramsan.hirsh.model.Filiacion
-import com.cramsan.hirsh.model.HcSectionKey
-import com.cramsan.hirsh.model.Pronostico
-import com.cramsan.hirsh.model.Vitals
 import com.cramsan.hirsh.network.ApiError
 import com.cramsan.hirsh.network.ApiException
 import com.cramsan.hirsh.util.Clock
@@ -38,29 +31,11 @@ private class FakeClock(private val instant: Instant = FIXED_NOW) : Clock {
     override fun now(): Instant = instant
 }
 
-private fun draftEvolucion(fecha: String = "15 Jan 2027", hora: String = "10:30") = Evolucion(
-    id = "ignored",
-    fecha = fecha,
-    hora = hora,
-    medico = "Dr. Hirsh",
-    vitals = Vitals(pa = "120/80", fc = "70", fr = "16", temp = "36.5", satO2 = "98", fio2 = "21"),
-    diagnosticos = listOf(DiagnosticoCie10("J20.9", "Bronquitis aguda")),
-    subjective = "s",
-    objective = "o",
-    assessment = "a",
-    plan = "p",
-    rx = "—",
-    pronostico = Pronostico.FAVORABLE,
-    resultado = EvolucionResultado.FAVORABLE,
-    examenes = emptyList(),
-    examenesObs = "",
-)
-
-class HospitalizationRepositoryTest {
+class InMemoryEpisodeRepositoryTest {
 
     @Test
     fun `getHospitalizations returns only the requested patient's stays`() = runTest {
-        val repository = InMemoryHospitalizationRepository(FakeClock())
+        val repository = InMemoryEpisodeRepository(FakeClock())
 
         repository.getHospitalizations(PATIENT_GONZALEZ_ID).test {
             assertEquals(3, awaitItem().size)
@@ -69,7 +44,7 @@ class HospitalizationRepositoryTest {
 
     @Test
     fun `getHospitalizations is empty for a patient with none`() = runTest {
-        val repository = InMemoryHospitalizationRepository(FakeClock())
+        val repository = InMemoryEpisodeRepository(FakeClock())
 
         repository.getHospitalizations(PATIENT_SANTIESTEBAN_ID).test {
             assertEquals(emptyList(), awaitItem())
@@ -78,7 +53,7 @@ class HospitalizationRepositoryTest {
 
     @Test
     fun `getHospitalization resolves by patientId and hospId together`() = runTest {
-        val repository = InMemoryHospitalizationRepository(FakeClock())
+        val repository = InMemoryEpisodeRepository(FakeClock())
 
         repository.getHospitalization(PATIENT_MENDOZA_ID, "h_mendoza_1").test {
             assertEquals("h_mendoza_1", awaitItem()?.id)
@@ -87,7 +62,7 @@ class HospitalizationRepositoryTest {
 
     @Test
     fun `getHospitalization does not fall back when hospId belongs to a different patient`() = runTest {
-        val repository = InMemoryHospitalizationRepository(FakeClock())
+        val repository = InMemoryEpisodeRepository(FakeClock())
 
         // h_mendoza_1 is real, but under PATIENT_MENDOZA_ID, not PATIENT_VASQUEZ_ID -- must resolve to
         // not-found, never render Jesus's stay under Maria Vasquez's record.
@@ -97,26 +72,8 @@ class HospitalizationRepositoryTest {
     }
 
     @Test
-    fun `getEvolucion resolves a nested evolucion by hospId and evoId`() = runTest {
-        val repository = InMemoryHospitalizationRepository(FakeClock())
-
-        repository.getEvolucion("h_mendoza_1", "v5").test {
-            assertEquals("v5", awaitItem()?.id)
-        }
-    }
-
-    @Test
-    fun `getEvolucion is null for an unknown evoId`() = runTest {
-        val repository = InMemoryHospitalizationRepository(FakeClock())
-
-        repository.getEvolucion("h_mendoza_1", "does-not-exist").test {
-            assertNull(awaitItem())
-        }
-    }
-
-    @Test
     fun `addHospitalization stamps startDate to now, keeps the given references, and starts ACTIVE`() = runTest {
-        val repository = InMemoryHospitalizationRepository(FakeClock())
+        val repository = InMemoryEpisodeRepository(FakeClock())
 
         val created = repository.addHospitalization(
             patientId = PATIENT_SANTIESTEBAN_ID,
@@ -138,7 +95,7 @@ class HospitalizationRepositoryTest {
 
     @Test
     fun `addHospitalization is visible to an existing getHospitalizations observer`() = runTest {
-        val repository = InMemoryHospitalizationRepository(FakeClock())
+        val repository = InMemoryEpisodeRepository(FakeClock())
 
         repository.getHospitalizations(PATIENT_SANTIESTEBAN_ID).test {
             assertEquals(emptyList(), awaitItem())
@@ -155,7 +112,7 @@ class HospitalizationRepositoryTest {
 
     @Test
     fun `addHospitalization refuses a second active stay with Conflict naming the open one`() = runTest {
-        val repository = InMemoryHospitalizationRepository(FakeClock())
+        val repository = InMemoryEpisodeRepository(FakeClock())
 
         val error = assertFailsWith<ApiException> {
             repository.addHospitalization(
@@ -173,7 +130,7 @@ class HospitalizationRepositoryTest {
 
     @Test
     fun `discharge sets status to CLOSED, stamps endDate and records the details`() = runTest {
-        val repository = InMemoryHospitalizationRepository(FakeClock())
+        val repository = InMemoryEpisodeRepository(FakeClock())
 
         repository.discharge("h_mendoza_1", DISCHARGE, jpaVersion = 0L)
 
@@ -187,7 +144,7 @@ class HospitalizationRepositoryTest {
 
     @Test
     fun `a transfer discharge sets status to TRANSFERRED, as the backend does`() = runTest {
-        val repository = InMemoryHospitalizationRepository(FakeClock())
+        val repository = InMemoryEpisodeRepository(FakeClock())
 
         repository.discharge("h_mendoza_1", DISCHARGE.copy(type = DischargeType.TRANSFER), jpaVersion = 0L)
 
@@ -198,7 +155,7 @@ class HospitalizationRepositoryTest {
 
     @Test
     fun `discharge of an unknown hospId throws NotFound, as the backend does`() = runTest {
-        val repository = InMemoryHospitalizationRepository(FakeClock())
+        val repository = InMemoryEpisodeRepository(FakeClock())
 
         val error = assertFailsWith<ApiException> { repository.discharge("does-not-exist", DISCHARGE, jpaVersion = 0L) }
 
@@ -207,7 +164,7 @@ class HospitalizationRepositoryTest {
 
     @Test
     fun `discharge bumps jpaVersion on success`() = runTest {
-        val repository = InMemoryHospitalizationRepository(FakeClock())
+        val repository = InMemoryEpisodeRepository(FakeClock())
 
         repository.discharge("h_mendoza_1", DISCHARGE, jpaVersion = 0L)
 
@@ -219,7 +176,7 @@ class HospitalizationRepositoryTest {
     @Test
     fun `discharge against a stale jpaVersion throws ApiException wrapping Conflict, without mutating the record`() =
         runTest {
-            val repository = InMemoryHospitalizationRepository(FakeClock())
+            val repository = InMemoryEpisodeRepository(FakeClock())
 
             val exception = assertFailsWith<ApiException> {
                 repository.discharge("h_mendoza_1", DISCHARGE, jpaVersion = 99L)
@@ -232,77 +189,4 @@ class HospitalizationRepositoryTest {
                 assertEquals(0L, hospitalization?.jpaVersion)
             }
         }
-
-    @Test
-    fun `saveHistoriaClinicaSection marks the section complete and leaves others untouched`() = runTest {
-        val repository = InMemoryHospitalizationRepository(FakeClock())
-        val newFiliacion = Filiacion(
-            edad = "36 anos",
-            fechaNacimiento = "10/08/1990",
-            estadoCivil = "Soltero(a)",
-            sexo = "Masculino",
-            dni = "70567572",
-            gradoInstruccion = "Superior",
-            ocupacion = "Su casa",
-            lugarNacimiento = "Lurin",
-            lugarProcedencia = "San Bartolo, Lima",
-            familiarResponsable = "—",
-            direccion = "Asent.H. San Jose, San Bartolo",
-            servicioIngreso = "Emergencia - Topico de Medicina",
-        )
-
-        repository.saveHistoriaClinicaSection("h_mendoza_1", HcSectionKey.FILIACION, newFiliacion)
-
-        repository.getHospitalization(PATIENT_MENDOZA_ID, "h_mendoza_1").test {
-            val hc = awaitItem()?.historiaClinica
-            assertEquals(true, hc?.filiacion?.complete)
-            assertEquals(newFiliacion, hc?.filiacion?.data)
-            assertEquals(false, hc?.motivoIngreso?.complete)
-        }
-    }
-
-    @Test
-    fun `saveHistoriaClinicaSection rejects a section with no digital form yet`() = runTest {
-        val repository = InMemoryHospitalizationRepository(FakeClock())
-
-        val result = runCatching {
-            repository.saveHistoriaClinicaSection("h_mendoza_1", HcSectionKey.ANTECEDENTES, "anything")
-        }
-
-        assertTrue(result.isFailure)
-    }
-
-    @Test
-    fun `addEvolucion assigns its own id, ignoring any id on the passed evolucion`() = runTest {
-        val repository = InMemoryHospitalizationRepository(FakeClock())
-
-        val created = repository.addEvolucion("h_mendoza_1", draftEvolucion())
-
-        assertTrue(created.id.startsWith("evo_"))
-        assertTrue(created.id != "ignored")
-    }
-
-    @Test
-    fun `addEvolucion prepends so the newest evolucion is first, matching seed ordering`() = runTest {
-        val repository = InMemoryHospitalizationRepository(FakeClock())
-
-        repository.addEvolucion("h_mendoza_1", draftEvolucion())
-
-        repository.getHospitalization(PATIENT_MENDOZA_ID, "h_mendoza_1").test {
-            val evoluciones = awaitItem()?.evoluciones.orEmpty()
-            assertEquals(4, evoluciones.size)
-            assertEquals("15 Jan 2027", evoluciones.first().fecha)
-        }
-    }
-
-    @Test
-    fun `addEvolucion is visible to an existing getHospitalization observer without re-subscribing`() = runTest {
-        val repository = InMemoryHospitalizationRepository(FakeClock())
-
-        repository.getHospitalization(PATIENT_MENDOZA_ID, "h_mendoza_1").test {
-            assertEquals(3, awaitItem()?.evoluciones?.size)
-            repository.addEvolucion("h_mendoza_1", draftEvolucion())
-            assertEquals(4, awaitItem()?.evoluciones?.size)
-        }
-    }
 }

@@ -123,7 +123,7 @@ private fun previewHistoriaClinica(partial: Boolean) = HistoriaClinica(
     },
 )
 
-private fun previewHospitalizacion(historiaClinica: HistoriaClinica) = Hospitalizacion(
+private val previewHospitalizacion = Hospitalizacion(
     id = "h_ricaldi_1",
     patientId = previewPatient.id,
     currentService = PlaceholderCatalog.service("Psiquiatria (UHSMA)"),
@@ -133,31 +133,30 @@ private fun previewHospitalizacion(historiaClinica: HistoriaClinica) = Hospitali
     endDate = null,
     admissionReason = "Heteroagresividad, psicosis, adicciones",
     status = EpisodeStatus.ACTIVE,
-    historiaClinica = historiaClinica,
-    evoluciones = emptyList(),
 )
 
 private fun previewUiState(
-    hospitalizacion: Hospitalizacion,
+    historiaClinica: HistoriaClinica,
     activeSection: HcSectionKey = HcSectionKey.FILIACION,
 ) = HistoriaClinicaUiState(
     isLoading = false,
     patient = previewPatient,
-    hospitalizacion = hospitalizacion,
+    hospitalizacion = previewHospitalizacion,
+    historiaClinica = historiaClinica,
     activeSection = activeSection,
-    fieldValues = fieldMapFor(activeSection, hospitalizacion.historiaClinica).orEmpty(),
-    motivoIngresoDraft = hospitalizacion.historiaClinica.motivoIngreso.data ?: MotivoIngreso(),
+    fieldValues = fieldMapFor(activeSection, historiaClinica).orEmpty(),
+    motivoIngresoDraft = historiaClinica.motivoIngreso.data ?: MotivoIngreso(),
 )
 
 @PreviewResponsive
 @Composable
 private fun HistoriaClinicaScreenFiliacionPreview() {
-    val hospitalizacion = previewHospitalizacion(previewHistoriaClinica(partial = false))
+    val historiaClinica = previewHistoriaClinica(partial = false)
     HirshTheme {
         HistoriaClinicaScreenContent(
-            uiState = previewUiState(hospitalizacion),
+            uiState = previewUiState(historiaClinica),
             patientId = previewPatient.id,
-            hospId = hospitalizacion.id,
+            hospId = previewHospitalizacion.id,
             onClose = {},
             onOpenPrintPreview = {},
             onClosePrintPreview = {},
@@ -174,12 +173,12 @@ private fun HistoriaClinicaScreenFiliacionPreview() {
 @PreviewResponsive
 @Composable
 private fun HistoriaClinicaScreenPartialPreview() {
-    val hospitalizacion = previewHospitalizacion(previewHistoriaClinica(partial = true))
+    val historiaClinica = previewHistoriaClinica(partial = true)
     HirshTheme {
         HistoriaClinicaScreenContent(
-            uiState = previewUiState(hospitalizacion),
+            uiState = previewUiState(historiaClinica),
             patientId = previewPatient.id,
-            hospId = hospitalizacion.id,
+            hospId = previewHospitalizacion.id,
             onClose = {},
             onOpenPrintPreview = {},
             onClosePrintPreview = {},
@@ -196,12 +195,12 @@ private fun HistoriaClinicaScreenPartialPreview() {
 @PreviewResponsive
 @Composable
 private fun HistoriaClinicaScreenMotivoIngresoPreview() {
-    val hospitalizacion = previewHospitalizacion(previewHistoriaClinica(partial = false))
+    val historiaClinica = previewHistoriaClinica(partial = false)
     HirshTheme {
         HistoriaClinicaScreenContent(
-            uiState = previewUiState(hospitalizacion, activeSection = HcSectionKey.MOTIVO_INGRESO),
+            uiState = previewUiState(historiaClinica, activeSection = HcSectionKey.MOTIVO_INGRESO),
             patientId = previewPatient.id,
-            hospId = hospitalizacion.id,
+            hospId = previewHospitalizacion.id,
             onClose = {},
             onOpenPrintPreview = {},
             onClosePrintPreview = {},
@@ -218,11 +217,12 @@ private fun HistoriaClinicaScreenMotivoIngresoPreview() {
 @PreviewComponent
 @Composable
 private fun HistoriaClinicaPrintablePreview() {
-    val hospitalizacion = previewHospitalizacion(previewHistoriaClinica(partial = false))
+    val historiaClinica = previewHistoriaClinica(partial = false)
     HirshTheme {
         HistoriaClinicaPrintable(
             patient = previewPatient,
-            hospitalizacion = hospitalizacion,
+            hospitalizacion = previewHospitalizacion,
+            historiaClinica = historiaClinica,
             onBack = {},
         )
     }

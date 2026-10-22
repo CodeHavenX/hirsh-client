@@ -11,7 +11,8 @@ import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.Pronostico
 import com.cramsan.hirsh.model.Vitals
 import com.cramsan.hirsh.model.toDisplayLabel
-import com.cramsan.hirsh.repository.HospitalizationRepository
+import com.cramsan.hirsh.repository.ClinicalNoteRepository
+import com.cramsan.hirsh.repository.EpisodeRepository
 import com.cramsan.hirsh.repository.PatientRepository
 import com.cramsan.hirsh.repository.SessionRepository
 import com.cramsan.hirsh.util.Clock
@@ -70,7 +71,8 @@ data class NuevaEvolucionUiState(
 
 class NuevaEvolucionViewModel(
     private val patientRepository: PatientRepository,
-    private val hospitalizationRepository: HospitalizationRepository,
+    private val episodeRepository: EpisodeRepository,
+    private val clinicalNoteRepository: ClinicalNoteRepository,
     private val sessionRepository: SessionRepository,
     private val clock: Clock,
 ) : ViewModel() {
@@ -86,7 +88,7 @@ class NuevaEvolucionViewModel(
         _uiState.value = NuevaEvolucionUiState(isLoading = true, openedFecha = openedFecha, openedHora = openedHora)
         viewModelScope.launch {
             val patient = patientRepository.getPatient(patientId).first()
-            val hospitalizacion = hospitalizationRepository.getHospitalization(patientId, hospId).first()
+            val hospitalizacion = episodeRepository.getHospitalization(patientId, hospId).first()
             _uiState.update { it.copy(isLoading = false, patient = patient, hospitalizacion = hospitalizacion) }
         }
     }
@@ -165,7 +167,7 @@ class NuevaEvolucionViewModel(
             try {
                 val (fecha, hora) = nowFechaHora()
                 val medico = sessionRepository.session.value?.displayName.orEmpty()
-                val created = hospitalizationRepository.addEvolucion(
+                val created = clinicalNoteRepository.addEvolucion(
                     ids.second,
                     Evolucion(
                         id = "",

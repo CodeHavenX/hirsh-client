@@ -23,7 +23,8 @@ import com.cramsan.hirsh.model.ServiceRef
 import com.cramsan.hirsh.model.Severity
 import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.model.UserRef
-import com.cramsan.hirsh.repository.HospitalizationRepository
+import com.cramsan.hirsh.repository.ClinicalNoteRepository
+import com.cramsan.hirsh.repository.EpisodeRepository
 import com.cramsan.hirsh.repository.PatientRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -72,7 +73,7 @@ private fun sampleFiliacion() = Filiacion(
     servicioIngreso = "UHSMA",
 )
 
-private fun sampleHospitalization(id: String, patientId: String, historiaClinica: HistoriaClinica = HistoriaClinica()) =
+private fun sampleHospitalization(id: String, patientId: String) =
     Hospitalizacion(
         id = id,
         patientId = patientId,
@@ -83,8 +84,6 @@ private fun sampleHospitalization(id: String, patientId: String, historiaClinica
         endDate = null,
         admissionReason = "Heteroagresividad",
         status = EpisodeStatus.ACTIVE,
-        historiaClinica = historiaClinica,
-        evoluciones = emptyList(),
     )
 
 private class FakePatientRepository(patients: List<Patient>) : PatientRepository {
@@ -122,24 +121,15 @@ private class FakePatientRepository(patients: List<Patient>) : PatientRepository
     override suspend fun deleteAllergy(patientId: String, allergyId: String) = error("not used by this test")
 }
 
-private class FakeHospitalizationRepository(hospitalizations: List<Hospitalizacion> = emptyList()) :
-    HospitalizationRepository {
+private class FakeEpisodeRepository(hospitalizations: List<Hospitalizacion> = emptyList()) :
+    EpisodeRepository {
     private val _hospitalizations = MutableStateFlow(hospitalizations)
-    var lastSavedKey: HcSectionKey? = null
-        private set
-    var lastSavedData: Any? = null
-        private set
-    var saveCallCount = 0
-        private set
 
     override fun getHospitalizations(patientId: String): Flow<List<Hospitalizacion>> =
         _hospitalizations.map { list -> list.filter { it.patientId == patientId } }
 
     override fun getHospitalization(patientId: String, hospId: String): Flow<Hospitalizacion?> =
         _hospitalizations.map { list -> list.find { it.patientId == patientId && it.id == hospId } }
-
-    override fun getEvolucion(hospId: String, evoId: String): Flow<Evolucion?> =
-        _hospitalizations.map { list -> list.find { it.id == hospId }?.evoluciones?.find { it.id == evoId } }
 
     override suspend fun addHospitalization(
         patientId: String,
@@ -150,29 +140,41 @@ private class FakeHospitalizationRepository(hospitalizations: List<Hospitalizaci
     ): Hospitalizacion = error("not used by this test")
 
     override suspend fun discharge(hospId: String, details: DischargeDetails, jpaVersion: Long) = Unit
+}
+
+private class FakeClinicalNoteRepository(historiasClinicas: Map<String, HistoriaClinica> = emptyMap()) :
+    ClinicalNoteRepository {
+    private val historiasClinicas = MutableStateFlow(historiasClinicas)
+    var lastSavedKey: HcSectionKey? = null
+        private set
+    var lastSavedData: Any? = null
+        private set
+    var saveCallCount = 0
+        private set
+
+    override fun getHistoriaClinica(hospId: String): Flow<HistoriaClinica> =
+        historiasClinicas.map { it[hospId] ?: HistoriaClinica() }
+
+    override fun getEvoluciones(hospId: String): Flow<List<Evolucion>> = MutableStateFlow(emptyList())
+
+    override fun getEvolucion(hospId: String, evoId: String): Flow<Evolucion?> = MutableStateFlow(null)
 
     override suspend fun saveHistoriaClinicaSection(hospId: String, key: HcSectionKey, data: Any) {
         saveCallCount++
         lastSavedKey = key
         lastSavedData = data
-        _hospitalizations.update { list ->
-            list.map { hospitalization ->
-                if (hospitalization.id != hospId) {
-                    hospitalization
-                } else {
-                    val hc = hospitalization.historiaClinica
-                    val updatedHc = when (key) {
-                        HcSectionKey.FILIACION -> hc.copy(filiacion = HcSection(complete = true, data = data as Filiacion))
-                        HcSectionKey.MOTIVO_INGRESO -> hc.copy(motivoIngreso = HcSection(complete = true, data = data as MotivoIngreso))
-                        HcSectionKey.ENFERMEDAD_ACTUAL -> hc.copy(enfermedadActual = HcSection(complete = true, data = data as EnfermedadActual))
-                        HcSectionKey.EXAMEN_FISICO -> hc.copy(examenFisico = HcSection(complete = true, data = data as ExamenFisico))
-                        HcSectionKey.DIAGNOSTICO -> hc.copy(diagnostico = HcSection(complete = true, data = data as Diagnostico))
-                        HcSectionKey.PLAN -> hc.copy(plan = HcSection(complete = true, data = data as Plan))
-                        else -> hc
-                    }
-                    hospitalization.copy(historiaClinica = updatedHc)
-                }
+        historiasClinicas.update { all ->
+            val hc = all[hospId] ?: HistoriaClinica()
+            val updatedHc = when (key) {
+                HcSectionKey.FILIACION -> hc.copy(filiacion = HcSection(complete = true, data = data as Filiacion))
+                HcSectionKey.MOTIVO_INGRESO -> hc.copy(motivoIngreso = HcSection(complete = true, data = data as MotivoIngreso))
+                HcSectionKey.ENFERMEDAD_ACTUAL -> hc.copy(enfermedadActual = HcSection(complete = true, data = data as EnfermedadActual))
+                HcSectionKey.EXAMEN_FISICO -> hc.copy(examenFisico = HcSection(complete = true, data = data as ExamenFisico))
+                HcSectionKey.DIAGNOSTICO -> hc.copy(diagnostico = HcSection(complete = true, data = data as Diagnostico))
+                HcSectionKey.PLAN -> hc.copy(plan = HcSection(complete = true, data = data as Plan))
+                else -> hc
             }
+            all + (hospId to updatedHc)
         }
     }
 
@@ -199,7 +201,8 @@ class HistoriaClinicaViewModelTest {
         val hospitalization = sampleHospitalization("h1", samplePatient.id)
         val viewModel = HistoriaClinicaViewModel(
             FakePatientRepository(listOf(samplePatient)),
-            FakeHospitalizationRepository(listOf(hospitalization)),
+            FakeEpisodeRepository(listOf(hospitalization)),
+            FakeClinicalNoteRepository(),
         )
 
         viewModel.uiState.test {
@@ -217,7 +220,8 @@ class HistoriaClinicaViewModelTest {
         val hospitalization = sampleHospitalization("h1", "other-patient-id")
         val viewModel = HistoriaClinicaViewModel(
             FakePatientRepository(listOf(samplePatient)),
-            FakeHospitalizationRepository(listOf(hospitalization)),
+            FakeEpisodeRepository(listOf(hospitalization)),
+            FakeClinicalNoteRepository(),
         )
 
         viewModel.uiState.test {
@@ -234,7 +238,8 @@ class HistoriaClinicaViewModelTest {
     fun `load produces not-found when the patient does not exist`() = runTest(dispatcher) {
         val viewModel = HistoriaClinicaViewModel(
             FakePatientRepository(emptyList()),
-            FakeHospitalizationRepository(),
+            FakeEpisodeRepository(),
+            FakeClinicalNoteRepository(),
         )
 
         viewModel.uiState.test {
@@ -250,10 +255,11 @@ class HistoriaClinicaViewModelTest {
     @Test
     fun `field values are seeded from persisted data with no explicit selectSection call`() = runTest(dispatcher) {
         val hc = HistoriaClinica(filiacion = HcSection(complete = true, data = sampleFiliacion()))
-        val hospitalization = sampleHospitalization("h1", samplePatient.id, hc)
+        val hospitalization = sampleHospitalization("h1", samplePatient.id)
         val viewModel = HistoriaClinicaViewModel(
             FakePatientRepository(listOf(samplePatient)),
-            FakeHospitalizationRepository(listOf(hospitalization)),
+            FakeEpisodeRepository(listOf(hospitalization)),
+            FakeClinicalNoteRepository(mapOf("h1" to hc)),
         )
 
         viewModel.uiState.test {
@@ -271,7 +277,8 @@ class HistoriaClinicaViewModelTest {
         val hospitalization = sampleHospitalization("h1", samplePatient.id)
         val viewModel = HistoriaClinicaViewModel(
             FakePatientRepository(listOf(samplePatient)),
-            FakeHospitalizationRepository(listOf(hospitalization)),
+            FakeEpisodeRepository(listOf(hospitalization)),
+            FakeClinicalNoteRepository(),
         )
 
         viewModel.uiState.test {
@@ -286,10 +293,11 @@ class HistoriaClinicaViewModelTest {
     @Test
     fun `onFieldChange overrides just that field`() = runTest(dispatcher) {
         val hc = HistoriaClinica(filiacion = HcSection(complete = true, data = sampleFiliacion()))
-        val hospitalization = sampleHospitalization("h1", samplePatient.id, hc)
+        val hospitalization = sampleHospitalization("h1", samplePatient.id)
         val viewModel = HistoriaClinicaViewModel(
             FakePatientRepository(listOf(samplePatient)),
-            FakeHospitalizationRepository(listOf(hospitalization)),
+            FakeEpisodeRepository(listOf(hospitalization)),
+            FakeClinicalNoteRepository(mapOf("h1" to hc)),
         )
 
         viewModel.uiState.test {
@@ -309,10 +317,11 @@ class HistoriaClinicaViewModelTest {
     @Test
     fun `selectSection clears overrides from the previously active section`() = runTest(dispatcher) {
         val hc = HistoriaClinica(filiacion = HcSection(complete = true, data = sampleFiliacion()))
-        val hospitalization = sampleHospitalization("h1", samplePatient.id, hc)
+        val hospitalization = sampleHospitalization("h1", samplePatient.id)
         val viewModel = HistoriaClinicaViewModel(
             FakePatientRepository(listOf(samplePatient)),
-            FakeHospitalizationRepository(listOf(hospitalization)),
+            FakeEpisodeRepository(listOf(hospitalization)),
+            FakeClinicalNoteRepository(mapOf("h1" to hc)),
         )
 
         viewModel.uiState.test {
@@ -335,8 +344,9 @@ class HistoriaClinicaViewModelTest {
     @Test
     fun `save maps fieldValues to Filiacion`() = runTest(dispatcher) {
         val hospitalization = sampleHospitalization("h1", samplePatient.id)
-        val repository = FakeHospitalizationRepository(listOf(hospitalization))
-        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository)
+        val repository = FakeEpisodeRepository(listOf(hospitalization))
+        val notes = FakeClinicalNoteRepository()
+        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository, notes)
         viewModel.load(samplePatient.id, hospitalization.id)
         dispatcher.scheduler.advanceUntilIdle()
 
@@ -346,8 +356,8 @@ class HistoriaClinicaViewModelTest {
         viewModel.save()
         dispatcher.scheduler.advanceUntilIdle()
 
-        assertEquals(HcSectionKey.FILIACION, repository.lastSavedKey)
-        val saved = repository.lastSavedData as Filiacion
+        assertEquals(HcSectionKey.FILIACION, notes.lastSavedKey)
+        val saved = notes.lastSavedData as Filiacion
         assertEquals("13 anos", saved.edad)
         assertEquals("70083906", saved.dni)
     }
@@ -355,8 +365,9 @@ class HistoriaClinicaViewModelTest {
     @Test
     fun `save maps fieldValues to EnfermedadActual`() = runTest(dispatcher) {
         val hospitalization = sampleHospitalization("h1", samplePatient.id)
-        val repository = FakeHospitalizationRepository(listOf(hospitalization))
-        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository)
+        val repository = FakeEpisodeRepository(listOf(hospitalization))
+        val notes = FakeClinicalNoteRepository()
+        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository, notes)
         viewModel.load(samplePatient.id, hospitalization.id)
         dispatcher.scheduler.advanceUntilIdle()
 
@@ -366,15 +377,16 @@ class HistoriaClinicaViewModelTest {
         viewModel.save()
         dispatcher.scheduler.advanceUntilIdle()
 
-        assertEquals(HcSectionKey.ENFERMEDAD_ACTUAL, repository.lastSavedKey)
-        assertEquals("Episodio actual...", (repository.lastSavedData as EnfermedadActual).relato)
+        assertEquals(HcSectionKey.ENFERMEDAD_ACTUAL, notes.lastSavedKey)
+        assertEquals("Episodio actual...", (notes.lastSavedData as EnfermedadActual).relato)
     }
 
     @Test
     fun `save maps fieldValues to ExamenFisico including nested examenRegional`() = runTest(dispatcher) {
         val hospitalization = sampleHospitalization("h1", samplePatient.id)
-        val repository = FakeHospitalizationRepository(listOf(hospitalization))
-        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository)
+        val repository = FakeEpisodeRepository(listOf(hospitalization))
+        val notes = FakeClinicalNoteRepository()
+        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository, notes)
         viewModel.load(samplePatient.id, hospitalization.id)
         dispatcher.scheduler.advanceUntilIdle()
 
@@ -385,8 +397,8 @@ class HistoriaClinicaViewModelTest {
         viewModel.save()
         dispatcher.scheduler.advanceUntilIdle()
 
-        assertEquals(HcSectionKey.EXAMEN_FISICO, repository.lastSavedKey)
-        val saved = repository.lastSavedData as ExamenFisico
+        assertEquals(HcSectionKey.EXAMEN_FISICO, notes.lastSavedKey)
+        val saved = notes.lastSavedData as ExamenFisico
         assertEquals("110/70", saved.pa)
         assertEquals("Normocefalo.", saved.examenRegional.cabezaCuello)
     }
@@ -394,8 +406,9 @@ class HistoriaClinicaViewModelTest {
     @Test
     fun `save maps fieldValues to Diagnostico`() = runTest(dispatcher) {
         val hospitalization = sampleHospitalization("h1", samplePatient.id)
-        val repository = FakeHospitalizationRepository(listOf(hospitalization))
-        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository)
+        val repository = FakeEpisodeRepository(listOf(hospitalization))
+        val notes = FakeClinicalNoteRepository()
+        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository, notes)
         viewModel.load(samplePatient.id, hospitalization.id)
         dispatcher.scheduler.advanceUntilIdle()
 
@@ -405,15 +418,16 @@ class HistoriaClinicaViewModelTest {
         viewModel.save()
         dispatcher.scheduler.advanceUntilIdle()
 
-        assertEquals(HcSectionKey.DIAGNOSTICO, repository.lastSavedKey)
-        assertEquals("Psicosis aguda", (repository.lastSavedData as Diagnostico).ejeI)
+        assertEquals(HcSectionKey.DIAGNOSTICO, notes.lastSavedKey)
+        assertEquals("Psicosis aguda", (notes.lastSavedData as Diagnostico).ejeI)
     }
 
     @Test
     fun `save maps fieldValues to Plan`() = runTest(dispatcher) {
         val hospitalization = sampleHospitalization("h1", samplePatient.id)
-        val repository = FakeHospitalizationRepository(listOf(hospitalization))
-        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository)
+        val repository = FakeEpisodeRepository(listOf(hospitalization))
+        val notes = FakeClinicalNoteRepository()
+        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository, notes)
         viewModel.load(samplePatient.id, hospitalization.id)
         dispatcher.scheduler.advanceUntilIdle()
 
@@ -423,15 +437,16 @@ class HistoriaClinicaViewModelTest {
         viewModel.save()
         dispatcher.scheduler.advanceUntilIdle()
 
-        assertEquals(HcSectionKey.PLAN, repository.lastSavedKey)
-        assertEquals("UHSMA", (repository.lastSavedData as Plan).lugarHospitalizacion)
+        assertEquals(HcSectionKey.PLAN, notes.lastSavedKey)
+        assertEquals("UHSMA", (notes.lastSavedData as Plan).lugarHospitalizacion)
     }
 
     @Test
     fun `save maps Motivo de Ingreso checkbox draft`() = runTest(dispatcher) {
         val hospitalization = sampleHospitalization("h1", samplePatient.id)
-        val repository = FakeHospitalizationRepository(listOf(hospitalization))
-        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository)
+        val repository = FakeEpisodeRepository(listOf(hospitalization))
+        val notes = FakeClinicalNoteRepository()
+        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository, notes)
         viewModel.load(samplePatient.id, hospitalization.id)
         dispatcher.scheduler.advanceUntilIdle()
 
@@ -442,8 +457,8 @@ class HistoriaClinicaViewModelTest {
         viewModel.save()
         dispatcher.scheduler.advanceUntilIdle()
 
-        assertEquals(HcSectionKey.MOTIVO_INGRESO, repository.lastSavedKey)
-        val saved = repository.lastSavedData as MotivoIngreso
+        assertEquals(HcSectionKey.MOTIVO_INGRESO, notes.lastSavedKey)
+        val saved = notes.lastSavedData as MotivoIngreso
         assertEquals(true, saved.psicosis)
         assertEquals("detalle", saved.otrosDetalle)
     }
@@ -451,14 +466,15 @@ class HistoriaClinicaViewModelTest {
     @Test
     fun `a saved section is reflected live without calling load again`() = runTest(dispatcher) {
         val hospitalization = sampleHospitalization("h1", samplePatient.id)
-        val repository = FakeHospitalizationRepository(listOf(hospitalization))
-        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository)
+        val repository = FakeEpisodeRepository(listOf(hospitalization))
+        val notes = FakeClinicalNoteRepository()
+        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository, notes)
 
         viewModel.uiState.test {
             awaitItem()
             viewModel.load(samplePatient.id, hospitalization.id)
             val loaded = awaitItem()
-            assertEquals(false, loaded.hospitalizacion?.historiaClinica?.filiacion?.complete)
+            assertEquals(false, loaded.historiaClinica.filiacion.complete)
 
             viewModel.onFieldChange("edad", "13 anos")
             var latest = awaitItem()
@@ -468,7 +484,7 @@ class HistoriaClinicaViewModelTest {
                 latest = awaitItem()
             }
 
-            assertEquals(true, latest.hospitalizacion?.historiaClinica?.filiacion?.complete)
+            assertEquals(true, latest.historiaClinica.filiacion.complete)
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -478,7 +494,8 @@ class HistoriaClinicaViewModelTest {
         val hospitalization = sampleHospitalization("h1", samplePatient.id)
         val viewModel = HistoriaClinicaViewModel(
             FakePatientRepository(listOf(samplePatient)),
-            FakeHospitalizationRepository(listOf(hospitalization)),
+            FakeEpisodeRepository(listOf(hospitalization)),
+            FakeClinicalNoteRepository(),
         )
 
         viewModel.uiState.test {
@@ -498,8 +515,9 @@ class HistoriaClinicaViewModelTest {
     @Test
     fun `save ignores a second call while already saving`() = runTest(dispatcher) {
         val hospitalization = sampleHospitalization("h1", samplePatient.id)
-        val repository = FakeHospitalizationRepository(listOf(hospitalization))
-        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository)
+        val repository = FakeEpisodeRepository(listOf(hospitalization))
+        val notes = FakeClinicalNoteRepository()
+        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository, notes)
         viewModel.load(samplePatient.id, hospitalization.id)
         dispatcher.scheduler.advanceUntilIdle()
 
@@ -508,6 +526,6 @@ class HistoriaClinicaViewModelTest {
         viewModel.save()
         dispatcher.scheduler.advanceUntilIdle()
 
-        assertEquals(1, repository.saveCallCount)
+        assertEquals(1, notes.saveCallCount)
     }
 }

@@ -5,7 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.cramsan.hirsh.model.Evolucion
 import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.Patient
-import com.cramsan.hirsh.repository.HospitalizationRepository
+import com.cramsan.hirsh.repository.ClinicalNoteRepository
+import com.cramsan.hirsh.repository.EpisodeRepository
 import com.cramsan.hirsh.repository.PatientRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,7 +33,8 @@ private data class RequestedIds(val patientId: String, val hospId: String, val e
 @OptIn(ExperimentalCoroutinesApi::class)
 class EvolucionViewViewModel(
     private val patientRepository: PatientRepository,
-    private val hospitalizationRepository: HospitalizationRepository,
+    private val episodeRepository: EpisodeRepository,
+    private val clinicalNoteRepository: ClinicalNoteRepository,
 ) : ViewModel() {
 
     private val requestedIds = MutableStateFlow<RequestedIds?>(null)
@@ -46,19 +48,19 @@ class EvolucionViewViewModel(
             } else {
                 combine(
                     patientRepository.getPatient(ids.patientId),
-                    hospitalizationRepository.getHospitalization(ids.patientId, ids.hospId),
+                    episodeRepository.getHospitalization(ids.patientId, ids.hospId),
+                    clinicalNoteRepository.getEvolucion(ids.hospId, ids.evoId),
                     selectedTab,
                     showPrintPreview,
-                ) { patient, hospitalizacion, tab, printPreview ->
+                ) { patient, hospitalizacion, evolucion, tab, printPreview ->
                     EvolucionViewUiState(
                         isLoading = false,
                         patient = patient,
                         hospitalizacion = hospitalizacion,
-                        // Derived from the already patient-validated hospitalizacion, not a separate
-                        // getEvolucion(hospId, evoId) call -- guarantees the full patient->hospitalizacion->
-                        // evolucion chain is validated together (a hospId belonging to a different patient
-                        // never leaks its evoluciones through here, per HISS-106's C5 tightening).
-                        evolucion = hospitalizacion?.evoluciones?.find { it.id == ids.evoId },
+                        // Notes are keyed by hospId alone, so only shown once the stay resolved for this
+                        // patient -- a hospId belonging to a different patient never leaks its
+                        // evoluciones through here (HISS-106's C5 tightening).
+                        evolucion = evolucion.takeIf { hospitalizacion != null },
                         selectedTab = tab,
                         showPrintPreview = printPreview,
                     )
