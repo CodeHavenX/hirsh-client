@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cramsan.hirsh.model.Diagnostico
 import com.cramsan.hirsh.model.EnfermedadActual
+import com.cramsan.hirsh.model.EpisodeStatus
 import com.cramsan.hirsh.model.ExamenFisico
 import com.cramsan.hirsh.model.ExamenRegional
 import com.cramsan.hirsh.model.Filiacion
@@ -11,11 +12,18 @@ import com.cramsan.hirsh.model.HcSectionKey
 import com.cramsan.hirsh.model.HistoriaClinica
 import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.MotivoIngreso
+import com.cramsan.hirsh.model.NoteStatus
 import com.cramsan.hirsh.model.Patient
+import com.cramsan.hirsh.model.Permission
 import com.cramsan.hirsh.model.Plan
+import com.cramsan.hirsh.model.can
+import com.cramsan.hirsh.model.isReadyToSign
+import com.cramsan.hirsh.network.ApiError
+import com.cramsan.hirsh.network.ApiException
 import com.cramsan.hirsh.repository.ClinicalNoteRepository
 import com.cramsan.hirsh.repository.EpisodeRepository
 import com.cramsan.hirsh.repository.PatientRepository
+import com.cramsan.hirsh.repository.SessionRepository
 import com.cramsan.hirsh.ui.components.LoadError
 import com.cramsan.hirsh.ui.components.toLoadError
 import kotlinx.coroutines.CancellationException
@@ -43,7 +51,20 @@ data class HistoriaClinicaUiState(
     val isSaving: Boolean = false,
     val showPrintPreview: Boolean = false,
     val loadError: LoadError? = null,
+    /** Signed, voided, or the stay is closed: sections are shown but can't be saved (HCEM-79). */
+    val isReadOnly: Boolean = false,
+    /** The signed-in user may sign this draft. Whether every section is filled in is [HistoriaClinica.isReadyToSign]. */
+    val canSign: Boolean = false,
+    val isSigning: Boolean = false,
+    val error: String? = null,
 )
+
+internal const val SAVE_CONFLICT_ERROR = "Otro usuario modifico la historia; revisa y guarda de nuevo"
+internal const val SIGN_CONFLICT_ERROR = "La historia fue modificada por otro usuario; revisala antes de firmar"
+internal const val SIGN_FORBIDDEN_ERROR = "Tu cuenta no puede firmar: necesita el permiso de firma y un numero de colegiatura (CMP)"
+internal const val SAVE_ERROR = "No se pudo guardar la seccion"
+internal const val SIGN_ERROR = "No se pudo firmar la historia clinica"
+internal const val SIGN_INCOMPLETE_ERROR = "Completa todas las secciones antes de firmar"
 
 private data class RequestedIds(val patientId: String, val hospId: String)
 
@@ -60,7 +81,9 @@ private data class FormState(
     val fieldOverrides: Map<String, String> = emptyMap(),
     val motivoOverrides: MotivoIngreso? = null,
     val isSaving: Boolean = false,
+    val isSigning: Boolean = false,
     val showPrintPreview: Boolean = false,
+    val error: String? = null,
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -68,6 +91,7 @@ class HistoriaClinicaViewModel(
     private val patientRepository: PatientRepository,
     private val episodeRepository: EpisodeRepository,
     private val clinicalNoteRepository: ClinicalNoteRepository,
+    private val sessionRepository: SessionRepository,
 ) : ViewModel() {
 
     private val requestedIds = MutableStateFlow<RequestedIds?>(null)
@@ -86,7 +110,8 @@ class HistoriaClinicaViewModel(
                     episodeRepository.getHospitalization(ids.patientId, ids.hospId),
                     clinicalNoteRepository.getHistoriaClinica(ids.hospId),
                     formState,
-                ) { patient, hospitalizacion, historiaClinica, form ->
+                    sessionRepository.session,
+                ) { patient, hospitalizacion, historiaClinica, form, session ->
                     val persistedFieldMap = fieldMapFor(form.activeSection, historiaClinica).orEmpty()
                     val effectiveFieldValues = HC_SECTION_FIELDS[form.activeSection].orEmpty().associate { spec ->
                         spec.key to (form.fieldOverrides[spec.key] ?: persistedFieldMap[spec.key].orEmpty())
@@ -104,6 +129,12 @@ class HistoriaClinicaViewModel(
                         motivoIngresoDraft = effectiveMotivo,
                         isSaving = form.isSaving,
                         showPrintPreview = form.showPrintPreview,
+                        isReadOnly = hospitalizacion?.status != EpisodeStatus.ACTIVE ||
+                            historiaClinica.status == NoteStatus.SIGNED || historiaClinica.status == NoteStatus.VOIDED,
+                        canSign = session?.can(Permission.DOCUMENT_SIGN) == true &&
+                            hospitalizacion?.status == EpisodeStatus.ACTIVE && historiaClinica.status == NoteStatus.DRAFT,
+                        isSigning = form.isSigning,
+                        error = form.error,
                     )
                 }
                     .onStart { emit(HistoriaClinicaUiState(isLoading = true)) }
@@ -127,7 +158,7 @@ class HistoriaClinicaViewModel(
     }
 
     fun selectSection(key: HcSectionKey) = formState.update {
-        it.copy(activeSection = key, fieldOverrides = emptyMap(), motivoOverrides = null)
+        it.copy(activeSection = key, fieldOverrides = emptyMap(), motivoOverrides = null, error = null)
     }
 
     fun onFieldChange(key: String, value: String) = formState.update {
@@ -147,7 +178,7 @@ class HistoriaClinicaViewModel(
     fun save() {
         val ids = requestedIds.value ?: return
         val state = uiState.value
-        if (formState.value.isSaving || state.hospitalizacion == null) {
+        if (formState.value.isSaving || state.hospitalizacion == null || state.isReadOnly) {
             return
         }
         val data: Any = when (state.activeSection) {
@@ -206,7 +237,7 @@ class HistoriaClinicaViewModel(
             else -> return
         }
 
-        formState.update { it.copy(isSaving = true) }
+        formState.update { it.copy(isSaving = true, error = null) }
         viewModelScope.launch {
             try {
                 clinicalNoteRepository.saveHistoriaClinicaSection(ids.hospId, state.activeSection, data)
@@ -214,7 +245,37 @@ class HistoriaClinicaViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                formState.update { it.copy(isSaving = false) }
+                // The typed values stay in the form either way, so nothing is lost: on a conflict the
+                // repository has already reloaded the other user's version underneath them.
+                val message = if ((e as? ApiException)?.error is ApiError.Conflict) SAVE_CONFLICT_ERROR else SAVE_ERROR
+                formState.update { it.copy(isSaving = false, error = message) }
+            }
+        }
+    }
+
+    /** Signs the draft once every section with a form is complete (HCEM-74's decision). */
+    fun sign() {
+        val ids = requestedIds.value ?: return
+        val state = uiState.value
+        if (!state.canSign || state.isSigning) return
+        if (!state.historiaClinica.isReadyToSign()) {
+            formState.update { it.copy(error = SIGN_INCOMPLETE_ERROR) }
+            return
+        }
+        formState.update { it.copy(isSigning = true, error = null) }
+        viewModelScope.launch {
+            try {
+                clinicalNoteRepository.signHistoriaClinica(ids.hospId)
+                formState.update { it.copy(isSigning = false) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                val message = when ((e as? ApiException)?.error) {
+                    is ApiError.Conflict -> SIGN_CONFLICT_ERROR
+                    ApiError.Forbidden -> SIGN_FORBIDDEN_ERROR
+                    else -> SIGN_ERROR
+                }
+                formState.update { it.copy(isSigning = false, error = message) }
             }
         }
     }

@@ -43,6 +43,7 @@ import com.cramsan.hirsh.model.HistoriaClinica
 import com.cramsan.hirsh.model.MotivoIngreso
 import com.cramsan.hirsh.model.bedNumber
 import com.cramsan.hirsh.model.completionCount
+import com.cramsan.hirsh.model.isReadyToSign
 import com.cramsan.hirsh.model.serviceName
 import com.cramsan.hirsh.model.statusLabel
 import com.cramsan.hirsh.ui.components.BadgeTone
@@ -51,6 +52,7 @@ import com.cramsan.hirsh.ui.components.EncounterTopBar
 import com.cramsan.hirsh.ui.components.FieldFontSize
 import com.cramsan.hirsh.ui.components.FormSectionCaption
 import com.cramsan.hirsh.ui.components.LoadErrorMessage
+import com.cramsan.hirsh.ui.components.NoteStatusBadge
 import com.cramsan.hirsh.ui.components.SelectField
 import com.cramsan.hirsh.ui.components.StatusBadge
 import com.cramsan.hirsh.ui.components.fieldShape
@@ -86,6 +88,7 @@ fun HistoriaClinicaScreen(
         onMotivoOtrosDetalleChange = viewModel::onMotivoOtrosDetalleChange,
         onFieldChange = viewModel::onFieldChange,
         onSave = viewModel::save,
+        onSign = viewModel::sign,
         onRetry = viewModel::retry,
     )
 }
@@ -102,6 +105,7 @@ internal fun HistoriaClinicaScreenContent(
     onMotivoOtrosDetalleChange: (MotivoIngreso, String) -> Unit,
     onFieldChange: (String, String) -> Unit,
     onSave: () -> Unit,
+    onSign: () -> Unit,
     onRetry: () -> Unit,
 ) {
     val patient = uiState.patient
@@ -134,8 +138,20 @@ internal fun HistoriaClinicaScreenContent(
                         Chip(hospitalizacion.serviceName)
                         Chip("Cama ${hospitalizacion.bedNumber}")
                         HcStatusBadge(historiaClinica)
+                        historiaClinica.status?.let { NoteStatusBadge(it, historiaClinica.draftDeadline) }
                     },
                     actions = {
+                        if (uiState.canSign) {
+                            Button(
+                                onClick = onSign,
+                                enabled = !uiState.isSigning && historiaClinica.isReadyToSign(),
+                                shape = fieldShape,
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                                modifier = Modifier.testTag("hc_sign_button"),
+                            ) {
+                                Text("Firmar", fontWeight = FontWeight.Medium)
+                            }
+                        }
                         Button(
                             onClick = onOpenPrintPreview,
                             shape = fieldShape,
@@ -173,6 +189,7 @@ internal fun HistoriaClinicaScreenContent(
                             if (uiState.activeSection == HcSectionKey.MOTIVO_INGRESO) {
                                 MotivoIngresoForm(
                                     draft = uiState.motivoIngresoDraft,
+                                    enabled = !uiState.isReadOnly,
                                     onOptionChange = onMotivoOptionChange,
                                     onOtrosDetalleChange = onMotivoOtrosDetalleChange,
                                 )
@@ -180,19 +197,34 @@ internal fun HistoriaClinicaScreenContent(
                                 SectionForm(
                                     specs = HC_SECTION_FIELDS[uiState.activeSection].orEmpty(),
                                     values = uiState.fieldValues,
+                                    enabled = !uiState.isReadOnly,
                                     onFieldChange = onFieldChange,
                                 )
                             }
                         }
-                        Row(modifier = Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.End) {
-                            Button(
-                                onClick = onSave,
-                                enabled = !uiState.isSaving,
-                                shape = fieldShape,
-                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
-                                modifier = Modifier.testTag("hc_save_section_button"),
-                            ) {
-                                Text("Guardar seccion", fontWeight = FontWeight.Medium)
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            uiState.error?.let {
+                                Text(
+                                    it,
+                                    color = MaterialTheme.colorScheme.error,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.weight(1f).testTag("hc_error"),
+                                )
+                            }
+                            if (!uiState.isReadOnly) {
+                                Button(
+                                    onClick = onSave,
+                                    enabled = !uiState.isSaving,
+                                    shape = fieldShape,
+                                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                                    modifier = Modifier.testTag("hc_save_section_button"),
+                                ) {
+                                    Text("Guardar seccion", fontWeight = FontWeight.Medium)
+                                }
                             }
                         }
                     }
@@ -299,6 +331,7 @@ private fun HcNavStub(label: String) {
 private fun SectionForm(
     specs: List<HcFieldSpec>,
     values: Map<String, String>,
+    enabled: Boolean,
     onFieldChange: (String, String) -> Unit,
 ) {
     specs.forEach { spec ->
@@ -310,6 +343,7 @@ private fun SectionForm(
                 selected = value,
                 onSelect = { onFieldChange(spec.key, it) },
                 testTag = "hc_field_${spec.key}",
+                enabled = enabled,
             )
             HcFieldType.TEXTAREA -> OutlinedTextField(
                 value = value,
@@ -318,6 +352,7 @@ private fun SectionForm(
                 textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
                 shape = fieldShape,
                 minLines = spec.rows,
+                readOnly = !enabled,
                 modifier = Modifier.fillMaxWidth().testTag("hc_field_${spec.key}"),
             )
             HcFieldType.TEXT -> OutlinedTextField(
@@ -327,6 +362,7 @@ private fun SectionForm(
                 textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
                 shape = fieldShape,
                 singleLine = true,
+                readOnly = !enabled,
                 modifier = Modifier.fillMaxWidth().testTag("hc_field_${spec.key}"),
             )
         }
@@ -342,13 +378,14 @@ private fun FieldLabel(text: String) {
 @Composable
 private fun MotivoIngresoForm(
     draft: MotivoIngreso,
+    enabled: Boolean,
     onOptionChange: (MotivoIngreso, String, Boolean) -> Unit,
     onOtrosDetalleChange: (MotivoIngreso, String) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             FieldLabel("Motivos de ingreso (marcar los que correspondan)")
-            FlowOfMotivoOptions(draft = draft, onOptionChange = onOptionChange)
+            FlowOfMotivoOptions(draft = draft, enabled = enabled, onOptionChange = onOptionChange)
         }
         OutlinedTextField(
             value = draft.otrosDetalle,
@@ -357,6 +394,7 @@ private fun MotivoIngresoForm(
             textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = FieldFontSize),
             shape = fieldShape,
             singleLine = true,
+            readOnly = !enabled,
             modifier = Modifier.fillMaxWidth().testTag("hc_motivo_otros_detalle_field"),
         )
     }
@@ -365,6 +403,7 @@ private fun MotivoIngresoForm(
 @Composable
 private fun FlowOfMotivoOptions(
     draft: MotivoIngreso,
+    enabled: Boolean,
     onOptionChange: (MotivoIngreso, String, Boolean) -> Unit,
 ) {
     val rows = MOTIVO_INGRESO_OPTIONS.chunked(2)
@@ -375,6 +414,7 @@ private fun FlowOfMotivoOptions(
                     MotivoOptionChip(
                         option = option,
                         checked = draft.isChecked(option.key),
+                        enabled = enabled,
                         onCheckedChange = { checked -> onOptionChange(draft, option.key, checked) },
                         modifier = Modifier.weight(1f),
                     )
@@ -391,11 +431,13 @@ private fun FlowOfMotivoOptions(
 private fun MotivoOptionChip(
     option: MotivoIngresoOption,
     checked: Boolean,
+    enabled: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Surface(
         onClick = { onCheckedChange(!checked) },
+        enabled = enabled,
         shape = RoundedCornerShape(8.dp),
         border = BorderStroke(1.5.dp, HissFaint),
         modifier = modifier.testTag("hc_motivo_option_${option.key}"),
@@ -405,7 +447,7 @@ private fun MotivoOptionChip(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Checkbox(checked = checked, onCheckedChange = onCheckedChange)
+            Checkbox(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
             Text(option.label, fontSize = 13.sp, color = HissInk)
         }
     }

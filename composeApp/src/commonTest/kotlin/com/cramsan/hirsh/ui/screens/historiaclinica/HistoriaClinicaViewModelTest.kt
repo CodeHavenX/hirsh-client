@@ -1,11 +1,5 @@
 package com.cramsan.hirsh.ui.screens.historiaclinica
 
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.emitAll
-import com.cramsan.hirsh.ui.components.LoadError
-import com.cramsan.hirsh.network.ApiException
-import com.cramsan.hirsh.network.ApiError
 import app.cash.turbine.test
 import com.cramsan.hirsh.model.Allergy
 import com.cramsan.hirsh.model.AllergyType
@@ -17,39 +11,53 @@ import com.cramsan.hirsh.model.EnfermedadActual
 import com.cramsan.hirsh.model.EpisodeStatus
 import com.cramsan.hirsh.model.Evolucion
 import com.cramsan.hirsh.model.ExamenFisico
+import com.cramsan.hirsh.model.ExamenRegional
 import com.cramsan.hirsh.model.Filiacion
 import com.cramsan.hirsh.model.HcSection
 import com.cramsan.hirsh.model.HcSectionKey
 import com.cramsan.hirsh.model.HistoriaClinica
 import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.MotivoIngreso
+import com.cramsan.hirsh.model.NoteStatus
 import com.cramsan.hirsh.model.Patient
+import com.cramsan.hirsh.model.Permission
 import com.cramsan.hirsh.model.Plan
 import com.cramsan.hirsh.model.ServiceRef
+import com.cramsan.hirsh.model.Session
 import com.cramsan.hirsh.model.Severity
 import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.model.UserRef
+import com.cramsan.hirsh.network.ApiError
+import com.cramsan.hirsh.network.ApiException
 import com.cramsan.hirsh.repository.ClinicalNoteRepository
 import com.cramsan.hirsh.repository.EpisodeRepository
 import com.cramsan.hirsh.repository.PatientRepository
+import com.cramsan.hirsh.repository.SessionRepository
+import com.cramsan.hirsh.ui.components.LoadError
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlin.time.Instant
 
 private val samplePatient = Patient(
@@ -165,6 +173,11 @@ private class FakeClinicalNoteRepository(historiasClinicas: Map<String, Historia
         private set
     var saveCallCount = 0
         private set
+    var signCallCount = 0
+        private set
+
+    /** When set, the next save or sign throws it instead of writing. */
+    var writeFailure: Throwable? = null
 
     override fun getHistoriaClinica(hospId: String): Flow<HistoriaClinica> =
         historiasClinicas.map { it[hospId] ?: HistoriaClinica() }
@@ -173,12 +186,17 @@ private class FakeClinicalNoteRepository(historiasClinicas: Map<String, Historia
 
     override fun getEvolucion(hospId: String, evoId: String): Flow<Evolucion?> = MutableStateFlow(null)
 
-    override suspend fun signHistoriaClinica(hospId: String) = Unit
+    override suspend fun signHistoriaClinica(hospId: String) {
+        signCallCount++
+        writeFailure?.let { throw it }
+        historiasClinicas.update { all -> all + (hospId to (all[hospId] ?: HistoriaClinica()).copy(status = NoteStatus.SIGNED)) }
+    }
 
     override suspend fun signEvolucion(hospId: String, evoId: String) = Unit
 
     override suspend fun saveHistoriaClinicaSection(hospId: String, key: HcSectionKey, data: Any) {
         saveCallCount++
+        writeFailure?.let { throw it }
         lastSavedKey = key
         lastSavedData = data
         historiasClinicas.update { all ->
@@ -192,12 +210,34 @@ private class FakeClinicalNoteRepository(historiasClinicas: Map<String, Historia
                 HcSectionKey.PLAN -> hc.copy(plan = HcSection(complete = true, data = data as Plan))
                 else -> hc
             }
-            all + (hospId to updatedHc)
+            all + (hospId to updatedHc.copy(status = NoteStatus.DRAFT))
         }
     }
 
     override suspend fun addEvolucion(hospId: String, evolucion: Evolucion): Evolucion = evolucion
 }
+
+private class FakeSessionRepository(session: Session? = null) : SessionRepository {
+    override val session: StateFlow<Session?> = MutableStateFlow(session).asStateFlow()
+    override val isRestoring: StateFlow<Boolean> = MutableStateFlow(false).asStateFlow()
+    override suspend fun login(username: String, password: String): Result<Session> = error("not used by this test")
+    override suspend fun restore() = Unit
+    override suspend fun logout() = Unit
+    override fun forceLogout() = Unit
+}
+
+private val signer = Session(username = "dr", displayName = "Dr. Reyes", permissions = setOf(Permission.DOCUMENT_SIGN.name))
+
+/** All six sections with a form filled in, still a draft. */
+private fun readyToSign() = HistoriaClinica(
+    filiacion = HcSection(complete = true, data = sampleFiliacion()),
+    motivoIngreso = HcSection(complete = true, data = MotivoIngreso(psicosis = true)),
+    enfermedadActual = HcSection(complete = true, data = EnfermedadActual("1 mes", "Agudo", "Progresivo", "2 semanas", "...")),
+    examenFisico = HcSection(complete = true, data = ExamenFisico("", "", "", "", "", "", "", "", ExamenRegional("", "", "", "", ""))),
+    diagnostico = HcSection(complete = true, data = Diagnostico("F29", "", "", "", "")),
+    plan = HcSection(complete = true, data = Plan("UHSMA", "", "", "")),
+    status = NoteStatus.DRAFT,
+)
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HistoriaClinicaViewModelTest {
@@ -221,6 +261,7 @@ class HistoriaClinicaViewModelTest {
             FakePatientRepository(listOf(samplePatient)),
             FakeEpisodeRepository(listOf(hospitalization)),
             FakeClinicalNoteRepository(),
+            FakeSessionRepository(),
         )
 
         viewModel.uiState.test {
@@ -240,6 +281,7 @@ class HistoriaClinicaViewModelTest {
             FakePatientRepository(listOf(samplePatient)),
             FakeEpisodeRepository(listOf(hospitalization)),
             FakeClinicalNoteRepository(),
+            FakeSessionRepository(),
         )
 
         viewModel.uiState.test {
@@ -258,6 +300,7 @@ class HistoriaClinicaViewModelTest {
             FakePatientRepository(emptyList()),
             FakeEpisodeRepository(),
             FakeClinicalNoteRepository(),
+            FakeSessionRepository(),
         )
 
         viewModel.uiState.test {
@@ -278,6 +321,7 @@ class HistoriaClinicaViewModelTest {
             FakePatientRepository(listOf(samplePatient)),
             FakeEpisodeRepository(listOf(hospitalization)),
             FakeClinicalNoteRepository(mapOf("h1" to hc)),
+            FakeSessionRepository(),
         )
 
         viewModel.uiState.test {
@@ -297,6 +341,7 @@ class HistoriaClinicaViewModelTest {
             FakePatientRepository(listOf(samplePatient)),
             FakeEpisodeRepository(listOf(hospitalization)),
             FakeClinicalNoteRepository(),
+            FakeSessionRepository(),
         )
 
         viewModel.uiState.test {
@@ -316,6 +361,7 @@ class HistoriaClinicaViewModelTest {
             FakePatientRepository(listOf(samplePatient)),
             FakeEpisodeRepository(listOf(hospitalization)),
             FakeClinicalNoteRepository(mapOf("h1" to hc)),
+            FakeSessionRepository(),
         )
 
         viewModel.uiState.test {
@@ -340,6 +386,7 @@ class HistoriaClinicaViewModelTest {
             FakePatientRepository(listOf(samplePatient)),
             FakeEpisodeRepository(listOf(hospitalization)),
             FakeClinicalNoteRepository(mapOf("h1" to hc)),
+            FakeSessionRepository(),
         )
 
         viewModel.uiState.test {
@@ -364,7 +411,7 @@ class HistoriaClinicaViewModelTest {
         val hospitalization = sampleHospitalization("h1", samplePatient.id)
         val repository = FakeEpisodeRepository(listOf(hospitalization))
         val notes = FakeClinicalNoteRepository()
-        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository, notes)
+        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository, notes, FakeSessionRepository())
         viewModel.load(samplePatient.id, hospitalization.id)
         dispatcher.scheduler.advanceUntilIdle()
 
@@ -385,7 +432,7 @@ class HistoriaClinicaViewModelTest {
         val hospitalization = sampleHospitalization("h1", samplePatient.id)
         val repository = FakeEpisodeRepository(listOf(hospitalization))
         val notes = FakeClinicalNoteRepository()
-        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository, notes)
+        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository, notes, FakeSessionRepository())
         viewModel.load(samplePatient.id, hospitalization.id)
         dispatcher.scheduler.advanceUntilIdle()
 
@@ -404,7 +451,7 @@ class HistoriaClinicaViewModelTest {
         val hospitalization = sampleHospitalization("h1", samplePatient.id)
         val repository = FakeEpisodeRepository(listOf(hospitalization))
         val notes = FakeClinicalNoteRepository()
-        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository, notes)
+        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository, notes, FakeSessionRepository())
         viewModel.load(samplePatient.id, hospitalization.id)
         dispatcher.scheduler.advanceUntilIdle()
 
@@ -426,7 +473,7 @@ class HistoriaClinicaViewModelTest {
         val hospitalization = sampleHospitalization("h1", samplePatient.id)
         val repository = FakeEpisodeRepository(listOf(hospitalization))
         val notes = FakeClinicalNoteRepository()
-        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository, notes)
+        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository, notes, FakeSessionRepository())
         viewModel.load(samplePatient.id, hospitalization.id)
         dispatcher.scheduler.advanceUntilIdle()
 
@@ -445,7 +492,7 @@ class HistoriaClinicaViewModelTest {
         val hospitalization = sampleHospitalization("h1", samplePatient.id)
         val repository = FakeEpisodeRepository(listOf(hospitalization))
         val notes = FakeClinicalNoteRepository()
-        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository, notes)
+        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository, notes, FakeSessionRepository())
         viewModel.load(samplePatient.id, hospitalization.id)
         dispatcher.scheduler.advanceUntilIdle()
 
@@ -464,7 +511,7 @@ class HistoriaClinicaViewModelTest {
         val hospitalization = sampleHospitalization("h1", samplePatient.id)
         val repository = FakeEpisodeRepository(listOf(hospitalization))
         val notes = FakeClinicalNoteRepository()
-        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository, notes)
+        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository, notes, FakeSessionRepository())
         viewModel.load(samplePatient.id, hospitalization.id)
         dispatcher.scheduler.advanceUntilIdle()
 
@@ -486,7 +533,7 @@ class HistoriaClinicaViewModelTest {
         val hospitalization = sampleHospitalization("h1", samplePatient.id)
         val repository = FakeEpisodeRepository(listOf(hospitalization))
         val notes = FakeClinicalNoteRepository()
-        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository, notes)
+        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository, notes, FakeSessionRepository())
 
         viewModel.uiState.test {
             awaitItem()
@@ -514,6 +561,7 @@ class HistoriaClinicaViewModelTest {
             FakePatientRepository(listOf(samplePatient)),
             FakeEpisodeRepository(listOf(hospitalization)),
             FakeClinicalNoteRepository(),
+            FakeSessionRepository(),
         )
 
         viewModel.uiState.test {
@@ -535,7 +583,7 @@ class HistoriaClinicaViewModelTest {
         val hospitalization = sampleHospitalization("h1", samplePatient.id)
         val repository = FakeEpisodeRepository(listOf(hospitalization))
         val notes = FakeClinicalNoteRepository()
-        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository, notes)
+        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository, notes, FakeSessionRepository())
         viewModel.load(samplePatient.id, hospitalization.id)
         dispatcher.scheduler.advanceUntilIdle()
 
@@ -550,7 +598,7 @@ class HistoriaClinicaViewModelTest {
     @Test
     fun `a failed read shows a load error instead of crashing`() = runTest(dispatcher) {
         val patients = FakePatientRepository(listOf(samplePatient)).apply { failure = ApiException(ApiError.Forbidden) }
-        val viewModel = HistoriaClinicaViewModel(patients, FakeEpisodeRepository(listOf(sampleHospitalization("h1", samplePatient.id))), FakeClinicalNoteRepository())
+        val viewModel = HistoriaClinicaViewModel(patients, FakeEpisodeRepository(listOf(sampleHospitalization("h1", samplePatient.id))), FakeClinicalNoteRepository(), FakeSessionRepository())
         backgroundScope.launch { viewModel.uiState.collect {} }
         viewModel.load(samplePatient.id, "h1")
         advanceUntilIdle()
@@ -563,7 +611,7 @@ class HistoriaClinicaViewModelTest {
     @Test
     fun `retry loads again after a failure`() = runTest(dispatcher) {
         val patients = FakePatientRepository(listOf(samplePatient)).apply { failure = RuntimeException("Connection refused") }
-        val viewModel = HistoriaClinicaViewModel(patients, FakeEpisodeRepository(listOf(sampleHospitalization("h1", samplePatient.id))), FakeClinicalNoteRepository())
+        val viewModel = HistoriaClinicaViewModel(patients, FakeEpisodeRepository(listOf(sampleHospitalization("h1", samplePatient.id))), FakeClinicalNoteRepository(), FakeSessionRepository())
         backgroundScope.launch { viewModel.uiState.collect {} }
         viewModel.load(samplePatient.id, "h1")
         advanceUntilIdle()
@@ -576,5 +624,121 @@ class HistoriaClinicaViewModelTest {
         val state = viewModel.uiState.value
         assertNull(state.loadError)
         assertEquals(samplePatient, state.patient)
+    }
+
+    private fun TestScope.loadedViewModel(
+        historiaClinica: HistoriaClinica?,
+        session: Session? = signer,
+        notes: FakeClinicalNoteRepository = FakeClinicalNoteRepository(historiaClinica?.let { mapOf("h1" to it) }.orEmpty()),
+        hospitalization: Hospitalizacion = sampleHospitalization("h1", samplePatient.id),
+    ): HistoriaClinicaViewModel {
+        val viewModel = HistoriaClinicaViewModel(
+            FakePatientRepository(listOf(samplePatient)),
+            FakeEpisodeRepository(listOf(hospitalization)),
+            notes,
+            FakeSessionRepository(session),
+        )
+        viewModel.load(samplePatient.id, hospitalization.id)
+        advanceUntilIdle()
+        return viewModel
+    }
+
+    @Test
+    fun `a signer may sign a draft, and signing it makes the historia read-only`() = runTest(dispatcher) {
+        val notes = FakeClinicalNoteRepository(mapOf("h1" to readyToSign()))
+        val viewModel = loadedViewModel(readyToSign(), notes = notes)
+        assertTrue(viewModel.uiState.value.canSign)
+        assertFalse(viewModel.uiState.value.isReadOnly)
+
+        viewModel.sign()
+        advanceUntilIdle()
+
+        assertEquals(1, notes.signCallCount)
+        val state = viewModel.uiState.value
+        assertEquals(NoteStatus.SIGNED, state.historiaClinica.status)
+        assertTrue(state.isReadOnly)
+        assertFalse(state.canSign)
+    }
+
+    @Test
+    fun `a user without the sign permission cannot sign`() = runTest(dispatcher) {
+        val notes = FakeClinicalNoteRepository(mapOf("h1" to readyToSign()))
+        val viewModel = loadedViewModel(readyToSign(), session = Session("res", "Residente"), notes = notes)
+
+        assertFalse(viewModel.uiState.value.canSign)
+        viewModel.sign()
+        advanceUntilIdle()
+        assertEquals(0, notes.signCallCount)
+    }
+
+    @Test
+    fun `signing waits for every section with a form`() = runTest(dispatcher) {
+        val incomplete = readyToSign().copy(plan = HcSection())
+        val notes = FakeClinicalNoteRepository(mapOf("h1" to incomplete))
+        val viewModel = loadedViewModel(incomplete, notes = notes)
+
+        viewModel.sign()
+        advanceUntilIdle()
+
+        assertEquals(0, notes.signCallCount)
+        assertEquals(SIGN_INCOMPLETE_ERROR, viewModel.uiState.value.error)
+    }
+
+    @Test
+    fun `a historia with no document yet has nothing to sign`() = runTest(dispatcher) {
+        assertFalse(loadedViewModel(null).uiState.value.canSign)
+    }
+
+    @Test
+    fun `a signed historia or a closed stay is read-only and refuses to save`() = runTest(dispatcher) {
+        val signedNotes = FakeClinicalNoteRepository(mapOf("h1" to readyToSign().copy(status = NoteStatus.SIGNED)))
+        val signed = loadedViewModel(null, notes = signedNotes)
+        assertTrue(signed.uiState.value.isReadOnly)
+        signed.save()
+        advanceUntilIdle()
+        assertEquals(0, signedNotes.saveCallCount)
+
+        val closedStay = sampleHospitalization("h1", samplePatient.id).copy(status = EpisodeStatus.CLOSED)
+        val closed = loadedViewModel(readyToSign(), hospitalization = closedStay)
+        assertTrue(closed.uiState.value.isReadOnly)
+        assertFalse(closed.uiState.value.canSign)
+    }
+
+    @Test
+    fun `a save that lost to another user's edit says so and keeps what was typed`() = runTest(dispatcher) {
+        val notes = FakeClinicalNoteRepository().apply { writeFailure = ApiException(ApiError.Conflict("")) }
+        val viewModel = loadedViewModel(null, notes = notes)
+
+        viewModel.onFieldChange("edad", "14 anos")
+        viewModel.save()
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(SAVE_CONFLICT_ERROR, state.error)
+        assertEquals("14 anos", state.fieldValues["edad"])
+        assertFalse(state.isSaving)
+    }
+
+    @Test
+    fun `any other failed save is reported too`() = runTest(dispatcher) {
+        val notes = FakeClinicalNoteRepository().apply { writeFailure = RuntimeException("Connection refused") }
+        val viewModel = loadedViewModel(null, notes = notes)
+
+        viewModel.save()
+        advanceUntilIdle()
+
+        assertEquals(SAVE_ERROR, viewModel.uiState.value.error)
+    }
+
+    @Test
+    fun `a refused signature explains why`() = runTest(dispatcher) {
+        val notes = FakeClinicalNoteRepository(mapOf("h1" to readyToSign())).apply { writeFailure = ApiException(ApiError.Forbidden) }
+        val viewModel = loadedViewModel(readyToSign(), notes = notes)
+
+        viewModel.sign()
+        advanceUntilIdle()
+
+        assertEquals(SIGN_FORBIDDEN_ERROR, viewModel.uiState.value.error)
+        assertFalse(viewModel.uiState.value.isSigning)
     }
 }
