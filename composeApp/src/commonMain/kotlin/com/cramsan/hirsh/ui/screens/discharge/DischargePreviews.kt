@@ -59,6 +59,7 @@ private fun Preview(uiState: DischargeUiState) {
             onNextAppointmentDateChange = {},
             onFollowUpPlanChange = {},
             onDischarge = {},
+            onRetry = {},
         )
     }
 }

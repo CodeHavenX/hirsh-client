@@ -1,5 +1,9 @@
 package com.cramsan.hirsh.ui.screens.patientedit
 
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.emitAll
+import com.cramsan.hirsh.ui.components.LoadError
 import app.cash.turbine.test
 import com.cramsan.hirsh.model.Allergy
 import com.cramsan.hirsh.model.AllergyType
@@ -20,6 +24,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlin.test.AfterTest
@@ -46,10 +51,17 @@ private val existingPatient = Patient(
 )
 
 private class FakePatientRepository(patients: List<Patient> = listOf(existingPatient)) : PatientRepository {
+    /** When set, every read throws it -- what a failed network call looks like to a ViewModel. */
+    var failure: Throwable? = null
     private val _patients = MutableStateFlow(patients)
     override val patients: StateFlow<List<Patient>> = _patients.asStateFlow()
-    override suspend fun refresh() = Unit
-    override fun getPatient(id: String): Flow<Patient?> = patients.map { list -> list.find { it.id == id } }
+    override suspend fun refresh() {
+        failure?.let { throw it }
+    }
+    override fun getPatient(id: String): Flow<Patient?> = flow {
+        failure?.let { throw it }
+        emitAll(patients.map { list -> list.find { it.id == id } })
+    }
 
     var lastUpdate: Pair<String, Patient>? = null
         private set
@@ -470,5 +482,36 @@ class EditPatientViewModelTest {
         dispatcher.scheduler.advanceUntilIdle()
 
         assertEquals(1, repository.allergyCalls)
+    }
+
+    @Test
+    fun `a failed read shows a load error instead of crashing`() = runTest(dispatcher) {
+        val patients = FakePatientRepository().apply { failure = ApiException(ApiError.Forbidden) }
+        val viewModel = EditPatientViewModel(patients)
+        backgroundScope.launch { viewModel.uiState.collect {} }
+        viewModel.load(existingPatient.id)
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(LoadError.FORBIDDEN, state.loadError)
+        assertEquals(false, state.isLoading)
+    }
+
+    @Test
+    fun `retry loads again after a failure`() = runTest(dispatcher) {
+        val patients = FakePatientRepository().apply { failure = RuntimeException("Connection refused") }
+        val viewModel = EditPatientViewModel(patients)
+        backgroundScope.launch { viewModel.uiState.collect {} }
+        viewModel.load(existingPatient.id)
+        advanceUntilIdle()
+        assertEquals(LoadError.UNREACHABLE, viewModel.uiState.value.loadError)
+
+        patients.failure = null
+        viewModel.retry()
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertNull(state.loadError)
+        assertEquals(existingPatient, state.patient)
     }
 }

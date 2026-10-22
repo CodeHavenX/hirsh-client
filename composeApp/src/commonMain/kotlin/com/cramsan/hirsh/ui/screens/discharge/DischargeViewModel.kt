@@ -14,6 +14,8 @@ import com.cramsan.hirsh.network.ApiException
 import com.cramsan.hirsh.repository.EpisodeRepository
 import com.cramsan.hirsh.repository.Icd10Repository
 import com.cramsan.hirsh.repository.PatientRepository
+import com.cramsan.hirsh.ui.components.LoadError
+import com.cramsan.hirsh.ui.components.toLoadError
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -47,6 +49,7 @@ data class DischargeUiState(
     val error: String? = null,
     val isSaving: Boolean = false,
     val discharged: Boolean = false,
+    val loadError: LoadError? = null,
 )
 
 /** One-letter searches match most of the catalog; the debounce avoids a request per keystroke. */
@@ -103,10 +106,27 @@ class DischargeViewModel(
         this.patientId = patientId
         this.hospId = hospId
         _uiState.value = DischargeUiState(isLoading = true)
+        fetch(patientId, hospId)
+    }
+
+    fun retry() {
+        val patientId = patientId ?: return
+        val hospId = hospId ?: return
+        _uiState.update { it.copy(isLoading = true, loadError = null) }
+        fetch(patientId, hospId)
+    }
+
+    private fun fetch(patientId: String, hospId: String) {
         viewModelScope.launch {
-            val patient = patientRepository.getPatient(patientId).first()
-            val hospitalizacion = episodeRepository.getHospitalization(patientId, hospId).first()
-            _uiState.update { it.copy(isLoading = false, patient = patient, hospitalizacion = hospitalizacion) }
+            try {
+                val patient = patientRepository.getPatient(patientId).first()
+                val hospitalizacion = episodeRepository.getHospitalization(patientId, hospId).first()
+                _uiState.update { it.copy(isLoading = false, patient = patient, hospitalizacion = hospitalizacion) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false, loadError = e.toLoadError()) }
+            }
         }
     }
 

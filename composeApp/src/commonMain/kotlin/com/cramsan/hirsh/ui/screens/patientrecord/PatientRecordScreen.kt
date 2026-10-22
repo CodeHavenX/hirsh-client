@@ -44,6 +44,7 @@ import com.cramsan.hirsh.ui.components.AllergyList
 import com.cramsan.hirsh.ui.components.BadgeTone
 import com.cramsan.hirsh.ui.components.EpisodeStatusBadge
 import com.cramsan.hirsh.ui.components.KeyValueRow
+import com.cramsan.hirsh.ui.components.LoadErrorMessage
 import com.cramsan.hirsh.ui.components.StatusBadge
 import com.cramsan.hirsh.ui.components.VisitCard
 import com.cramsan.hirsh.ui.theme.HissAccent
@@ -83,6 +84,7 @@ fun PatientRecordScreen(
         onNewHospitalization = onNewHospitalization,
         onHospitalizationSelected = onHospitalizationSelected,
         onViewHistory = onViewHistory,
+        onRetry = viewModel::retry,
     )
 }
 
@@ -95,12 +97,14 @@ internal fun PatientRecordScreenContent(
     onNewHospitalization: () -> Unit,
     onHospitalizationSelected: (hospId: String) -> Unit,
     onViewHistory: (() -> Unit)?,
+    onRetry: () -> Unit,
 ) {
     val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
     val patient = uiState.patient
     Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
         when {
             uiState.isLoading -> Text("Cargando...", style = MaterialTheme.typography.bodyMedium)
+            uiState.loadError != null -> LoadErrorMessage(uiState.loadError, onRetry = onRetry)
             patient == null -> Text("Paciente no encontrado", style = MaterialTheme.typography.bodyMedium)
             else -> {
                 RecordHeader(

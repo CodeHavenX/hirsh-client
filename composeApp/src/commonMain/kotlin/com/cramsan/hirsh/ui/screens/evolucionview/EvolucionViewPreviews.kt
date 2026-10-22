@@ -107,6 +107,7 @@ private fun EvolucionViewScreenPreview() {
             onOpenPrintPreview = {},
             onClosePrintPreview = {},
             onSelectTab = {},
+            onRetry = {},
         )
     }
 }
@@ -124,6 +125,7 @@ private fun EvolucionViewScreenNoExamenesPreview() {
             onOpenPrintPreview = {},
             onClosePrintPreview = {},
             onSelectTab = {},
+            onRetry = {},
         )
     }
 }
@@ -141,6 +143,7 @@ private fun EvolucionViewScreenExamenesTabPreview() {
             onOpenPrintPreview = {},
             onClosePrintPreview = {},
             onSelectTab = {},
+            onRetry = {},
         )
     }
 }

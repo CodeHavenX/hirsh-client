@@ -28,6 +28,7 @@ import com.cramsan.hirsh.model.toDisplayLabel
 import com.cramsan.hirsh.ui.components.AllergyActions
 import com.cramsan.hirsh.ui.components.FieldFontSize
 import com.cramsan.hirsh.ui.components.FormSectionCaption
+import com.cramsan.hirsh.ui.components.LoadErrorMessage
 import com.cramsan.hirsh.ui.components.ReadOnlyField
 import com.cramsan.hirsh.ui.components.RequiredFieldLabel
 import com.cramsan.hirsh.ui.components.SelectField
@@ -76,6 +77,7 @@ fun EditPatientScreen(
             onConfirmDelete = viewModel::confirmDeleteAllergy,
             onCancelDelete = viewModel::onCancelDeleteAllergy,
         ),
+        onRetry = viewModel::retry,
     )
 }
 
@@ -91,11 +93,13 @@ internal fun EditPatientScreenContent(
     onBloodTypeChange: (String) -> Unit,
     onSave: () -> Unit,
     allergyActions: AllergyActions,
+    onRetry: () -> Unit,
 ) {
     val patient = uiState.patient
     Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp).testTag("screen_scroll_container")) {
         when {
             uiState.isLoading -> Text("Cargando...", style = MaterialTheme.typography.bodyMedium)
+            uiState.loadError != null -> LoadErrorMessage(uiState.loadError, onRetry = onRetry)
             patient == null -> Text("Paciente no encontrado", style = MaterialTheme.typography.bodyMedium)
             else -> EditPatientForm(
                 uiState = uiState,

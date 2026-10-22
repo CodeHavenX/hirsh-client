@@ -15,6 +15,8 @@ import com.cramsan.hirsh.repository.ClinicalNoteRepository
 import com.cramsan.hirsh.repository.EpisodeRepository
 import com.cramsan.hirsh.repository.PatientRepository
 import com.cramsan.hirsh.repository.SessionRepository
+import com.cramsan.hirsh.ui.components.LoadError
+import com.cramsan.hirsh.ui.components.toLoadError
 import com.cramsan.hirsh.util.Clock
 import com.cramsan.hirsh.util.formatDate
 import com.cramsan.hirsh.util.formatTime
@@ -67,6 +69,7 @@ data class NuevaEvolucionUiState(
     val error: String? = null,
     val isSaving: Boolean = false,
     val createdEvolucionId: String? = null,
+    val loadError: LoadError? = null,
 )
 
 class NuevaEvolucionViewModel(
@@ -86,10 +89,26 @@ class NuevaEvolucionViewModel(
         loadedIds = patientId to hospId
         val (openedFecha, openedHora) = nowFechaHora()
         _uiState.value = NuevaEvolucionUiState(isLoading = true, openedFecha = openedFecha, openedHora = openedHora)
+        fetch(patientId, hospId)
+    }
+
+    fun retry() {
+        val (patientId, hospId) = loadedIds ?: return
+        _uiState.update { it.copy(isLoading = true, loadError = null) }
+        fetch(patientId, hospId)
+    }
+
+    private fun fetch(patientId: String, hospId: String) {
         viewModelScope.launch {
-            val patient = patientRepository.getPatient(patientId).first()
-            val hospitalizacion = episodeRepository.getHospitalization(patientId, hospId).first()
-            _uiState.update { it.copy(isLoading = false, patient = patient, hospitalizacion = hospitalizacion) }
+            try {
+                val patient = patientRepository.getPatient(patientId).first()
+                val hospitalizacion = episodeRepository.getHospitalization(patientId, hospId).first()
+                _uiState.update { it.copy(isLoading = false, patient = patient, hospitalizacion = hospitalizacion) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false, loadError = e.toLoadError()) }
+            }
         }
     }
 

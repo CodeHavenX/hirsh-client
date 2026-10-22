@@ -50,6 +50,7 @@ import com.cramsan.hirsh.ui.components.Chip
 import com.cramsan.hirsh.ui.components.EncounterTopBar
 import com.cramsan.hirsh.ui.components.FieldFontSize
 import com.cramsan.hirsh.ui.components.FormSectionCaption
+import com.cramsan.hirsh.ui.components.LoadErrorMessage
 import com.cramsan.hirsh.ui.components.SelectField
 import com.cramsan.hirsh.ui.components.StatusBadge
 import com.cramsan.hirsh.ui.components.fieldShape
@@ -85,6 +86,7 @@ fun HistoriaClinicaScreen(
         onMotivoOtrosDetalleChange = viewModel::onMotivoOtrosDetalleChange,
         onFieldChange = viewModel::onFieldChange,
         onSave = viewModel::save,
+        onRetry = viewModel::retry,
     )
 }
 
@@ -100,6 +102,7 @@ internal fun HistoriaClinicaScreenContent(
     onMotivoOtrosDetalleChange: (MotivoIngreso, String) -> Unit,
     onFieldChange: (String, String) -> Unit,
     onSave: () -> Unit,
+    onRetry: () -> Unit,
 ) {
     val patient = uiState.patient
     val hospitalizacion = uiState.hospitalizacion
@@ -111,6 +114,7 @@ internal fun HistoriaClinicaScreenContent(
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(24.dp),
             )
+            uiState.loadError != null -> LoadErrorMessage(uiState.loadError, onRetry = onRetry)
             patient == null -> Text(
                 "Paciente no encontrado",
                 style = MaterialTheme.typography.bodyMedium,

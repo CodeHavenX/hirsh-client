@@ -59,6 +59,7 @@ private fun EditPatientScreenPreview() {
             onBloodTypeChange = {},
             onSave = {},
             allergyActions = AllergyActions(),
+            onRetry = {},
         )
     }
 }
@@ -79,6 +80,7 @@ private fun EditPatientScreenAddingAllergyPreview() {
             onBloodTypeChange = {},
             onSave = {},
             allergyActions = AllergyActions(),
+            onRetry = {},
         )
     }
 }

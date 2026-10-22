@@ -51,6 +51,7 @@ import com.cramsan.hirsh.model.toDisplayLabel
 import com.cramsan.hirsh.ui.components.BadgeTone
 import com.cramsan.hirsh.ui.components.EpisodeStatusBadge
 import com.cramsan.hirsh.ui.components.KeyValueRow
+import com.cramsan.hirsh.ui.components.LoadErrorMessage
 import com.cramsan.hirsh.ui.components.StatusBadge
 import com.cramsan.hirsh.ui.components.VisitCard
 import com.cramsan.hirsh.ui.theme.HissAccent
@@ -86,6 +87,7 @@ fun HospitalizationScreen(
         onOpenHistoriaClinica = onOpenHistoriaClinica,
         onEvolucionSelected = onEvolucionSelected,
         onDischarge = onDischarge,
+        onRetry = viewModel::retry,
     )
 }
 
@@ -97,6 +99,7 @@ internal fun HospitalizationScreenContent(
     onOpenHistoriaClinica: () -> Unit,
     onEvolucionSelected: (evoId: String) -> Unit,
     onDischarge: () -> Unit,
+    onRetry: () -> Unit,
 ) {
     val patient = uiState.patient
     val hospitalizacion = uiState.hospitalizacion
@@ -104,6 +107,7 @@ internal fun HospitalizationScreenContent(
     Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
         when {
             uiState.isLoading -> Text("Cargando...", style = MaterialTheme.typography.bodyMedium)
+            uiState.loadError != null -> LoadErrorMessage(uiState.loadError, onRetry = onRetry)
             patient == null -> Text("Paciente no encontrado", style = MaterialTheme.typography.bodyMedium)
             hospitalizacion == null ->
                 Text("Hospitalizacion no encontrada", style = MaterialTheme.typography.bodyMedium)

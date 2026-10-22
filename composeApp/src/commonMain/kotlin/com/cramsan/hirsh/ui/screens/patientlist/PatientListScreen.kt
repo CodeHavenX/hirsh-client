@@ -30,6 +30,7 @@ import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.calculateAge
 import com.cramsan.hirsh.ui.components.DataTable
 import com.cramsan.hirsh.ui.components.DataTableColumn
+import com.cramsan.hirsh.ui.components.LoadErrorMessage
 import com.cramsan.hirsh.ui.theme.HissInk2
 import com.cramsan.hirsh.ui.theme.HissRadiusDefault
 import kotlinx.datetime.LocalDate
@@ -55,6 +56,7 @@ fun PatientListScreen(
         onPatientSelected = onPatientSelected,
         onRegisterPatient = onRegisterPatient,
         onQueryChange = viewModel::onQueryChange,
+        onRetry = viewModel::retry,
     )
 }
 
@@ -66,6 +68,7 @@ internal fun PatientListScreenContent(
     onPatientSelected: (patientId: String) -> Unit,
     onRegisterPatient: () -> Unit,
     onQueryChange: (String) -> Unit,
+    onRetry: () -> Unit,
 ) {
     val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
 
@@ -115,12 +118,16 @@ internal fun PatientListScreenContent(
             modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())
                 .padding(top = 16.dp).testTag("screen_scroll_container"),
         ) {
-            DataTable(
-                columns = patientColumns(today = today),
-                rows = uiState.patients,
-                onRowClick = { patient -> onPatientSelected(patient.id) },
-                rowTestTag = { patient -> "patient_row_${patient.id}" },
-            )
+            when {
+                uiState.loadError != null -> LoadErrorMessage(uiState.loadError, onRetry = onRetry)
+                uiState.isLoading -> Text("Cargando...", style = MaterialTheme.typography.bodyMedium)
+                else -> DataTable(
+                    columns = patientColumns(today = today),
+                    rows = uiState.patients,
+                    onRowClick = { patient -> onPatientSelected(patient.id) },
+                    rowTestTag = { patient -> "patient_row_${patient.id}" },
+                )
+            }
         }
     }
 }
