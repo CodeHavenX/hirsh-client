@@ -50,8 +50,6 @@ private fun Preview(uiState: DischargeUiState) {
     HirshTheme {
         DischargeScreenContent(
             uiState = uiState,
-            patientId = previewPatient.id,
-            hospId = previewHospitalizacion.id,
             onCancel = {},
             onTypeChange = {},
             onConditionChange = {},

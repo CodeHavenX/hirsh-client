@@ -59,8 +59,6 @@ private fun NuevaEvolucionScreenPreview() {
     HirshTheme {
         NuevaEvolucionScreenContent(
             uiState = previewUiState(),
-            patientId = previewPatient.id,
-            hospId = previewHospitalizacion.id,
             sessionDisplayName = "Dr. A. Patel",
             showDiscardDialog = false,
             onClose = {},
@@ -117,8 +115,6 @@ private fun NuevaEvolucionScreenFilledPreview() {
     HirshTheme {
         NuevaEvolucionScreenContent(
             uiState = uiState,
-            patientId = previewPatient.id,
-            hospId = previewHospitalizacion.id,
             sessionDisplayName = "Dr. A. Patel",
             showDiscardDialog = false,
             onClose = {},
@@ -167,8 +163,6 @@ private fun NuevaEvolucionScreenExamenesTabPreview() {
     HirshTheme {
         NuevaEvolucionScreenContent(
             uiState = uiState,
-            patientId = previewPatient.id,
-            hospId = previewHospitalizacion.id,
             sessionDisplayName = "Dr. A. Patel",
             showDiscardDialog = false,
             onClose = {},

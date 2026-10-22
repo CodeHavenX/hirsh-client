@@ -48,9 +48,9 @@ object Routes {
  * reserved URI character in a path segment breaks route matching. This bit HISS-621's predecessor
  * model directly: every seeded [com.cramsan.hirsh.model.Patient.id] used to be formatted like
  * `#00142`, and an un-encoded `#` truncates the rest of the segment as a URI fragment, leaving
- * `{patientId}` empty and every patient-scoped screen unreachable (HISS-662). Patient ids are now
- * UUID strings with no reserved characters, so this is defensive rather than load-bearing today --
- * kept in case a future id space (or a raw hospId/evoId) ever needs it. Percent-encode any
+ * `{patientId}` empty and every patient-scoped screen unreachable (HISS-662). Patient and episode
+ * ids are now backend UUIDs with no reserved characters, so this is defensive rather than
+ * load-bearing today -- kept in case a future id space ever needs it. Percent-encode any
  * character outside the URI-unreserved set when building a route segment; [decodeRouteSegment]
  * reverses it when reading the argument back out in AppNavHost.
  */

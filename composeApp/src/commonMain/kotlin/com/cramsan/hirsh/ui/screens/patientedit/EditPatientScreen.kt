@@ -56,7 +56,6 @@ fun EditPatientScreen(
 
     EditPatientScreenContent(
         uiState = uiState,
-        patientId = patientId,
         onCancel = onCancel,
         onFirstNameChange = viewModel::onFirstNameChange,
         onLastNameChange = viewModel::onLastNameChange,
@@ -84,7 +83,6 @@ fun EditPatientScreen(
 @Composable
 internal fun EditPatientScreenContent(
     uiState: EditPatientUiState,
-    patientId: String,
     onCancel: () -> Unit,
     onFirstNameChange: (String) -> Unit,
     onLastNameChange: (String) -> Unit,
@@ -98,7 +96,7 @@ internal fun EditPatientScreenContent(
     Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp).testTag("screen_scroll_container")) {
         when {
             uiState.isLoading -> Text("Cargando...", style = MaterialTheme.typography.bodyMedium)
-            patient == null -> Text("Paciente no encontrado: $patientId", style = MaterialTheme.typography.bodyMedium)
+            patient == null -> Text("Paciente no encontrado", style = MaterialTheme.typography.bodyMedium)
             else -> EditPatientForm(
                 uiState = uiState,
                 patientName = patient.fullName,

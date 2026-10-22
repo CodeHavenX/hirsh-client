@@ -155,8 +155,6 @@ private fun HistoriaClinicaScreenFiliacionPreview() {
     HirshTheme {
         HistoriaClinicaScreenContent(
             uiState = previewUiState(historiaClinica),
-            patientId = previewPatient.id,
-            hospId = previewHospitalizacion.id,
             onClose = {},
             onOpenPrintPreview = {},
             onClosePrintPreview = {},
@@ -177,8 +175,6 @@ private fun HistoriaClinicaScreenPartialPreview() {
     HirshTheme {
         HistoriaClinicaScreenContent(
             uiState = previewUiState(historiaClinica),
-            patientId = previewPatient.id,
-            hospId = previewHospitalizacion.id,
             onClose = {},
             onOpenPrintPreview = {},
             onClosePrintPreview = {},
@@ -199,8 +195,6 @@ private fun HistoriaClinicaScreenMotivoIngresoPreview() {
     HirshTheme {
         HistoriaClinicaScreenContent(
             uiState = previewUiState(historiaClinica, activeSection = HcSectionKey.MOTIVO_INGRESO),
-            patientId = previewPatient.id,
-            hospId = previewHospitalizacion.id,
             onClose = {},
             onOpenPrintPreview = {},
             onClosePrintPreview = {},

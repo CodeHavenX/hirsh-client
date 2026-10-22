@@ -89,8 +89,6 @@ fun NuevaEvolucionScreen(
 
     NuevaEvolucionScreenContent(
         uiState = uiState,
-        patientId = patientId,
-        hospId = hospId,
         sessionDisplayName = session?.displayName.orEmpty(),
         showDiscardDialog = showDiscardDialog,
         onClose = onClose,
@@ -136,8 +134,6 @@ fun NuevaEvolucionScreen(
 @Suppress("LongParameterList")
 internal fun NuevaEvolucionScreenContent(
     uiState: NuevaEvolucionUiState,
-    patientId: String,
-    hospId: String,
     sessionDisplayName: String,
     showDiscardDialog: Boolean,
     onClose: () -> Unit,
@@ -184,12 +180,12 @@ internal fun NuevaEvolucionScreenContent(
                 modifier = Modifier.padding(24.dp),
             )
             patient == null -> Text(
-                "Paciente no encontrado: $patientId",
+                "Paciente no encontrado",
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(24.dp),
             )
             hospitalizacion == null -> Text(
-                "Hospitalizacion no encontrada: $hospId",
+                "Hospitalizacion no encontrada",
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(24.dp),
             )

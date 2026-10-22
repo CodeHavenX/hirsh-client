@@ -103,9 +103,6 @@ private fun EvolucionViewScreenPreview() {
     HirshTheme {
         EvolucionViewScreenContent(
             uiState = previewUiState(hospitalizacion, evolucion),
-            patientId = previewPatient.id,
-            hospId = hospitalizacion.id,
-            evoId = evolucion.id,
             onClose = {},
             onOpenPrintPreview = {},
             onClosePrintPreview = {},
@@ -123,9 +120,6 @@ private fun EvolucionViewScreenNoExamenesPreview() {
     HirshTheme {
         EvolucionViewScreenContent(
             uiState = previewUiState(hospitalizacion, evolucion),
-            patientId = previewPatient.id,
-            hospId = hospitalizacion.id,
-            evoId = evolucion.id,
             onClose = {},
             onOpenPrintPreview = {},
             onClosePrintPreview = {},
@@ -143,9 +137,6 @@ private fun EvolucionViewScreenExamenesTabPreview() {
     HirshTheme {
         EvolucionViewScreenContent(
             uiState = previewUiState(hospitalizacion, evolucion, selectedTab = EvolucionViewTab.EXAMENES),
-            patientId = previewPatient.id,
-            hospId = hospitalizacion.id,
-            evoId = evolucion.id,
             onClose = {},
             onOpenPrintPreview = {},
             onClosePrintPreview = {},
