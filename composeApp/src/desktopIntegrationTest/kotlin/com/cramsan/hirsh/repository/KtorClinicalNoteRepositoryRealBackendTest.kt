@@ -30,7 +30,9 @@ import com.cramsan.hirsh.network.installApiErrorValidator
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
+import io.ktor.client.plugins.HttpSend
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.plugin
 import io.ktor.client.plugins.cookies.HttpCookies
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.plugins.logging.LogLevel
@@ -40,6 +42,7 @@ import io.ktor.client.request.setBody
 import io.ktor.client.request.url
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
+import io.ktor.http.encodedPath
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -58,6 +61,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /**
  * [KtorClinicalNoteRepository] against a real, separately-running backend (see
@@ -158,10 +162,20 @@ class KtorClinicalNoteRepositoryRealBackendTest {
         assertEquals(evolucion.pronostico, signed.pronostico)
         assertEquals(evolucion.resultado, signed.resultado)
 
-        // A fresh client sees the same notes, read only from the backend.
+        // A fresh client sees the same notes, read only from the backend -- and only through the
+        // folder, which carries each note's content (HCEM-77).
+        val documentReads = mutableListOf<String>()
+        client.plugin(HttpSend).intercept { request ->
+            if ("/clinical-documents/" in request.url.encodedPath) documentReads += request.url.encodedPath
+            execute(request)
+        }
         val fresh = KtorClinicalNoteRepository(client)
         assertEquals(NoteStatus.SIGNED, fresh.getHistoriaClinica(hospId).first().status)
-        assertEquals(listOf(NoteStatus.SIGNED), fresh.getEvoluciones(hospId).first().map { it.status })
+        val listed = fresh.getEvoluciones(hospId).first()
+        assertEquals(listOf(NoteStatus.SIGNED), listed.map { it.status })
+        assertEquals(evolucion.diagnosticos, listed.single().diagnosticos)
+        assertTrue(listed.single().medico.isNotBlank(), "the author comes with the folder entry")
+        assertEquals(emptyList(), documentReads)
     }
 
     private suspend fun admitNewPatient(client: HttpClient): String {
