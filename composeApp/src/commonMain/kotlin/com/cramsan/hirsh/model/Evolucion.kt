@@ -16,6 +16,7 @@ data class Evolucion(
     val objective: String,
     val assessment: String,
     val plan: String,
+    /** Free-text indications: anything not prescribed from the formulary through [prescripciones]. */
     val rx: String,
     val pronostico: Pronostico,
     // Named `resultado` rather than the prototype's own field name `evolucion` --
@@ -24,6 +25,7 @@ data class Evolucion(
     val examenes: List<Examen>,
     val examenesObs: String,
     val status: NoteStatus = NoteStatus.SIGNED,
+    val prescripciones: List<Prescripcion> = emptyList(),
 )
 
 data class Vitals(

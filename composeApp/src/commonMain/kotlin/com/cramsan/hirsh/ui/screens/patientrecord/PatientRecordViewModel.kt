@@ -2,13 +2,23 @@ package com.cramsan.hirsh.ui.screens.patientrecord
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.cramsan.hirsh.model.ActiveTreatment
 import com.cramsan.hirsh.model.EpisodeStatus
 import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.Patient
+import com.cramsan.hirsh.model.Permission
+import com.cramsan.hirsh.model.can
 import com.cramsan.hirsh.repository.EpisodeRepository
 import com.cramsan.hirsh.repository.PatientRepository
+import com.cramsan.hirsh.repository.SessionRepository
+import com.cramsan.hirsh.repository.TreatmentRepository
+import com.cramsan.hirsh.ui.components.ActiveTreatmentsSection
 import com.cramsan.hirsh.ui.components.LoadError
+import com.cramsan.hirsh.ui.components.TreatmentSuspender
+import com.cramsan.hirsh.ui.components.TreatmentSuspension
+import com.cramsan.hirsh.ui.components.activeTreatmentsSection
 import com.cramsan.hirsh.ui.components.toLoadError
+import com.cramsan.hirsh.util.Clock
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -26,6 +36,9 @@ data class PatientRecordUiState(
     val patient: Patient? = null,
     val hospitalizations: List<Hospitalizacion> = emptyList(),
     val loadError: LoadError? = null,
+    val treatments: ActiveTreatmentsSection = ActiveTreatmentsSection.Loading,
+    val canSuspendTreatments: Boolean = false,
+    val suspension: TreatmentSuspension? = null,
 ) {
     /**
      * The backend allows one open inpatient stay per patient. Read off [hospitalizations] rather
@@ -39,7 +52,12 @@ data class PatientRecordUiState(
 class PatientRecordViewModel(
     private val patientRepository: PatientRepository,
     private val episodeRepository: EpisodeRepository,
+    private val treatmentRepository: TreatmentRepository,
+    private val sessionRepository: SessionRepository,
+    clock: Clock,
 ) : ViewModel() {
+
+    private val suspender = TreatmentSuspender(treatmentRepository, clock, viewModelScope)
 
     private val requestedId = MutableStateFlow<String?>(null)
 
@@ -52,16 +70,20 @@ class PatientRecordViewModel(
             combine(
                 patientRepository.getPatient(patientId),
                 episodeRepository.getHospitalizations(patientId),
-            ) { patient, hospitalizations ->
+                treatmentRepository.activeTreatmentsSection(patientId),
+            ) { patient, hospitalizations, treatments ->
                 PatientRecordUiState(
                     isLoading = false,
                     patient = patient,
                     hospitalizations = hospitalizations,
+                    treatments = treatments,
+                    canSuspendTreatments = sessionRepository.session.value?.can(Permission.TREATMENT_SUSPEND) == true,
                 )
             }
                 .onStart { emit(PatientRecordUiState(isLoading = true)) }
                 .catch { emit(PatientRecordUiState(isLoading = false, loadError = it.toLoadError())) }
         }
+        .combine(suspender.state) { state, suspension -> state.copy(suspension = suspension) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PatientRecordUiState())
 
     fun load(patientId: String) {
@@ -71,4 +93,12 @@ class PatientRecordViewModel(
     fun retry() {
         attempt.update { it + 1 }
     }
+
+    fun openSuspension(treatment: ActiveTreatment) = suspender.open(treatment)
+
+    fun onSuspensionReasonChange(reason: String) = suspender.onReasonChange(reason)
+
+    fun confirmSuspension() = suspender.confirm()
+
+    fun dismissSuspension() = suspender.dismiss()
 }

@@ -1,17 +1,21 @@
 package com.cramsan.hirsh.ui.screens.patientrecord
 
 import androidx.compose.runtime.Composable
+import com.cramsan.hirsh.model.ActiveTreatment
 import com.cramsan.hirsh.model.Allergy
 import com.cramsan.hirsh.model.AllergyType
 import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.EpisodeStatus
 import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.Patient
+import com.cramsan.hirsh.model.RouteOfAdministration
 import com.cramsan.hirsh.model.Severity
 import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.repository.PlaceholderCatalog
+import com.cramsan.hirsh.ui.components.ActiveTreatmentsSection
 import com.cramsan.hirsh.ui.preview.PreviewResponsive
 import com.cramsan.hirsh.ui.theme.HirshTheme
+import kotlinx.datetime.LocalDate
 import kotlin.time.Instant
 
 private val previewPatients = listOf(
@@ -56,6 +60,12 @@ private fun previewHospitalization(id: String, startDate: String, endDate: Strin
     status = if (endDate != null) EpisodeStatus.CLOSED else EpisodeStatus.ACTIVE,
 )
 
+private val previewTreatments = listOf(
+    ActiveTreatment("t1", "Sertralina 50 mg · Tableta", "50 mg", "cada 24 h", RouteOfAdministration.PO, "h_gonzalez_1", LocalDate(2026, 4, 10)),
+    ActiveTreatment("t2", "Clonazepam 0.5 mg · Tableta", "0.5 mg", "por la noche", RouteOfAdministration.PO, "h_gonzalez_1", LocalDate(2026, 4, 10)),
+)
+
+/** The active treatment's suspend buttons show because this session holds TREATMENT_SUSPEND. */
 @PreviewResponsive
 @Composable
 private fun PatientRecordScreenPreview() {
@@ -69,6 +79,8 @@ private fun PatientRecordScreenPreview() {
                     previewHospitalization("h_gonzalez_2", "2026-01-31T08:30:00Z", "2026-02-02T10:00:00Z"),
                     previewHospitalization("h_gonzalez_3", "2025-11-14T08:00:00Z", "2025-11-15T09:00:00Z"),
                 ),
+                treatments = ActiveTreatmentsSection.Loaded(previewTreatments),
+                canSuspendTreatments = true,
             ),
             onEditProfile = {},
             onNewHospitalization = {},
@@ -89,6 +101,7 @@ private fun PatientRecordScreenEmptyHospitalizationsPreview() {
                 isLoading = false,
                 patient = previewPatients.first { it.id == "a7efc7af-d998-43e8-8abd-d07c1155ef9f" },
                 hospitalizations = emptyList(),
+                treatments = ActiveTreatmentsSection.Loaded(emptyList()),
             ),
             onEditProfile = {},
             onNewHospitalization = {},

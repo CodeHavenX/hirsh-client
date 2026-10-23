@@ -1,6 +1,15 @@
 package com.cramsan.hirsh.ui.screens.evolucionnew
 
 import androidx.lifecycle.ViewModel
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.FlowPreview
+import com.cramsan.hirsh.repository.DrugRepository
+import com.cramsan.hirsh.model.allergiesMatching
+import com.cramsan.hirsh.model.RouteOfAdministration
+import com.cramsan.hirsh.model.Prescripcion
+import com.cramsan.hirsh.model.Drug
+import com.cramsan.hirsh.model.Allergy
 import androidx.lifecycle.viewModelScope
 import com.cramsan.hirsh.model.DiagnosticoCie10
 import com.cramsan.hirsh.model.Evolucion
@@ -45,6 +54,23 @@ data class ExamRow(
     val fecha: String = "",
 )
 
+/** One prescription being written; [query] is the drug search text until a [drug] is picked. */
+data class RxRow(
+    val drug: Drug? = null,
+    val query: String = "",
+    val dose: String = "",
+    val frequency: String = "",
+    val route: RouteOfAdministration? = null,
+    val duration: String = "",
+    val instructions: String = "",
+) {
+    val isBlank: Boolean
+        get() = drug == null && listOf(query, dose, frequency, duration, instructions).all { it.isBlank() }
+}
+
+/** The formulary matches for the prescription row being searched, answering [query]. */
+data class DrugSearch(val row: Int, val query: String, val results: List<Drug>)
+
 data class NuevaEvolucionUiState(
     val isLoading: Boolean = true,
     val patient: Patient? = null,
@@ -66,18 +92,34 @@ data class NuevaEvolucionUiState(
     val resultadoEvolucion: String = "",
     val examenes: List<ExamRow> = listOf(ExamRow()),
     val examenesObs: String = "",
+    val prescripciones: List<RxRow> = emptyList(),
+    val drugSearch: DrugSearch? = null,
     val openedFecha: String = "",
     val openedHora: String = "",
     val error: String? = null,
     val isSaving: Boolean = false,
     val createdEvolucionId: String? = null,
     val loadError: LoadError? = null,
-)
+) {
+    /** Per prescription row, the patient's medication allergies its drug matches. */
+    val rxAllergies: List<List<Allergy>>
+        get() = prescripciones.map { row -> row.drug?.let { patient?.allergiesMatching(it) }.orEmpty() }
+}
 
+internal const val REQUIRED_FIELDS_ERROR = "Completa los campos requeridos"
+internal const val RX_INCOMPLETE_ERROR = "Cada prescripcion necesita un medicamento del formulario, dosis y frecuencia"
+
+/** One-letter searches match most of the formulary; the debounce avoids a request per keystroke. */
+internal const val MIN_DRUG_QUERY_LENGTH = 2
+private const val DRUG_SEARCH_DEBOUNCE_MS = 300L
+
+@OptIn(FlowPreview::class)
+@Suppress("TooManyFunctions")
 class NuevaEvolucionViewModel(
     private val patientRepository: PatientRepository,
     private val episodeRepository: EpisodeRepository,
     private val clinicalNoteRepository: ClinicalNoteRepository,
+    private val drugRepository: DrugRepository,
     private val sessionRepository: SessionRepository,
     private val clock: Clock,
 ) : ViewModel() {
@@ -85,6 +127,30 @@ class NuevaEvolucionViewModel(
     private val _uiState = MutableStateFlow(NuevaEvolucionUiState())
     val uiState: StateFlow<NuevaEvolucionUiState> = _uiState.asStateFlow()
     private var loadedIds: Pair<String, String>? = null
+
+    /** The row being searched and its text; null when no search is open. */
+    private val drugQuery = MutableStateFlow<Pair<Int, String>?>(null)
+
+    init {
+        viewModelScope.launch {
+            drugQuery.debounce(DRUG_SEARCH_DEBOUNCE_MS).collectLatest { request ->
+                val (row, query) = request ?: return@collectLatest
+                val trimmed = query.trim()
+                val results = if (trimmed.length < MIN_DRUG_QUERY_LENGTH) {
+                    emptyList()
+                } else {
+                    try {
+                        drugRepository.search(trimmed)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        emptyList()
+                    }
+                }
+                _uiState.update { it.copy(drugSearch = DrugSearch(row, trimmed, results)) }
+            }
+        }
+    }
 
     fun load(patientId: String, hospId: String) {
         if (loadedIds == patientId to hospId) return
@@ -166,6 +232,42 @@ class NuevaEvolucionViewModel(
         it.copy(examenes = it.examenes.mapIndexed { i, row -> if (i == index) transform(row) else row })
     }
 
+    fun addRxRow() = _uiState.update { it.copy(prescripciones = it.prescripciones + RxRow()) }
+
+    /** Removing a row shifts the ones after it, so an open search is closed rather than left on the wrong row. */
+    fun removeRxRow(index: Int) {
+        _uiState.update {
+            it.copy(prescripciones = it.prescripciones.filterIndexed { i, _ -> i != index }, drugSearch = null, error = null)
+        }
+        drugQuery.value = null
+    }
+
+    fun onRxQueryChange(index: Int, value: String) {
+        updateRxRow(index) { it.copy(query = value) }
+        drugQuery.value = index to value
+    }
+
+    /** The drug's usual route fills an empty route field; a route already chosen is kept. */
+    fun onRxDrugSelected(index: Int, drug: Drug) {
+        updateRxRow(index) { it.copy(drug = drug, query = "", route = it.route ?: drug.route) }
+        _uiState.update { it.copy(drugSearch = null) }
+        drugQuery.value = null
+    }
+
+    fun onRxDrugCleared(index: Int) = updateRxRow(index) { it.copy(drug = null) }
+    fun onRxDoseChange(index: Int, value: String) = updateRxRow(index) { it.copy(dose = value) }
+    fun onRxFrequencyChange(index: Int, value: String) = updateRxRow(index) { it.copy(frequency = value) }
+    fun onRxRouteChange(index: Int, value: RouteOfAdministration) = updateRxRow(index) { it.copy(route = value) }
+    fun onRxDurationChange(index: Int, value: String) = updateRxRow(index) { it.copy(duration = value) }
+    fun onRxInstructionsChange(index: Int, value: String) = updateRxRow(index) { it.copy(instructions = value) }
+
+    private fun updateRxRow(index: Int, transform: (RxRow) -> RxRow) = _uiState.update {
+        it.copy(
+            prescripciones = it.prescripciones.mapIndexed { i, row -> if (i == index) transform(row) else row },
+            error = null,
+        )
+    }
+
     fun save() {
         val state = _uiState.value
         val ids = loadedIds ?: return
@@ -177,7 +279,14 @@ class NuevaEvolucionViewModel(
             state.diagnosticos.none { it.descripcion.isNotBlank() } ||
             state.pronostico.isBlank() || state.resultadoEvolucion.isBlank()
         ) {
-            _uiState.update { it.copy(error = "Completa los campos requeridos") }
+            _uiState.update { it.copy(error = REQUIRED_FIELDS_ERROR) }
+            return
+        }
+        // The backend silently skips a prescription without a drug, dose or frequency when it records
+        // treatments, so an incomplete row is refused here rather than lost there.
+        val prescriptionRows = state.prescripciones.filterNot { it.isBlank }
+        if (prescriptionRows.any { it.drug == null || it.dose.isBlank() || it.frequency.isBlank() }) {
+            _uiState.update { it.copy(error = RX_INCOMPLETE_ERROR) }
             return
         }
         val pronostico = Pronostico.entries.find { it.toDisplayLabel() == state.pronostico } ?: return
@@ -217,6 +326,18 @@ class NuevaEvolucionViewModel(
                             .filter { it.nombre.isNotBlank() }
                             .map { Examen(it.tipo, it.nombre, it.resultado, it.unidad, it.referencia, it.fecha) },
                         examenesObs = state.examenesObs,
+                        prescripciones = prescriptionRows.map { row ->
+                            val drug = checkNotNull(row.drug)
+                            Prescripcion(
+                                drugId = drug.id,
+                                drugName = drug.displayName,
+                                dose = row.dose.trim(),
+                                frequency = row.frequency.trim(),
+                                route = row.route,
+                                duration = row.duration.trim(),
+                                instructions = row.instructions.trim(),
+                            )
+                        },
                     ),
                 )
                 signIfAllowed(ids.second, created.id)

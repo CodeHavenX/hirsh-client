@@ -187,7 +187,26 @@ data class EvolucionContent(
     val resultado: String? = null,
     val examenes: List<ExamenContent> = emptyList(),
     val examenesObs: String = "",
+    val prescriptions: List<PrescriptionContent> = emptyList(),
 )
+
+/**
+ * One formulary prescription (EVOL_PSIQ v2). The backend reads these paths when the evolucion is
+ * signed and records a treatment, skipping any item without a drug name, dose and frequency;
+ * [route] is a `RouteOfAdministration` name.
+ */
+@Serializable
+data class PrescriptionContent(
+    val drug: DrugRefContent = DrugRefContent(),
+    val dose: String = "",
+    val frequency: String = "",
+    val route: String? = null,
+    val duration: String = "",
+    val instructions: String = "",
+)
+
+@Serializable
+data class DrugRefContent(val id: String? = null, val name: String = "")
 
 @Serializable
 data class VitalsContent(

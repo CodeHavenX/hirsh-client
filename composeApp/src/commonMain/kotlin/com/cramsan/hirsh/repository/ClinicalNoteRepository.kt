@@ -21,6 +21,7 @@ import com.cramsan.hirsh.network.ApiError
 import com.cramsan.hirsh.network.ApiException
 import com.cramsan.hirsh.util.Clock
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
@@ -66,6 +67,12 @@ interface ClinicalNoteRepository {
 
     /** Signs a draft evolucion as the signed-in user. */
     suspend fun signEvolucion(hospId: String, evoId: String)
+
+    /**
+     * Emits after each note this client signs. Signing is when the backend extracts a note's
+     * prescriptions into treatments, so whatever shows those re-reads them on this signal.
+     */
+    val signatures: Flow<Unit> get() = emptyFlow()
 }
 
 /** Everything [ClinicalNoteRepository] holds for one stay. */

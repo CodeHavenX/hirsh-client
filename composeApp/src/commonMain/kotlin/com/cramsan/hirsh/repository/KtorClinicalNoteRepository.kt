@@ -51,6 +51,8 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emitAll
@@ -122,6 +124,9 @@ class KtorClinicalNoteRepository(
     private val templateIds = mutableMapOf<String, String>()
     private val writeLock = Mutex()
 
+    private val _signatures = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    override val signatures: Flow<Unit> = _signatures.asSharedFlow()
+
     override fun getHistoriaClinica(hospId: String): Flow<HistoriaClinica> = flow {
         refreshHistoriaClinica(hospId)
         emitAll(_historias.map { it[hospId].toHistoriaClinica() }.distinctUntilChanged())
@@ -172,6 +177,7 @@ class KtorClinicalNoteRepository(
             val current = cachedHistoriaClinica(hospId) ?: throw ApiException(ApiError.NotFound(hospId))
             if (current.status != NoteStatus.DRAFT) throw ApiException(ApiError.Conflict(current.documentId))
             reloadingOnConflict(hospId) { sign(current.versionId, current.jpaVersion) }
+            _signatures.tryEmit(Unit)
             refreshHistoriaClinica(hospId)
         }
     }
@@ -204,6 +210,7 @@ class KtorClinicalNoteRepository(
                 if (e.error is ApiError.Conflict) cacheEvolucion(hospId, fetchDocument(evoId))
                 throw e
             }
+            _signatures.tryEmit(Unit)
             cacheEvolucion(hospId, fetchDocument(evoId))
         }
     }
@@ -374,6 +381,7 @@ private fun Evolucion.toContent() = EvolucionContent(
     resultado = resultado.name,
     examenes = examenes.map { it.toContent() },
     examenesObs = examenesObs,
+    prescriptions = prescripciones.map { it.toContent() },
 )
 
 /** [Evolucion.fecha]/[Evolucion.hora] are the document's clinical date in local time; [Evolucion.medico] is who wrote version 1. */
@@ -397,5 +405,6 @@ private fun NoteDocument.toEvolucion(): Evolucion {
         examenes = evolucion.examenes.map { it.toDomain() },
         examenesObs = evolucion.examenesObs,
         status = status,
+        prescripciones = evolucion.prescriptions.map { it.toDomain() },
     )
 }

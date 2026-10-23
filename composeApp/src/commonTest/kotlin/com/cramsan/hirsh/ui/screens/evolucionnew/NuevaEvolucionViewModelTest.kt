@@ -7,6 +7,10 @@ import com.cramsan.hirsh.ui.components.LoadError
 import com.cramsan.hirsh.network.ApiException
 import com.cramsan.hirsh.network.ApiError
 import app.cash.turbine.test
+import com.cramsan.hirsh.repository.DrugRepository
+import com.cramsan.hirsh.model.RouteOfAdministration
+import com.cramsan.hirsh.model.Prescripcion
+import com.cramsan.hirsh.model.Drug
 import com.cramsan.hirsh.model.Allergy
 import com.cramsan.hirsh.model.AllergyType
 import com.cramsan.hirsh.model.BedRef
@@ -185,6 +189,18 @@ private class FakeSessionRepository(session: Session?) : SessionRepository {
     override fun forceLogout() = Unit
 }
 
+private val sertralina = Drug("d1", "Sertralina", "50 mg", "Tableta", RouteOfAdministration.PO, "Antidepresivos ISRS", isPsychotropic = true)
+private val haloperidolIm = Drug("d2", "Haloperidol", "5 mg/mL", "Ampolla", RouteOfAdministration.IM, "Antipsicóticos típicos", isPsychotropic = true)
+
+private class FakeDrugRepository(private val formulary: List<Drug> = listOf(sertralina, haloperidolIm)) : DrugRepository {
+    val queries = mutableListOf<String>()
+
+    override suspend fun search(query: String): List<Drug> {
+        queries += query
+        return formulary.filter { it.genericName.contains(query, ignoreCase = true) }
+    }
+}
+
 private class FakeClock(private val instant: Instant) : Clock {
     override fun now(): Instant = instant
 }
@@ -213,10 +229,13 @@ class NuevaEvolucionViewModelTest {
         patientRepository: FakePatientRepository = FakePatientRepository(patients),
         hospitalizations: List<Hospitalizacion> = emptyList(),
         session: Session? = sampleSession,
+        notes: FakeClinicalNoteRepository = FakeClinicalNoteRepository(),
+        drugs: FakeDrugRepository = FakeDrugRepository(),
     ) = NuevaEvolucionViewModel(
         patientRepository,
         FakeEpisodeRepository(hospitalizations),
-        FakeClinicalNoteRepository(),
+        notes,
+        drugs,
         FakeSessionRepository(session),
         FakeClock(Instant.parse("2026-06-18T22:30:00Z")),
     )
@@ -244,6 +263,7 @@ class NuevaEvolucionViewModelTest {
             FakePatientRepository(listOf(samplePatient)),
             FakeEpisodeRepository(),
             FakeClinicalNoteRepository(),
+            FakeDrugRepository(),
             FakeSessionRepository(sampleSession),
             FakeClock(fixedNow),
         )
@@ -301,6 +321,7 @@ class NuevaEvolucionViewModelTest {
             FakePatientRepository(listOf(samplePatient)),
             repository,
             notes,
+            FakeDrugRepository(),
             FakeSessionRepository(sampleSession),
             FakeClock(Instant.parse("2026-06-18T22:30:00Z")),
         )
@@ -325,6 +346,7 @@ class NuevaEvolucionViewModelTest {
             FakePatientRepository(listOf(samplePatient)),
             repository,
             notes,
+            FakeDrugRepository(),
             FakeSessionRepository(sampleSession),
             FakeClock(Instant.parse("2026-06-18T22:30:00Z")),
         )
@@ -349,6 +371,7 @@ class NuevaEvolucionViewModelTest {
             FakePatientRepository(listOf(samplePatient)),
             repository,
             notes,
+            FakeDrugRepository(),
             FakeSessionRepository(sampleSession),
             FakeClock(Instant.parse("2026-06-18T22:30:00Z")),
         )
@@ -373,6 +396,7 @@ class NuevaEvolucionViewModelTest {
             FakePatientRepository(listOf(samplePatient)),
             repository,
             notes,
+            FakeDrugRepository(),
             FakeSessionRepository(sampleSession),
             FakeClock(Instant.parse("2026-06-18T22:30:00Z")),
         )
@@ -397,6 +421,7 @@ class NuevaEvolucionViewModelTest {
             FakePatientRepository(listOf(samplePatient)),
             repository,
             notes,
+            FakeDrugRepository(),
             FakeSessionRepository(sampleSession),
             FakeClock(Instant.parse("2026-06-18T22:30:00Z")),
         )
@@ -422,6 +447,7 @@ class NuevaEvolucionViewModelTest {
                 FakePatientRepository(listOf(samplePatient)),
                 repository,
                 notes,
+                FakeDrugRepository(),
                 FakeSessionRepository(sampleSession),
                 FakeClock(Instant.parse("2026-06-18T22:30:00Z")),
             )
@@ -495,6 +521,7 @@ class NuevaEvolucionViewModelTest {
             FakePatientRepository(listOf(samplePatient)),
             FakeEpisodeRepository(listOf(hospitalization)),
             notes,
+            FakeDrugRepository(),
             FakeSessionRepository(session),
             FakeClock(Instant.parse("2026-06-18T22:30:00Z")),
         )
@@ -512,6 +539,7 @@ class NuevaEvolucionViewModelTest {
             FakePatientRepository(listOf(samplePatient)),
             repository,
             notes,
+            FakeDrugRepository(),
             FakeSessionRepository(sampleSession),
             FakeClock(Instant.parse("2026-06-18T22:30:00Z")),
         )
@@ -581,5 +609,148 @@ class NuevaEvolucionViewModelTest {
         val state = viewModel.uiState.value
         assertNull(state.loadError)
         assertEquals(samplePatient, state.patient)
+    }
+
+    // --- Prescriptions (HCEM-11) ------------------------------------------------------------
+
+    private fun TestScope.loadedViewModel(
+        patient: Patient = samplePatient,
+        notes: FakeClinicalNoteRepository = FakeClinicalNoteRepository(),
+        drugs: FakeDrugRepository = FakeDrugRepository(),
+    ): NuevaEvolucionViewModel {
+        val vm = viewModel(
+            patients = listOf(patient),
+            hospitalizations = listOf(sampleHospitalization("h1", patient.id)),
+            notes = notes,
+            drugs = drugs,
+        )
+        vm.load(patient.id, "h1")
+        advanceUntilIdle()
+        return vm
+    }
+
+    @Test
+    fun `the drug search waits for typing to pause and needs two letters`() = runTest(dispatcher) {
+        val drugs = FakeDrugRepository()
+        val vm = loadedViewModel(drugs = drugs)
+        vm.addRxRow()
+
+        vm.onRxQueryChange(0, "s")
+        advanceUntilIdle()
+        vm.onRxQueryChange(0, "se")
+        vm.onRxQueryChange(0, "sert")
+        advanceUntilIdle()
+
+        assertEquals(listOf("sert"), drugs.queries)
+        assertEquals(DrugSearch(0, "sert", listOf(sertralina)), vm.uiState.value.drugSearch)
+    }
+
+    @Test
+    fun `picking a drug closes the search and fills an empty route with the drug's own`() = runTest(dispatcher) {
+        val vm = loadedViewModel()
+        vm.addRxRow()
+        vm.addRxRow()
+        vm.onRxRouteChange(1, RouteOfAdministration.IV)
+
+        vm.onRxQueryChange(0, "halo")
+        advanceUntilIdle()
+        vm.onRxDrugSelected(0, haloperidolIm)
+        vm.onRxDrugSelected(1, haloperidolIm)
+
+        val rows = vm.uiState.value.prescripciones
+        assertNull(vm.uiState.value.drugSearch)
+        assertEquals(RxRow(drug = haloperidolIm, route = RouteOfAdministration.IM), rows[0])
+        assertEquals(RouteOfAdministration.IV, rows[1].route, "a route already chosen is kept")
+    }
+
+    @Test
+    fun `a drug matching a medication allergy is flagged on its row`() = runTest(dispatcher) {
+        val allergic = samplePatient.copy(
+            allergies = samplePatient.allergies + Allergy("a2", AllergyType.MEDICATION, "Sertralina", Severity.SEVERE),
+        )
+        val vm = loadedViewModel(patient = allergic)
+        vm.addRxRow()
+        vm.addRxRow()
+
+        vm.onRxDrugSelected(0, sertralina)
+        vm.onRxDrugSelected(1, haloperidolIm)
+
+        assertEquals(listOf(listOf("a2"), emptyList()), vm.uiState.value.rxAllergies.map { row -> row.map { it.id } })
+    }
+
+    @Test
+    fun `save refuses a prescription without dose or frequency, but ignores an untouched row`() = runTest(dispatcher) {
+        val notes = FakeClinicalNoteRepository()
+        val vm = loadedViewModel(notes = notes)
+        filledState(vm)
+        vm.addRxRow()
+        vm.onRxDrugSelected(0, sertralina)
+        vm.onRxDoseChange(0, "50 mg")
+        vm.addRxRow()
+
+        vm.save()
+        advanceUntilIdle()
+        assertEquals(RX_INCOMPLETE_ERROR, vm.uiState.value.error)
+        assertEquals(0, notes.addEvolucionCallCount)
+
+        vm.onRxFrequencyChange(0, "Cada 24 h")
+        vm.save()
+        advanceUntilIdle()
+        assertEquals(1, notes.addEvolucionCallCount)
+    }
+
+    @Test
+    fun `save refuses a prescription typed without picking a formulary drug`() = runTest(dispatcher) {
+        val notes = FakeClinicalNoteRepository()
+        val vm = loadedViewModel(notes = notes)
+        filledState(vm)
+        vm.addRxRow()
+        vm.onRxQueryChange(0, "Sertralina")
+        vm.onRxDoseChange(0, "50 mg")
+        vm.onRxFrequencyChange(0, "Cada 24 h")
+
+        vm.save()
+        advanceUntilIdle()
+
+        assertEquals(RX_INCOMPLETE_ERROR, vm.uiState.value.error)
+        assertEquals(0, notes.addEvolucionCallCount)
+    }
+
+    @Test
+    fun `save sends each prescription with the formulary drug and trimmed fields`() = runTest(dispatcher) {
+        val notes = FakeClinicalNoteRepository()
+        val vm = loadedViewModel(notes = notes)
+        filledState(vm)
+        vm.addRxRow()
+        vm.onRxDrugSelected(0, sertralina)
+        vm.onRxDoseChange(0, " 50 mg ")
+        vm.onRxFrequencyChange(0, "Cada 24 h")
+        vm.onRxDurationChange(0, "30 dias")
+        vm.onRxChange("Dieta blanda")
+
+        vm.save()
+        advanceUntilIdle()
+
+        val saved = checkNotNull(notes.lastAddedEvolucion)
+        assertEquals(
+            listOf(Prescripcion("d1", "Sertralina 50 mg · Tableta", "50 mg", "Cada 24 h", RouteOfAdministration.PO, "30 dias", "")),
+            saved.prescripciones,
+        )
+        assertEquals("Dieta blanda", saved.rx)
+    }
+
+    @Test
+    fun `removing a row closes an open search, since the rows after it shift`() = runTest(dispatcher) {
+        val vm = loadedViewModel()
+        vm.addRxRow()
+        vm.addRxRow()
+        vm.onRxQueryChange(1, "sert")
+        advanceUntilIdle()
+
+        vm.removeRxRow(0)
+        advanceUntilIdle()
+
+        assertNull(vm.uiState.value.drugSearch)
+        assertEquals(listOf(RxRow(query = "sert")), vm.uiState.value.prescripciones)
     }
 }

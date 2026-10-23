@@ -1,5 +1,6 @@
 package com.cramsan.hirsh.ui.screens.evolucionview
 
+import com.cramsan.hirsh.model.treatmentText
 import com.cramsan.hirsh.model.Evolucion
 import com.cramsan.hirsh.model.Patient
 
@@ -34,7 +35,7 @@ internal fun evolucionSisText(patient: Patient, evolucion: Evolucion): String {
         line("[ANALISIS]", evolucion.assessment),
         line("[PLAN]", evolucion.plan),
         line("[DIAGNOSTICOS]", diagnosticos),
-        line("[TRATAMIENTO]", evolucion.rx),
+        line("[TRATAMIENTO]", evolucion.treatmentText()),
         line("[SIGNOS VITALES]", vitals),
         SIS_RULE,
     )

@@ -12,8 +12,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -34,18 +36,21 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cramsan.hirsh.model.ActiveTreatment
 import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.calculateAge
 import com.cramsan.hirsh.model.physicianName
 import com.cramsan.hirsh.model.serviceName
 import com.cramsan.hirsh.model.toDisplayLabel
+import com.cramsan.hirsh.ui.components.ActiveTreatmentsPanel
 import com.cramsan.hirsh.ui.components.AllergyList
 import com.cramsan.hirsh.ui.components.BadgeTone
 import com.cramsan.hirsh.ui.components.EpisodeStatusBadge
 import com.cramsan.hirsh.ui.components.KeyValueRow
 import com.cramsan.hirsh.ui.components.LoadErrorMessage
 import com.cramsan.hirsh.ui.components.StatusBadge
+import com.cramsan.hirsh.ui.components.SuspendTreatmentDialog
 import com.cramsan.hirsh.ui.components.VisitCard
 import com.cramsan.hirsh.ui.theme.HissAccent
 import com.cramsan.hirsh.ui.theme.HissAccentWash
@@ -85,6 +90,10 @@ fun PatientRecordScreen(
         onHospitalizationSelected = onHospitalizationSelected,
         onViewHistory = onViewHistory,
         onRetry = viewModel::retry,
+        onSuspendTreatment = viewModel::openSuspension,
+        onSuspensionReasonChange = viewModel::onSuspensionReasonChange,
+        onConfirmSuspension = viewModel::confirmSuspension,
+        onDismissSuspension = viewModel::dismissSuspension,
     )
 }
 
@@ -98,6 +107,10 @@ internal fun PatientRecordScreenContent(
     onHospitalizationSelected: (hospId: String) -> Unit,
     onViewHistory: (() -> Unit)?,
     onRetry: () -> Unit,
+    onSuspendTreatment: (ActiveTreatment) -> Unit = {},
+    onSuspensionReasonChange: (String) -> Unit = {},
+    onConfirmSuspension: () -> Unit = {},
+    onDismissSuspension: () -> Unit = {},
 ) {
     val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
     val patient = uiState.patient
@@ -114,7 +127,8 @@ internal fun PatientRecordScreenContent(
                     onNewHospitalization = onNewHospitalization,
                 )
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 24.dp),
+                    modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())
+                        .padding(top = 24.dp).testTag("screen_scroll_container"),
                     horizontalArrangement = Arrangement.spacedBy(24.dp),
                 ) {
                     ProfileCard(
@@ -123,10 +137,24 @@ internal fun PatientRecordScreenContent(
                         onViewHistory = onViewHistory,
                         modifier = Modifier.width(280.dp),
                     )
-                    HospitalizationsSection(
-                        hospitalizations = uiState.hospitalizations,
-                        onHospitalizationSelected = onHospitalizationSelected,
-                        modifier = Modifier.weight(1f),
+                    Column(modifier = Modifier.weight(1f)) {
+                        HospitalizationsSection(
+                            hospitalizations = uiState.hospitalizations,
+                            onHospitalizationSelected = onHospitalizationSelected,
+                        )
+                        ActiveTreatmentsPanel(
+                            section = uiState.treatments,
+                            onSuspend = onSuspendTreatment.takeIf { uiState.canSuspendTreatments },
+                            modifier = Modifier.padding(top = 24.dp),
+                        )
+                    }
+                }
+                uiState.suspension?.let {
+                    SuspendTreatmentDialog(
+                        suspension = it,
+                        onReasonChange = onSuspensionReasonChange,
+                        onConfirm = onConfirmSuspension,
+                        onDismiss = onDismissSuspension,
                     )
                 }
             }

@@ -510,6 +510,49 @@ abstract class HissE2EScenarios {
         assertTrue(hierarchy.containsText("Moderadamente severa"), hierarchy.allTexts().toString())
     }
 
+    /** HCEM-11: needs the placeholder formulary and the EVOL_PSIQ v2 template on the backend. */
+    @Test
+    fun test13e_prescription_becomesAnActiveTreatmentUntilSuspended() {
+        driver.loginAsAdmin()
+        driver.registerE2eTestPatient()
+        driver.admitPatient()
+
+        driver.clickTag("hosp_new_evolucion_button")
+        driver.waitForTag("evo_new_subjective_field")
+        driver.type("evo_new_subjective_field", "E2E inicia tratamiento.")
+        driver.type("evo_new_objective_field", "E2E afecto aplanado.")
+        driver.type("evo_new_dx_descripcion_0", "E2E episodio depresivo")
+        driver.selectOption("evo_new_pronostico_field", 0)
+        driver.selectOption("evo_new_resultado_field", 0)
+        driver.scrollUntilVisible("evo_new_rx_add_button", "screen_scroll_container")
+        driver.clickTag("evo_new_rx_add_button")
+        driver.type("evo_new_rx_drug_field_0", "Sertralina")
+        driver.clickTag("evo_new_rx_drug_option_0_0", timeoutMs = 15_000)
+        driver.waitForTag("evo_new_rx_drug_selected_0")
+        driver.type("evo_new_rx_dose_0", "50 mg")
+        driver.type("evo_new_rx_frequency_0", "cada 24 h")
+        driver.scrollDown("screen_scroll_container")
+        driver.clickTag("evo_new_save_button")
+        driver.waitForTag("evo_view_print_button")
+        assertTrue(driver.getHierarchy().containsText("Sertralina"), "the signed evolucion must show its prescription")
+
+        // Signing extracted the prescription: the stay's panel lists it.
+        driver.clickTag("encounter_close_button")
+        driver.waitForTag("hosp_new_evolucion_button")
+        driver.scrollUntilVisible("active_treatments_section", "screen_scroll_container")
+        driver.waitUntil(timeoutMs = 15_000) { it.containsText("cada 24 h") }
+        val suspendTag = driver.getHierarchy().tagsWithPrefix("treatment_suspend_").single()
+        driver.scrollUntilVisible(suspendTag, "screen_scroll_container")
+        driver.clickTag(suspendTag)
+
+        driver.clickTag("treatment_suspend_confirm_button")
+        assertTrue(driver.getHierarchy().containsText("Indica el motivo de la suspension"), "a reason is required")
+        driver.type("treatment_suspend_reason_field", "E2E sedacion excesiva")
+        driver.clickTag("treatment_suspend_confirm_button")
+        driver.waitUntil(timeoutMs = 15_000) { it.containsText("Sin tratamiento activo") }
+        assertFalse(driver.getHierarchy().containsTag("treatment_suspend_reason_field"), "the dialog closes once suspended")
+    }
+
     // --- Full clinical documentation lifecycle: admision -> HC -> evolucion -> discharge -----
 
     @Ignore("see the settle-delay stopgap noted inline below -- CodeHavenX/hirsh-client#31")
