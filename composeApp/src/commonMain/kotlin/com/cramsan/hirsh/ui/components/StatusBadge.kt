@@ -15,7 +15,6 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import com.cramsan.hirsh.ui.theme.HissAccent
 import com.cramsan.hirsh.ui.theme.HissAccentWash
-import com.cramsan.hirsh.ui.theme.HissInk
 import com.cramsan.hirsh.ui.theme.HissInk2
 import com.cramsan.hirsh.ui.theme.HissRadiusSmall
 import com.cramsan.hirsh.ui.theme.HissWarn
@@ -42,12 +41,13 @@ private data class BadgeStyle(
     val dashed: Boolean,
 )
 
-private fun styleFor(tone: BadgeTone): BadgeStyle = when (tone) {
+/** [ink] is the theme's onSurface: the neutral tones sit on the page, not on a wash. */
+private fun styleFor(tone: BadgeTone, ink: Color): BadgeStyle = when (tone) {
     BadgeTone.Done -> BadgeStyle(HissAccent, HissAccent, HissAccentWash, dashed = false)
     BadgeTone.Warn -> BadgeStyle(HissWarn, HissWarn, HissWarnWash, dashed = false)
     BadgeTone.Progress -> BadgeStyle(HissWarn, HissWarn, HissWarnWash, dashed = true)
-    BadgeTone.Off -> BadgeStyle(HissInk2, HissInk, Color.Transparent, dashed = true)
-    BadgeTone.Neutral -> BadgeStyle(HissInk, HissInk, Color.Transparent, dashed = false)
+    BadgeTone.Off -> BadgeStyle(HissInk2, ink, Color.Transparent, dashed = true)
+    BadgeTone.Neutral -> BadgeStyle(ink, ink, Color.Transparent, dashed = false)
 }
 
 /**
@@ -60,7 +60,7 @@ fun StatusBadge(
     text: String,
     tone: BadgeTone,
 ) {
-    val style = styleFor(tone)
+    val style = styleFor(tone, MaterialTheme.colorScheme.onSurface)
     val cornerRadius = HissRadiusSmall
     Text(
         text = text,

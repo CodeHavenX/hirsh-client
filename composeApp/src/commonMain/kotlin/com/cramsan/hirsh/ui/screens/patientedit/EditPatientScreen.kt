@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -33,7 +34,6 @@ import com.cramsan.hirsh.ui.components.ReadOnlyField
 import com.cramsan.hirsh.ui.components.RequiredFieldLabel
 import com.cramsan.hirsh.ui.components.SelectField
 import com.cramsan.hirsh.ui.components.fieldShape
-import com.cramsan.hirsh.ui.theme.HissInk
 import com.cramsan.hirsh.ui.theme.HissInk2
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -96,7 +96,7 @@ internal fun EditPatientScreenContent(
     onRetry: () -> Unit,
 ) {
     val patient = uiState.patient
-    Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp).testTag("screen_scroll_container")) {
+    Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp).testTag("screen_scroll_container")) {
         when {
             uiState.isLoading -> Text("Cargando...", style = MaterialTheme.typography.bodyMedium)
             uiState.loadError != null -> LoadErrorMessage(uiState.loadError, onRetry = onRetry)
@@ -207,11 +207,11 @@ private fun EditPatientForm(
                 onClick = onCancel,
                 enabled = !uiState.isSaving,
                 shape = fieldShape,
-                border = BorderStroke(1.5.dp, HissInk),
+                border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.onSurface),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
                 modifier = Modifier.testTag("edit_cancel_button"),
             ) {
-                Text("Cancelar", fontSize = FieldFontSize, fontWeight = FontWeight.Medium, color = HissInk)
+                Text("Cancelar", fontSize = FieldFontSize, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
             }
             Button(
                 onClick = onSave,

@@ -55,7 +55,6 @@ import com.cramsan.hirsh.ui.components.VisitCard
 import com.cramsan.hirsh.ui.theme.HissAccent
 import com.cramsan.hirsh.ui.theme.HissAccentWash
 import com.cramsan.hirsh.ui.theme.HissFaint
-import com.cramsan.hirsh.ui.theme.HissInk
 import com.cramsan.hirsh.ui.theme.HissInk2
 import com.cramsan.hirsh.ui.theme.HissRadiusDefault
 import com.cramsan.hirsh.util.formatDate
@@ -178,11 +177,11 @@ private fun RecordHeader(
             OutlinedButton(
                 onClick = onEditProfile,
                 shape = ButtonShape,
-                border = BorderStroke(1.5.dp, HissInk),
+                border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.onSurface),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
                 modifier = Modifier.testTag("record_edit_button"),
             ) {
-                Text("Editar perfil", fontWeight = FontWeight.Medium, color = HissInk)
+                Text("Editar perfil", fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
             }
             if (canAdmit) {
                 Button(

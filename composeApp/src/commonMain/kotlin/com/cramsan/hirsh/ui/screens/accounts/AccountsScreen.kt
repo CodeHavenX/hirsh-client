@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -48,7 +49,6 @@ import com.cramsan.hirsh.ui.components.SelectField
 import com.cramsan.hirsh.ui.components.StatusBadge
 import com.cramsan.hirsh.ui.components.fieldShape
 import com.cramsan.hirsh.ui.theme.HissAccent
-import com.cramsan.hirsh.ui.theme.HissInk
 import com.cramsan.hirsh.ui.theme.HissInk2
 import com.cramsan.hirsh.ui.theme.HissRadiusDefault
 import com.cramsan.hirsh.ui.theme.HissRadiusTag
@@ -99,7 +99,7 @@ internal fun AccountsScreenContent(
     onConfirmDeactivate: () -> Unit,
 ) {
     Column(
-        modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp).testTag("screen_scroll_container"),
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp).testTag("screen_scroll_container"),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -218,7 +218,7 @@ private fun AccountActions(
 
 @Composable
 private fun ActionSeparator() {
-    Text(" · ", fontSize = CellFontSize, color = HissInk)
+    Text(" · ", fontSize = CellFontSize, color = MaterialTheme.colorScheme.onSurface)
 }
 
 @Composable

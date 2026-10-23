@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -44,7 +45,6 @@ import com.cramsan.hirsh.ui.components.FormSectionCaption
 import com.cramsan.hirsh.ui.components.RequiredFieldLabel
 import com.cramsan.hirsh.ui.components.SelectField
 import com.cramsan.hirsh.ui.components.fieldShape
-import com.cramsan.hirsh.ui.theme.HissInk
 import com.cramsan.hirsh.ui.theme.HissInk2
 import com.cramsan.hirsh.ui.theme.HissRadiusDefault
 import com.cramsan.hirsh.ui.theme.HissWarn
@@ -126,7 +126,7 @@ internal fun RegisterPatientScreenContent(
     // Unspecified inherits the field's own (disabled) content color, the way RequiredFieldLabel already does.
     val optionalLabelColor = if (editable) HissInk2 else Color.Unspecified
     Column(
-        modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp).testTag("screen_scroll_container"),
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp).testTag("screen_scroll_container"),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
         Column {
@@ -291,11 +291,11 @@ private fun RegisterFooter(isSaving: Boolean, onCancel: () -> Unit, onRegister: 
             onClick = onCancel,
             enabled = !isSaving,
             shape = fieldShape,
-            border = BorderStroke(1.5.dp, HissInk),
+            border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.onSurface),
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
             modifier = Modifier.testTag("register_cancel_button"),
         ) {
-            Text("Cancelar", fontSize = FieldFontSize, fontWeight = FontWeight.Medium, color = HissInk)
+            Text("Cancelar", fontSize = FieldFontSize, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
         }
         Button(
             onClick = onRegister,
@@ -317,11 +317,11 @@ private fun AllergyRetryFooter(isSaving: Boolean, onGoToRecord: () -> Unit, onRe
             onClick = onGoToRecord,
             enabled = !isSaving,
             shape = fieldShape,
-            border = BorderStroke(1.5.dp, HissInk),
+            border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.onSurface),
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
             modifier = Modifier.testTag("register_go_to_record_button"),
         ) {
-            Text("Ir al registro", fontSize = FieldFontSize, fontWeight = FontWeight.Medium, color = HissInk)
+            Text("Ir al registro", fontSize = FieldFontSize, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
         }
         Button(
             onClick = onRetry,

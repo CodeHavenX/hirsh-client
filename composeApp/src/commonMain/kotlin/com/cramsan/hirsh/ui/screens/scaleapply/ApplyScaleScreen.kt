@@ -49,7 +49,6 @@ import com.cramsan.hirsh.ui.components.fieldShape
 import com.cramsan.hirsh.ui.theme.HissAccent
 import com.cramsan.hirsh.ui.theme.HissAccentWash
 import com.cramsan.hirsh.ui.theme.HissFaint
-import com.cramsan.hirsh.ui.theme.HissInk
 import com.cramsan.hirsh.ui.theme.HissInk2
 import com.cramsan.hirsh.ui.theme.HissRadiusDefault
 import com.cramsan.hirsh.ui.theme.HissWarn
@@ -201,11 +200,11 @@ private fun FormActions(
                 onClick = onChangeScale,
                 enabled = !isSaving,
                 shape = fieldShape,
-                border = BorderStroke(1.5.dp, HissInk),
+                border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.onSurface),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
                 modifier = Modifier.testTag("scale_change_button"),
             ) {
-                Text("Cambiar escala", fontWeight = FontWeight.Medium, color = HissInk)
+                Text("Cambiar escala", fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
             }
         }
         Button(
@@ -330,7 +329,7 @@ private fun QuestionCard(
                             "${option.label} (${option.value})",
                             fontSize = 13.sp,
                             fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
-                            color = if (active) HissAccent else HissInk,
+                            color = if (active) HissAccent else MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                         )
                     }
@@ -364,7 +363,7 @@ private fun SuicideRiskConfirmation(onConfirm: () -> Unit, onDismiss: () -> Unit
         },
         dismissButton = {
             TextButton(onClick = onDismiss, modifier = Modifier.testTag("scale_alert_dismiss_button")) {
-                Text("Revisar respuestas", color = HissInk)
+                Text("Revisar respuestas", color = MaterialTheme.colorScheme.onSurface)
             }
         },
     )

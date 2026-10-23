@@ -70,7 +70,6 @@ import com.cramsan.hirsh.ui.components.VisitCard
 import com.cramsan.hirsh.ui.theme.HissAccent
 import com.cramsan.hirsh.ui.theme.HissAccentWash
 import com.cramsan.hirsh.ui.theme.HissFaint
-import com.cramsan.hirsh.ui.theme.HissInk
 import com.cramsan.hirsh.ui.theme.HissInk2
 import com.cramsan.hirsh.ui.theme.HissRadiusDefault
 import com.cramsan.hirsh.ui.theme.HissWarn
@@ -212,11 +211,11 @@ private fun HospitalizationHeader(
                 OutlinedButton(
                     onClick = onDischarge,
                     shape = ButtonShape,
-                    border = BorderStroke(1.5.dp, HissInk),
+                    border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.onSurface),
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
                     modifier = Modifier.testTag("hosp_discharge_button"),
                 ) {
-                    Text("Dar de alta", fontWeight = FontWeight.Medium, color = HissInk)
+                    Text("Dar de alta", fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
                 }
             }
             Button(

@@ -58,7 +58,6 @@ import com.cramsan.hirsh.ui.components.fieldShape
 import com.cramsan.hirsh.ui.theme.HissAccent
 import com.cramsan.hirsh.ui.theme.HissAccentWash
 import com.cramsan.hirsh.ui.theme.HissFaint
-import com.cramsan.hirsh.ui.theme.HissInk
 import com.cramsan.hirsh.ui.theme.HissInk2
 import com.cramsan.hirsh.ui.theme.HissRadiusDefault
 import com.cramsan.hirsh.ui.theme.HissWarn
@@ -745,11 +744,11 @@ internal fun GhostSmallButton(text: String, onClick: () -> Unit, testTag: String
     OutlinedButton(
         onClick = onClick,
         shape = fieldShape,
-        border = BorderStroke(1.5.dp, HissInk),
+        border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.onSurface),
         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
         modifier = Modifier.testTag(testTag),
     ) {
-        Text(text, fontSize = 12.sp, color = HissInk)
+        Text(text, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface)
     }
 }
 
@@ -758,11 +757,11 @@ internal fun RemoveRowButton(onClick: () -> Unit, modifier: Modifier = Modifier,
     OutlinedButton(
         onClick = onClick,
         shape = fieldShape,
-        border = BorderStroke(1.5.dp, HissInk),
+        border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.onSurface),
         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
         modifier = modifier.testTag(testTag),
     ) {
-        Text("✕", fontSize = 12.sp, color = HissInk)
+        Text("✕", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface)
     }
 }
 

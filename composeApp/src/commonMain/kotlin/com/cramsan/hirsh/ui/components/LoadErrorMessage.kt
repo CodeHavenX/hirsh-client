@@ -15,7 +15,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cramsan.hirsh.network.ApiError
 import com.cramsan.hirsh.network.ApiException
-import com.cramsan.hirsh.ui.theme.HissInk
 import com.cramsan.hirsh.ui.theme.HissWarn
 
 /**
@@ -61,11 +60,11 @@ fun LoadErrorMessage(
             OutlinedButton(
                 onClick = onRetry,
                 shape = fieldShape,
-                border = BorderStroke(1.5.dp, HissInk),
+                border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.onSurface),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
                 modifier = Modifier.testTag("load_error_retry_button"),
             ) {
-                Text("Reintentar", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = HissInk)
+                Text("Reintentar", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
             }
         }
     }
