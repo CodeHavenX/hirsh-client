@@ -18,11 +18,20 @@ data class CreateDocumentRequest(
     val initialContent: JsonObject,
 )
 
-/** One entry of `GET /api/v1/episodes/{episodeId}/documents` -- schema `DocumentFolderEntry`. Content isn't included (HCEM-77). */
+/**
+ * One entry of `GET /api/v1/episodes/{episodeId}/documents` -- schema `DocumentFolderEntry`.
+ * [createdBy] and [latestVersionDetail] come only with `includeContent=true` (HCEM-77); a backend
+ * without it leaves them out and the document has to be read on its own.
+ */
 @Serializable
 data class DocumentFolderEntry(
     val id: String,
+    val episodeId: String,
+    val template: TemplateSummary,
     val documentStatus: DocumentStatusDto,
+    val documentDate: String,
+    val createdBy: UserRefDto? = null,
+    val latestVersionDetail: DocumentVersionDetail? = null,
 )
 
 /** 200/201 body of the single-document endpoints -- schema `DocumentDetail`. */

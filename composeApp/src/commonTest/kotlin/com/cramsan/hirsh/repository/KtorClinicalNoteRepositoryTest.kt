@@ -82,6 +82,9 @@ private data class StoredDocument(
 private class FakeDocumentBackend {
     val documents = mutableListOf<StoredDocument>()
     val sent = mutableListOf<DocumentRequest>()
+
+    /** False plays a backend before HCEM-77, which ignores `includeContent` on the folder. */
+    var folderHasContent = true
     private var nextId = 1
 
     /** Bumps a document's token as if another user had just saved it. */
@@ -123,7 +126,7 @@ private class FakeDocumentBackend {
                 ok(
                     page(
                         documents.filter { it.episodeId == episodeId && it.category == request.query["category"] }
-                            .map { """{"id": "${it.id}", "documentStatus": "${it.status}"}""" },
+                            .map { folderEntry(it, withContent = folderHasContent && request.query["includeContent"] == "true") },
                     ),
                 )
             }
@@ -172,6 +175,34 @@ private class FakeDocumentBackend {
         return documents.single { "v-${it.id}" == versionId }
     }
 
+    private fun folderEntry(document: StoredDocument, withContent: Boolean): String {
+        val content = if (!withContent) "" else
+            ", \"createdBy\": {\"id\": \"u1\", \"fullName\": \"${document.author}\"}, \"latestVersionDetail\": ${latestVersion(document)}"
+        return """
+        {
+          "id": "${document.id}",
+          "episodeId": "${document.episodeId}",
+          "template": {"id": "tpl", "code": "X", "templateVersion": 1, "category": "${document.category}", "name": "X"},
+          "documentStatus": "${document.status}",
+          "documentDate": "${document.documentDate}",
+          "latestVersion": {"id": "v-${document.id}", "versionNumber": 1, "status": "${document.status}"}
+          $content
+        }
+        """.trimIndent()
+    }
+
+    private fun latestVersion(document: StoredDocument): String = """
+        {
+          "id": "v-${document.id}",
+          "documentId": "${document.id}",
+          "versionNumber": 1,
+          "status": "${document.status}",
+          "content": ${document.content},
+          "draftDeadline": ${document.draftDeadline?.let { "\"$it\"" }},
+          "audit": {"createdAt": "${document.documentDate}", "jpaVersion": ${document.jpaVersion}}
+        }
+    """.trimIndent()
+
     private fun detail(document: StoredDocument): String = """
         {
           "id": "${document.id}",
@@ -180,15 +211,7 @@ private class FakeDocumentBackend {
           "documentStatus": "${document.status}",
           "documentDate": "${document.documentDate}",
           "versionHistory": [{"id": "v-${document.id}", "versionNumber": 1, "status": "${document.status}", "createdAt": "${document.documentDate}", "createdBy": {"id": "u1", "fullName": "${document.author}"}}],
-          "latestVersion": {
-            "id": "v-${document.id}",
-            "documentId": "${document.id}",
-            "versionNumber": 1,
-            "status": "${document.status}",
-            "content": ${document.content},
-            "draftDeadline": ${document.draftDeadline?.let { "\"$it\"" }},
-            "audit": {"createdAt": "${document.documentDate}", "jpaVersion": ${document.jpaVersion}}
-          }
+          "latestVersion": ${latestVersion(document)}
         }
     """.trimIndent()
 
@@ -451,7 +474,7 @@ class KtorClinicalNoteRepositoryTest {
     // --- Evoluciones ---------------------------------------------------------------------
 
     @Test
-    fun `evoluciones are read one document each and listed newest first`() = runTest {
+    fun `evoluciones are read with the folder in one request and listed newest first`() = runTest {
         val backend = FakeDocumentBackend()
         val repository = KtorClinicalNoteRepository(backend.client())
         val older = repository.addEvolucion(HOSP_ID, evolucion())
@@ -469,13 +492,32 @@ class KtorClinicalNoteRepositoryTest {
         val list = repository.getEvoluciones(HOSP_ID).first()
 
         assertEquals(listOf("newer", older.id), list.map { it.id })
-        assertEquals(listOf("/api/v1/episodes/$HOSP_ID/documents"), backend.sent.filter { "documents" in it.path && "clinical" !in it.path }.map { it.path })
+        assertEquals(listOf("/api/v1/episodes/$HOSP_ID/documents"), backend.sent.map { it.path })
+        assertEquals("true", backend.sent.single().query["includeContent"])
         val newer = list.first()
         assertEquals("Dr. Hirsh", newer.medico)
         assertEquals(NoteStatus.SIGNED, newer.status)
         assertEquals(Pronostico.MALO, newer.pronostico)
         assertEquals(EvolucionResultado.ESTACIONARIA, newer.resultado, "a missing outcome falls back instead of failing the list")
         assertEquals(NoteStatus.DRAFT, list.last().status)
+    }
+
+    @Test
+    fun `a backend whose folder carries no content has each evolucion read on its own`() = runTest {
+        val backend = FakeDocumentBackend().apply { folderHasContent = false }
+        val repository = KtorClinicalNoteRepository(backend.client())
+        val first = repository.addEvolucion(HOSP_ID, evolucion())
+        val second = repository.addEvolucion(HOSP_ID, evolucion())
+        backend.sent.clear()
+
+        val list = repository.getEvoluciones(HOSP_ID).first()
+
+        assertEquals(setOf(first.id, second.id), list.map { it.id }.toSet())
+        assertEquals(
+            setOf("/api/v1/clinical-documents/${first.id}", "/api/v1/clinical-documents/${second.id}"),
+            backend.sent.filter { "clinical-documents" in it.path }.map { it.path }.toSet(),
+        )
+        assertEquals("Dra. Rosa Quispe", list.first().medico)
     }
 
     @Test

@@ -133,11 +133,7 @@ class KtorClinicalNoteRepository(
     }
 
     override fun getEvoluciones(hospId: String): Flow<List<Evolucion>> = flow {
-        val documents = coroutineScope {
-            folder(hospId, DocumentCategoryDto.PROGRESS_NOTE)
-                .map { entry -> async { fetchDocument(entry.id) } }
-                .awaitAll()
-        }.sortedByDescending { it.documentDate }
+        val documents = documentsOf(hospId, DocumentCategoryDto.PROGRESS_NOTE).sortedByDescending { it.documentDate }
         _evoluciones.update { it + (hospId to documents) }
         emitAll(_evoluciones.map { lists -> lists[hospId].orEmpty().map { it.toEvolucion() } }.distinctUntilChanged())
     }
@@ -223,8 +219,7 @@ class KtorClinicalNoteRepository(
         }
 
     private suspend fun refreshHistoriaClinica(hospId: String): NoteDocument? {
-        val entry = folder(hospId, DocumentCategoryDto.ADMISSION).firstOrNull()
-        val document = entry?.let { fetchDocument(it.id) }
+        val document = documentsOf(hospId, DocumentCategoryDto.ADMISSION).firstOrNull()
         _historias.update { it + (hospId to document) }
         return document
     }
@@ -252,10 +247,21 @@ class KtorClinicalNoteRepository(
         }
     }
 
-    /** Non-voided documents of [category] in the stay. An unknown stay (a `404`) has none. */
+    /**
+     * Non-voided documents of [category] in the stay, read with the folder in one request. An entry
+     * without its content (a backend before HCEM-77) is read on its own.
+     */
+    private suspend fun documentsOf(hospId: String, category: DocumentCategoryDto): List<NoteDocument> = coroutineScope {
+        folder(hospId, category)
+            .map { entry -> async { entry.toNoteDocument() ?: fetchDocument(entry.id) } }
+            .awaitAll()
+    }
+
+    /** Non-voided entries of [category] in the stay. An unknown stay (a `404`) has none. */
     private suspend fun folder(hospId: String, category: DocumentCategoryDto): List<DocumentFolderEntry> = try {
         httpClient.getAllPages<DocumentFolderEntry>("/api/v1/episodes/$hospId/documents") {
             parameter("category", category)
+            parameter("includeContent", true)
         }.filter { it.documentStatus != DocumentStatusDto.VOIDED }
     } catch (e: CancellationException) {
         throw e
@@ -324,6 +330,22 @@ private fun DocumentDetail.toNoteDocument() = NoteDocument(
     draftDeadline = latestVersion.draftDeadline?.let(Instant::parse),
     content = latestVersion.content,
 )
+
+private fun DocumentFolderEntry.toNoteDocument(): NoteDocument? {
+    val latest = latestVersionDetail ?: return null
+    return NoteDocument(
+        documentId = id,
+        episodeId = episodeId,
+        category = template.category,
+        status = documentStatus.toDomain(),
+        documentDate = Instant.parse(documentDate),
+        author = createdBy?.fullName.orEmpty(),
+        versionId = latest.id,
+        jpaVersion = latest.audit.jpaVersion,
+        draftDeadline = latest.draftDeadline?.let(Instant::parse),
+        content = latest.content,
+    )
+}
 
 private fun NoteDocument?.toHistoriaClinica(): HistoriaClinica {
     if (this == null) return HistoriaClinica()
