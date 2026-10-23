@@ -22,7 +22,6 @@ import com.cramsan.hirsh.model.Allergy
 import com.cramsan.hirsh.model.AllergyType
 import com.cramsan.hirsh.model.Severity
 import com.cramsan.hirsh.model.toDisplayLabel
-import com.cramsan.hirsh.ui.theme.HissInk
 import com.cramsan.hirsh.ui.theme.HissInk2
 
 /**
@@ -116,11 +115,11 @@ fun AllergyDraftForm(draft: AllergyDraft, isBusy: Boolean, actions: AllergyActio
                 onClick = actions.onCancelDraft,
                 enabled = !isBusy,
                 shape = fieldShape,
-                border = BorderStroke(1.5.dp, HissInk),
+                border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.onSurface),
                 contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
                 modifier = Modifier.testTag("allergy_cancel_button"),
             ) {
-                Text("Cancelar", fontSize = FieldFontSize, fontWeight = FontWeight.Medium, color = HissInk)
+                Text("Cancelar", fontSize = FieldFontSize, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
             }
             Button(
                 onClick = actions.onSaveDraft,
@@ -142,10 +141,10 @@ fun AddAllergyButton(enabled: Boolean, onClick: () -> Unit) {
         onClick = onClick,
         enabled = enabled,
         shape = fieldShape,
-        border = BorderStroke(1.5.dp, HissInk),
+        border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.onSurface),
         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
         modifier = Modifier.testTag("allergy_add_button"),
     ) {
-        Text("+ Agregar alergia", fontSize = FieldFontSize, fontWeight = FontWeight.Medium, color = HissInk)
+        Text("+ Agregar alergia", fontSize = FieldFontSize, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
     }
 }

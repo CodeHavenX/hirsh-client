@@ -84,7 +84,7 @@ internal fun ProfileScreenContent(
     val session = uiState.session
 
     Column(
-        modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp).testTag("profile_scroll_container"),
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp).testTag("profile_scroll_container"),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
         Column {

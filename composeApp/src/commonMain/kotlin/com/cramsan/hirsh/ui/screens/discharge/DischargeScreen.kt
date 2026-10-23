@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -102,7 +103,7 @@ internal fun DischargeScreenContent(
 ) {
     val patient = uiState.patient
     val hospitalizacion = uiState.hospitalizacion
-    Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp).testTag("screen_scroll_container")) {
+    Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp).testTag("screen_scroll_container")) {
         when {
             uiState.isLoading -> Text("Cargando...", style = MaterialTheme.typography.bodyMedium)
             uiState.loadError != null -> LoadErrorMessage(uiState.loadError, onRetry = onRetry)
@@ -223,11 +224,11 @@ private fun DischargeForm(
                 onClick = onCancel,
                 enabled = !uiState.isSaving,
                 shape = fieldShape,
-                border = BorderStroke(1.5.dp, HissInk),
+                border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.onSurface),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
                 modifier = Modifier.testTag("discharge_cancel_button"),
             ) {
-                Text("Cancelar", fontSize = FieldFontSize, fontWeight = FontWeight.Medium, color = HissInk)
+                Text("Cancelar", fontSize = FieldFontSize, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
             }
             Button(
                 onClick = onDischarge,

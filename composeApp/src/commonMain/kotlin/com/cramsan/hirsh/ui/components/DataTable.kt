@@ -10,9 +10,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -22,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cramsan.hirsh.ui.theme.HissAccentWash
 import com.cramsan.hirsh.ui.theme.HissFaint
+import com.cramsan.hirsh.ui.theme.HissInk
 import com.cramsan.hirsh.ui.theme.HissInk2
 import com.cramsan.hirsh.ui.theme.HissRadiusDefault
 
@@ -85,10 +88,14 @@ fun <T> DataTable(
             }
             rowTestTag(row)?.let { tag -> rowModifier = rowModifier.testTag(tag) }
             rowModifier = rowModifier.padding(vertical = 12.dp, horizontal = 12.dp)
-            Row(modifier = rowModifier, verticalAlignment = Alignment.CenterVertically) {
-                columns.forEach { column ->
-                    Box(modifier = Modifier.weight(column.weight)) {
-                        column.content(row)
+            // The highlight wash is light in both themes, so its text stays ink.
+            val rowInk = if (isHighlighted(row)) HissInk else MaterialTheme.colorScheme.onSurface
+            CompositionLocalProvider(LocalContentColor provides rowInk) {
+                Row(modifier = rowModifier, verticalAlignment = Alignment.CenterVertically) {
+                    columns.forEach { column ->
+                        Box(modifier = Modifier.weight(column.weight)) {
+                            column.content(row)
+                        }
                     }
                 }
             }

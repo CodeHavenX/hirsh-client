@@ -29,7 +29,6 @@ import com.cramsan.hirsh.model.toDisplayLabel
 import com.cramsan.hirsh.repository.ACCESS_LOG_PAGE_SIZE
 import com.cramsan.hirsh.ui.components.DataTable
 import com.cramsan.hirsh.ui.components.DataTableColumn
-import com.cramsan.hirsh.ui.theme.HissInk
 import com.cramsan.hirsh.ui.theme.HissInk2
 import com.cramsan.hirsh.ui.theme.HissRadiusDefault
 import org.koin.compose.viewmodel.koinViewModel
@@ -87,11 +86,11 @@ internal fun PatientHistoryScreenContent(
                     OutlinedButton(
                         onClick = onBack,
                         shape = fieldShape,
-                        border = BorderStroke(1.5.dp, HissInk),
+                        border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.onSurface),
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
                         modifier = Modifier.testTag("history_back_button"),
                     ) {
-                        Text("‹ Volver al perfil", fontSize = CellFontSize, fontWeight = FontWeight.Medium, color = HissInk)
+                        Text("‹ Volver al perfil", fontSize = CellFontSize, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
                     }
                 }
 

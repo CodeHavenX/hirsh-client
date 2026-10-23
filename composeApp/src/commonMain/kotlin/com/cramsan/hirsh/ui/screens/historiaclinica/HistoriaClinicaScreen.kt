@@ -61,7 +61,6 @@ import com.cramsan.hirsh.ui.components.fieldShape
 import com.cramsan.hirsh.ui.theme.HissAccent
 import com.cramsan.hirsh.ui.theme.HissAccentWash
 import com.cramsan.hirsh.ui.theme.HissFaint
-import com.cramsan.hirsh.ui.theme.HissInk
 import com.cramsan.hirsh.ui.theme.HissInk2
 import com.cramsan.hirsh.ui.theme.HissRadiusDefault
 import com.cramsan.hirsh.ui.theme.HissSuccess
@@ -456,7 +455,7 @@ private fun MotivoOptionChip(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Checkbox(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
-            Text(option.label, fontSize = 13.sp, color = HissInk)
+            Text(option.label, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
         }
     }
 }

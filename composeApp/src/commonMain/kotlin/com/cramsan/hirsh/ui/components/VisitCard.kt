@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import com.cramsan.hirsh.ui.theme.HissAccent
 import com.cramsan.hirsh.ui.theme.HissAccentWash
 import com.cramsan.hirsh.ui.theme.HissFaint
+import com.cramsan.hirsh.ui.theme.HissInk
 import com.cramsan.hirsh.ui.theme.HissInk2
 import com.cramsan.hirsh.ui.theme.HissRadiusDefault
 
@@ -43,6 +44,8 @@ fun VisitCard(
         onClick = onClick,
         shape = RoundedCornerShape(HissRadiusDefault),
         color = containerColor,
+        // The wash is light in both themes, so its text stays ink.
+        contentColor = if (active) HissInk else MaterialTheme.colorScheme.onSurface,
         border = BorderStroke(1.dp, borderColor),
         modifier = modifier.fillMaxWidth(),
     ) {
