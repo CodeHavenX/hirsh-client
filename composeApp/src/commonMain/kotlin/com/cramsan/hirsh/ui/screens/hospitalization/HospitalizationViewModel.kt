@@ -2,6 +2,7 @@ package com.cramsan.hirsh.ui.screens.hospitalization
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.cramsan.hirsh.model.ActiveTreatment
 import com.cramsan.hirsh.model.AppliedScale
 import com.cramsan.hirsh.model.Evolucion
 import com.cramsan.hirsh.model.HistoriaClinica
@@ -14,8 +15,14 @@ import com.cramsan.hirsh.repository.EpisodeRepository
 import com.cramsan.hirsh.repository.PatientRepository
 import com.cramsan.hirsh.repository.ScaleRepository
 import com.cramsan.hirsh.repository.SessionRepository
+import com.cramsan.hirsh.repository.TreatmentRepository
+import com.cramsan.hirsh.ui.components.ActiveTreatmentsSection
 import com.cramsan.hirsh.ui.components.LoadError
+import com.cramsan.hirsh.ui.components.TreatmentSuspender
+import com.cramsan.hirsh.ui.components.TreatmentSuspension
+import com.cramsan.hirsh.ui.components.activeTreatmentsSection
 import com.cramsan.hirsh.ui.components.toLoadError
+import com.cramsan.hirsh.util.Clock
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -38,6 +45,9 @@ data class HospitalizationUiState(
     val evoluciones: List<Evolucion> = emptyList(),
     val loadError: LoadError? = null,
     val scales: AppliedScalesSection = AppliedScalesSection.Hidden,
+    val treatments: ActiveTreatmentsSection = ActiveTreatmentsSection.Loading,
+    val canSuspendTreatments: Boolean = false,
+    val suspension: TreatmentSuspension? = null,
 )
 
 /** The stay's applied scales (HCEM-80), kept apart so a failure there never takes down the rest of the stay. */
@@ -59,7 +69,11 @@ class HospitalizationViewModel(
     private val clinicalNoteRepository: ClinicalNoteRepository,
     private val scaleRepository: ScaleRepository,
     private val sessionRepository: SessionRepository,
+    private val treatmentRepository: TreatmentRepository,
+    clock: Clock,
 ) : ViewModel() {
+
+    private val suspender = TreatmentSuspender(treatmentRepository, clock, viewModelScope)
 
     private val requestedIds = MutableStateFlow<RequestedIds?>(null)
 
@@ -87,10 +101,17 @@ class HospitalizationViewModel(
                         scales = scales.takeIf { hospitalizacion != null } ?: AppliedScalesSection.Hidden,
                     )
                 }
+                    .combine(treatmentRepository.activeTreatmentsSection(ids.patientId)) { state, treatments ->
+                        state.copy(
+                            treatments = treatments,
+                            canSuspendTreatments = sessionRepository.session.value?.can(Permission.TREATMENT_SUSPEND) == true,
+                        )
+                    }
                     .onStart { emit(HospitalizationUiState(isLoading = true)) }
                     .catch { emit(HospitalizationUiState(isLoading = false, loadError = it.toLoadError())) }
             }
         }
+        .combine(suspender.state) { state, suspension -> state.copy(suspension = suspension) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HospitalizationUiState())
 
     private fun appliedScales(hospId: String): Flow<AppliedScalesSection> =
@@ -109,4 +130,12 @@ class HospitalizationViewModel(
     fun retry() {
         attempt.update { it + 1 }
     }
+
+    fun openSuspension(treatment: ActiveTreatment) = suspender.open(treatment)
+
+    fun onSuspensionReasonChange(reason: String) = suspender.onReasonChange(reason)
+
+    fun confirmSuspension() = suspender.confirm()
+
+    fun dismissSuspension() = suspender.dismiss()
 }

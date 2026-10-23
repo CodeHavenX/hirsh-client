@@ -37,6 +37,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cramsan.hirsh.model.ActiveTreatment
 import com.cramsan.hirsh.model.AppliedScale
 import com.cramsan.hirsh.model.EpisodeStatus
 import com.cramsan.hirsh.model.Evolucion
@@ -51,6 +52,7 @@ import com.cramsan.hirsh.model.serviceName
 import com.cramsan.hirsh.model.statusLabel
 import com.cramsan.hirsh.model.toDisplayLabel
 import com.cramsan.hirsh.model.totalLabel
+import com.cramsan.hirsh.ui.components.ActiveTreatmentsPanel
 import com.cramsan.hirsh.ui.components.BadgeTone
 import com.cramsan.hirsh.ui.components.EpisodeStatusBadge
 import com.cramsan.hirsh.ui.components.KeyValueRow
@@ -59,6 +61,7 @@ import com.cramsan.hirsh.ui.components.NoteStatusBadge
 import com.cramsan.hirsh.ui.components.ScaleSeverityBadge
 import com.cramsan.hirsh.ui.components.StatusBadge
 import com.cramsan.hirsh.ui.components.SuicideAlertBadge
+import com.cramsan.hirsh.ui.components.SuspendTreatmentDialog
 import com.cramsan.hirsh.ui.components.VisitCard
 import com.cramsan.hirsh.ui.theme.HissAccent
 import com.cramsan.hirsh.ui.theme.HissAccentWash
@@ -95,6 +98,10 @@ fun HospitalizationScreen(
         onEvolucionSelected = onEvolucionSelected,
         onDischarge = onDischarge,
         onRetry = viewModel::retry,
+        onSuspendTreatment = viewModel::openSuspension,
+        onSuspensionReasonChange = viewModel::onSuspensionReasonChange,
+        onConfirmSuspension = viewModel::confirmSuspension,
+        onDismissSuspension = viewModel::dismissSuspension,
     )
 }
 
@@ -107,6 +114,10 @@ internal fun HospitalizationScreenContent(
     onEvolucionSelected: (evoId: String) -> Unit,
     onDischarge: () -> Unit,
     onRetry: () -> Unit,
+    onSuspendTreatment: (ActiveTreatment) -> Unit = {},
+    onSuspensionReasonChange: (String) -> Unit = {},
+    onConfirmSuspension: () -> Unit = {},
+    onDismissSuspension: () -> Unit = {},
 ) {
     val patient = uiState.patient
     val hospitalizacion = uiState.hospitalizacion
@@ -140,10 +151,23 @@ internal fun HospitalizationScreenContent(
                         onEvolucionSelected = onEvolucionSelected,
                         modifier = Modifier.padding(top = 20.dp),
                     )
+                    ActiveTreatmentsPanel(
+                        section = uiState.treatments,
+                        onSuspend = onSuspendTreatment.takeIf { uiState.canSuspendTreatments },
+                        modifier = Modifier.padding(top = 24.dp),
+                    )
                     AppliedScalesList(
                         section = uiState.scales,
                         onScaleSelected = { onEvolucionSelected(it.documentId) },
                         modifier = Modifier.padding(top = 24.dp),
+                    )
+                }
+                uiState.suspension?.let {
+                    SuspendTreatmentDialog(
+                        suspension = it,
+                        onReasonChange = onSuspensionReasonChange,
+                        onConfirm = onConfirmSuspension,
+                        onDismiss = onDismissSuspension,
                     )
                 }
             }

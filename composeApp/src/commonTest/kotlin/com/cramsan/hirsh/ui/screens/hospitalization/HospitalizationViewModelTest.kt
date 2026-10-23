@@ -37,6 +37,12 @@ import com.cramsan.hirsh.model.UserRef
 import com.cramsan.hirsh.repository.ClinicalNoteRepository
 import com.cramsan.hirsh.repository.EpisodeRepository
 import com.cramsan.hirsh.repository.PatientRepository
+import com.cramsan.hirsh.repository.TreatmentRepository
+import com.cramsan.hirsh.model.ActiveTreatment
+import com.cramsan.hirsh.model.RouteOfAdministration
+import com.cramsan.hirsh.ui.components.ActiveTreatmentsSection
+import com.cramsan.hirsh.util.Clock
+import kotlinx.datetime.LocalDate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -222,13 +228,49 @@ private fun sampleAppliedScale(id: String, total: Double) = AppliedScale(
     observations = null,
 )
 
+private val sertralina = ActiveTreatment(
+    id = "t1",
+    drugName = "Sertralina 50 mg · Tableta",
+    dose = "50 mg",
+    frequency = "cada 24 h",
+    route = RouteOfAdministration.PO,
+    episodeId = "h1",
+    episodeStartDate = LocalDate(2026, 4, 10),
+)
+
+/** Suspending drops the treatment from the next read, as the backend does. */
+private class FakeTreatmentRepository(treatments: List<ActiveTreatment> = emptyList()) : TreatmentRepository {
+    var readFailure: Throwable? = null
+    private val active = MutableStateFlow(treatments)
+
+    override fun getActiveTreatments(patientId: String): Flow<List<ActiveTreatment>> = flow {
+        readFailure?.let { throw it }
+        emitAll(active)
+    }
+
+    override suspend fun suspend(treatmentId: String, reason: String, endDate: LocalDate) {
+        active.update { list -> list.filterNot { it.id == treatmentId } }
+    }
+}
+
+private class FixedClock : Clock {
+    override fun now(): Instant = Instant.parse("2026-10-23T15:00:00Z")
+}
+
+private val suspenderSession = Session(
+    username = "drpatel",
+    displayName = "Dr. A. Patel",
+    permissions = setOf(Permission.TREATMENT_SUSPEND.name),
+)
+
 private fun newViewModel(
     patients: PatientRepository,
     episodes: EpisodeRepository,
     notes: ClinicalNoteRepository,
     scales: ScaleRepository = FakeScaleRepository(),
     session: Session? = null,
-) = HospitalizationViewModel(patients, episodes, notes, scales, FakeSessionRepository(session))
+    treatments: TreatmentRepository = FakeTreatmentRepository(),
+) = HospitalizationViewModel(patients, episodes, notes, scales, FakeSessionRepository(session), treatments, FixedClock())
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HospitalizationViewModelTest {
@@ -432,6 +474,49 @@ class HospitalizationViewModelTest {
 
         val state = viewModel.uiState.value
         assertEquals(AppliedScalesSection.Failed, state.scales)
+        assertEquals(hospitalization, state.hospitalizacion)
+        assertNull(state.loadError)
+    }
+
+    @Test
+    fun `the stay shows the patient's active treatments, and suspending one drops it`() = runTest(dispatcher) {
+        val viewModel = newViewModel(
+            FakePatientRepository(listOf(samplePatient)),
+            FakeEpisodeRepository(listOf(sampleHospitalization("h1", samplePatient.id))),
+            FakeClinicalNoteRepository(),
+            session = suspenderSession,
+            treatments = FakeTreatmentRepository(listOf(sertralina)),
+        )
+        backgroundScope.launch { viewModel.uiState.collect {} }
+        viewModel.load(samplePatient.id, "h1")
+        advanceUntilIdle()
+        assertEquals(ActiveTreatmentsSection.Loaded(listOf(sertralina)), viewModel.uiState.value.treatments)
+        assertEquals(true, viewModel.uiState.value.canSuspendTreatments)
+
+        viewModel.openSuspension(sertralina)
+        viewModel.onSuspensionReasonChange("Sedación excesiva")
+        viewModel.confirmSuspension()
+        advanceUntilIdle()
+
+        assertNull(viewModel.uiState.value.suspension)
+        assertEquals(ActiveTreatmentsSection.Loaded(emptyList()), viewModel.uiState.value.treatments)
+    }
+
+    @Test
+    fun `a failed read of the active treatments leaves the rest of the stay on screen`() = runTest(dispatcher) {
+        val hospitalization = sampleHospitalization("h1", samplePatient.id)
+        val viewModel = newViewModel(
+            FakePatientRepository(listOf(samplePatient)),
+            FakeEpisodeRepository(listOf(hospitalization)),
+            FakeClinicalNoteRepository(),
+            treatments = FakeTreatmentRepository().apply { readFailure = RuntimeException("Connection refused") },
+        )
+        backgroundScope.launch { viewModel.uiState.collect {} }
+        viewModel.load(samplePatient.id, "h1")
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(ActiveTreatmentsSection.Failed, state.treatments)
         assertEquals(hospitalization, state.hospitalizacion)
         assertNull(state.loadError)
     }

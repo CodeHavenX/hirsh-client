@@ -7,6 +7,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.cramsan.hirsh.model.ActiveTreatment
 import com.cramsan.hirsh.model.AppliedScale
 import com.cramsan.hirsh.model.Diagnostico
 import com.cramsan.hirsh.model.DiagnosticoCie10
@@ -21,14 +22,18 @@ import com.cramsan.hirsh.model.NoteStatus
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.Plan
 import com.cramsan.hirsh.model.Pronostico
+import com.cramsan.hirsh.model.RouteOfAdministration
 import com.cramsan.hirsh.model.ScaleScore
 import com.cramsan.hirsh.model.ScaleSeverity
 import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.model.Vitals
 import com.cramsan.hirsh.repository.PlaceholderCatalog
+import com.cramsan.hirsh.ui.components.ActiveTreatmentsPanel
+import com.cramsan.hirsh.ui.components.ActiveTreatmentsSection
 import com.cramsan.hirsh.ui.preview.PreviewResponsive
 import com.cramsan.hirsh.ui.theme.HirshTheme
 import kotlin.time.Instant
+import kotlinx.datetime.LocalDate
 
 private val previewPatient = Patient(
     id = "1e0697d0-f3e4-4755-85ad-d888d2b15f9d",
@@ -103,6 +108,7 @@ private fun previewUiState(
     hospitalizacion = hospitalizacion,
     historiaClinica = previewHistoriaClinica.copy(status = hcStatus),
     evoluciones = evoluciones,
+    treatments = ActiveTreatmentsSection.Loaded(emptyList()),
 )
 
 private fun previewPhq9(id: String, documentId: String, appliedAt: String, score: ScaleScore) = AppliedScale(
@@ -218,6 +224,25 @@ private fun HospitalizationAppliedScalesPreview() {
             AppliedScalesList(
                 section = AppliedScalesSection.Loaded(scales),
                 onScaleSelected = {},
+                modifier = Modifier.padding(24.dp),
+            )
+        }
+    }
+}
+
+/** The "Tratamiento activo" panel alone, below the fold of the full screen, for a user who can suspend treatments. */
+@PreviewResponsive
+@Composable
+private fun HospitalizationActiveTreatmentsPreview() {
+    val treatments = listOf(
+        ActiveTreatment("t1", "Sertralina 50 mg · Tableta", "50 mg", "cada 24 h", RouteOfAdministration.PO, "h1", LocalDate(2026, 6, 15)),
+        ActiveTreatment("t2", "Haloperidol 5 mg/mL · Ampolla", "5 mg", "condicional a agitacion", RouteOfAdministration.IM, "h1", LocalDate(2026, 6, 15)),
+    )
+    HirshTheme {
+        Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {
+            ActiveTreatmentsPanel(
+                section = ActiveTreatmentsSection.Loaded(treatments),
+                onSuspend = {},
                 modifier = Modifier.padding(24.dp),
             )
         }
