@@ -44,7 +44,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlin.test.AfterTest
@@ -455,6 +457,55 @@ class EvolucionViewViewModelTest {
         advanceUntilIdle()
 
         assertEquals(EVO_SIGN_ERROR, viewModel.uiState.value.error)
+    }
+
+    @Test
+    fun `a loaded note offers its plain text for the hospital systems`() = runTest(dispatcher) {
+        val evolucion = sampleEvolucion("evo1")
+        val viewModel = draftViewModel(FakeClinicalNoteRepository(mapOf("h1" to listOf(evolucion))), signerSession)
+
+        assertEquals(evolucionSisText(samplePatient, evolucion), viewModel.uiState.value.sisText)
+    }
+
+    @Test
+    fun `a missing note offers nothing to copy`() = runTest(dispatcher) {
+        val viewModel = draftViewModel(FakeClinicalNoteRepository(mapOf("h1" to emptyList())), signerSession)
+
+        assertNull(viewModel.uiState.value.sisText)
+    }
+
+    @Test
+    fun `copying shows a confirmation that goes away on its own`() = runTest(dispatcher) {
+        val viewModel = draftViewModel(FakeClinicalNoteRepository(mapOf("h1" to listOf(sampleEvolucion("evo1")))), signerSession)
+
+        viewModel.onCopiedForSis()
+        runCurrent()
+        assertEquals(true, viewModel.uiState.value.showCopiedConfirmation)
+
+        advanceTimeBy(COPIED_CONFIRMATION_MILLIS + 1)
+        assertEquals(false, viewModel.uiState.value.showCopiedConfirmation)
+    }
+
+    @Test
+    fun `copying again restarts the confirmation`() = runTest(dispatcher) {
+        val viewModel = draftViewModel(FakeClinicalNoteRepository(mapOf("h1" to listOf(sampleEvolucion("evo1")))), signerSession)
+
+        viewModel.onCopiedForSis()
+        advanceTimeBy(COPIED_CONFIRMATION_MILLIS - 500)
+        viewModel.onCopiedForSis()
+        advanceTimeBy(1_000)
+        assertEquals(true, viewModel.uiState.value.showCopiedConfirmation)
+    }
+
+    @Test
+    fun `a failed copy explains itself instead of confirming`() = runTest(dispatcher) {
+        val viewModel = draftViewModel(FakeClinicalNoteRepository(mapOf("h1" to listOf(sampleEvolucion("evo1")))), signerSession)
+
+        viewModel.onCopyForSisFailed()
+        runCurrent()
+
+        assertEquals(false, viewModel.uiState.value.showCopiedConfirmation)
+        assertEquals(EVO_COPY_ERROR, viewModel.uiState.value.error)
     }
 
     private fun TestScope.draftViewModel(notes: FakeClinicalNoteRepository, session: Session): EvolucionViewViewModel {

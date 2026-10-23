@@ -7,6 +7,8 @@ import com.cramsan.cmpbridge.driver.ManagedBridgeDriver
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Before
+import java.awt.Toolkit
+import java.awt.datatransfer.DataFlavor
 
 /**
  * Runs [HissE2EScenarios] against the real Compose Desktop app: [DesktopAppProcess] launches
@@ -44,4 +46,8 @@ class DesktopE2ETest : HissE2EScenarios() {
     }
 
     override val driver: BridgeDriver get() = managedDriver
+
+    /** The desktop app and this JVM share the system clipboard. */
+    override fun systemClipboardText(): String? =
+        Toolkit.getDefaultToolkit().systemClipboard.getData(DataFlavor.stringFlavor) as String
 }

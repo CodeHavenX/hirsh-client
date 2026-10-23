@@ -66,6 +66,9 @@ abstract class HissE2EScenarios {
 
     protected abstract val driver: BridgeDriver
 
+    /** The text on the clipboard the app writes to, or null where this JVM can't read it (a browser's). */
+    protected open fun systemClipboardText(): String? = null
+
     // --- Login / session -----------------------------------------------------------------
 
     @Test
@@ -454,6 +457,15 @@ abstract class HissE2EScenarios {
         val hierarchy = driver.getHierarchy()
         assertTrue(hierarchy.containsText("Registrada · solo lectura"), "a signer's evolucion must be signed on save")
         assertFalse(hierarchy.containsTag("evo_view_sign_button"), "a signed evolucion offers no signature")
+
+        // HCEM-81: the plain-text copy, read back wherever the target's clipboard is readable.
+        driver.clickTag("evo_view_copy_sis_button")
+        driver.waitForTag("evo_view_copied")
+        systemClipboardText()?.let { copied ->
+            assertTrue(copied.startsWith("=== EVOLUCION CLINICA - PSIQUIATRIA ==="), copied)
+            assertTrue(copied.contains("[SUBJETIVO] E2E nota firmada."), copied)
+            assertTrue(copied.contains("[DIAGNOSTICOS] E2E diagnostico de prueba"), copied)
+        }
     }
 
     // --- Full clinical documentation lifecycle: admision -> HC -> evolucion -> discharge -----

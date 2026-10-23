@@ -91,6 +91,7 @@ private fun previewUiState(
     selectedTab: EvolucionViewTab = EvolucionViewTab.EVOLUCION,
     canSign: Boolean = false,
     error: String? = null,
+    showCopiedConfirmation: Boolean = false,
 ) = EvolucionViewUiState(
     isLoading = false,
     patient = previewPatient,
@@ -99,6 +100,8 @@ private fun previewUiState(
     selectedTab = selectedTab,
     canSign = canSign,
     error = error,
+    sisText = evolucionSisText(previewPatient, evolucion),
+    showCopiedConfirmation = showCopiedConfirmation,
 )
 
 @PreviewResponsive
@@ -115,6 +118,8 @@ private fun EvolucionViewScreenPreview() {
             onSelectTab = {},
             onRetry = {},
             onSign = {},
+            onCopiedForSis = {},
+            onCopyForSisFailed = {},
         )
     }
 }
@@ -134,6 +139,8 @@ private fun EvolucionViewScreenNoExamenesPreview() {
             onSelectTab = {},
             onRetry = {},
             onSign = {},
+            onCopiedForSis = {},
+            onCopyForSisFailed = {},
         )
     }
 }
@@ -153,6 +160,8 @@ private fun EvolucionViewScreenExamenesTabPreview() {
             onSelectTab = {},
             onRetry = {},
             onSign = {},
+            onCopiedForSis = {},
+            onCopyForSisFailed = {},
         )
     }
 }
@@ -172,6 +181,29 @@ private fun EvolucionViewScreenDraftPreview() {
             onSelectTab = {},
             onRetry = {},
             onSign = {},
+            onCopiedForSis = {},
+            onCopyForSisFailed = {},
+        )
+    }
+}
+
+/** Right after "Copiar texto limpio para SIS", while the confirmation shows. */
+@PreviewResponsive
+@Composable
+private fun EvolucionViewScreenCopiedPreview() {
+    val evolucion = previewEvolucion(previewExamenes)
+    val hospitalizacion = previewHospitalizacion(evolucion)
+    HirshTheme {
+        EvolucionViewScreenContent(
+            uiState = previewUiState(hospitalizacion, evolucion, showCopiedConfirmation = true),
+            onClose = {},
+            onOpenPrintPreview = {},
+            onClosePrintPreview = {},
+            onSelectTab = {},
+            onRetry = {},
+            onSign = {},
+            onCopiedForSis = {},
+            onCopyForSisFailed = {},
         )
     }
 }
