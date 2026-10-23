@@ -4,8 +4,10 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -14,18 +16,21 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -48,11 +53,16 @@ import com.cramsan.hirsh.ui.components.NoteStatusBadge
 import com.cramsan.hirsh.ui.components.ReadOnlyField
 import com.cramsan.hirsh.ui.components.StatusBadge
 import com.cramsan.hirsh.ui.components.fieldShape
+import com.cramsan.hirsh.ui.components.plainTextClipEntry
 import com.cramsan.hirsh.ui.theme.HissAccent
 import com.cramsan.hirsh.ui.theme.HissAccentWash
 import com.cramsan.hirsh.ui.theme.HissFaint
 import com.cramsan.hirsh.ui.theme.HissInk2
 import com.cramsan.hirsh.ui.theme.HissRadiusDefault
+import com.cramsan.hirsh.ui.theme.HissSuccess
+import com.cramsan.hirsh.ui.theme.HissSuccessWash
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
@@ -77,6 +87,8 @@ fun EvolucionViewScreen(
         onSelectTab = viewModel::selectTab,
         onRetry = viewModel::retry,
         onSign = viewModel::sign,
+        onCopiedForSis = viewModel::onCopiedForSis,
+        onCopyForSisFailed = viewModel::onCopyForSisFailed,
     )
 }
 
@@ -90,7 +102,11 @@ internal fun EvolucionViewScreenContent(
     onSelectTab: (EvolucionViewTab) -> Unit,
     onRetry: () -> Unit,
     onSign: () -> Unit,
+    onCopiedForSis: () -> Unit,
+    onCopyForSisFailed: () -> Unit,
 ) {
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
     val patient = uiState.patient
     val hospitalizacion = uiState.hospitalizacion
     val evolucion = uiState.evolucion
@@ -166,6 +182,19 @@ internal fun EvolucionViewScreenContent(
                         )
                     }
                 }
+                if (uiState.showCopiedConfirmation) {
+                    Text(
+                        "¡Copiado al portapapeles!",
+                        color = HissSuccess,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier
+                            .padding(horizontal = 24.dp, vertical = 8.dp)
+                            .background(HissSuccessWash, RoundedCornerShape(HissRadiusDefault))
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                            .testTag("evo_view_copied"),
+                    )
+                }
                 uiState.error?.let {
                     Text(
                         it,
@@ -174,7 +203,25 @@ internal fun EvolucionViewScreenContent(
                         modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp).testTag("evo_view_error"),
                     )
                 }
-                EvoTabBar(selectedTab = uiState.selectedTab, examCount = evolucion.examenes.size, onSelectTab = onSelectTab)
+                EvoTabBar(
+                    selectedTab = uiState.selectedTab,
+                    examCount = evolucion.examenes.size,
+                    onSelectTab = onSelectTab,
+                    onCopyForSis = uiState.sisText?.let { text ->
+                        {
+                            scope.launch {
+                                try {
+                                    clipboard.setClipEntry(plainTextClipEntry(text))
+                                    onCopiedForSis()
+                                } catch (e: CancellationException) {
+                                    throw e
+                                } catch (e: Exception) {
+                                    onCopyForSisFailed()
+                                }
+                            }
+                        }
+                    },
+                )
                 Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp).testTag("screen_scroll_container")) {
                     when (uiState.selectedTab) {
                         EvolucionViewTab.EVOLUCION -> EvolucionReadOnlyPanel(evolucion)
@@ -191,13 +238,17 @@ private fun EvoTabBar(
     selectedTab: EvolucionViewTab,
     examCount: Int,
     onSelectTab: (EvolucionViewTab) -> Unit,
+    onCopyForSis: (() -> Unit)?,
 ) {
-    Row(
+    // A FlowRow so the copy action drops to its own line on a phone instead of squeezing the tabs.
+    FlowRow(
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
             .padding(horizontal = 24.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        itemVerticalAlignment = Alignment.CenterVertically,
     ) {
         EvoTab(
             "Evolucion",
@@ -210,6 +261,18 @@ private fun EvoTabBar(
             badgeCount = examCount.takeIf { it > 0 },
             testTag = "evo_tab_examenes",
         ) { onSelectTab(EvolucionViewTab.EXAMENES) }
+        if (onCopyForSis != null) {
+            Spacer(Modifier.weight(1f))
+            OutlinedButton(
+                onClick = onCopyForSis,
+                shape = fieldShape,
+                border = BorderStroke(1.5.dp, HissAccent),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                modifier = Modifier.testTag("evo_view_copy_sis_button"),
+            ) {
+                Text("Copiar texto limpio para SIS", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = HissAccent)
+            }
+        }
     }
 }
 

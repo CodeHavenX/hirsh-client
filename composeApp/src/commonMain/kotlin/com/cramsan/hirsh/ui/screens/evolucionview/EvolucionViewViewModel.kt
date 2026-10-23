@@ -18,6 +18,8 @@ import com.cramsan.hirsh.ui.components.LoadError
 import com.cramsan.hirsh.ui.components.toLoadError
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -44,11 +46,16 @@ data class EvolucionViewUiState(
     val canSign: Boolean = false,
     val isSigning: Boolean = false,
     val error: String? = null,
+    /** The note as plain text for the hospital's own systems; null until the note has loaded. */
+    val sisText: String? = null,
+    val showCopiedConfirmation: Boolean = false,
 )
 
 internal const val EVO_SIGN_FORBIDDEN_ERROR =
     "Tu cuenta no puede firmar: necesita el permiso de firma y un numero de colegiatura (CMP)"
 internal const val EVO_SIGN_ERROR = "No se pudo firmar la evolucion"
+internal const val EVO_COPY_ERROR = "No se pudo copiar al portapapeles"
+internal const val COPIED_CONFIRMATION_MILLIS = 2_500L
 
 private data class RequestedIds(val patientId: String, val hospId: String, val evoId: String)
 
@@ -58,6 +65,7 @@ private data class ViewControls(
     val showPrintPreview: Boolean = false,
     val isSigning: Boolean = false,
     val error: String? = null,
+    val showCopiedConfirmation: Boolean = false,
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -73,6 +81,7 @@ class EvolucionViewViewModel(
 
     /** Bumped by [retry] to re-run the reads for the same note. */
     private val attempt = MutableStateFlow(0)
+    private var hideCopiedConfirmation: Job? = null
 
     val uiState: StateFlow<EvolucionViewUiState> = combine(requestedIds, attempt) { ids, _ -> ids }
         .flatMapLatest { ids ->
@@ -100,6 +109,8 @@ class EvolucionViewViewModel(
                         canSign = session?.can(Permission.DOCUMENT_SIGN) == true && shown?.status == NoteStatus.DRAFT,
                         isSigning = view.isSigning,
                         error = view.error,
+                        sisText = if (patient != null && shown != null) evolucionSisText(patient, shown) else null,
+                        showCopiedConfirmation = view.showCopiedConfirmation,
                     )
                 }
                     .onStart { emit(EvolucionViewUiState(isLoading = true)) }
@@ -126,6 +137,21 @@ class EvolucionViewViewModel(
 
     fun closePrintPreview() {
         controls.update { it.copy(showPrintPreview = false) }
+    }
+
+    /** The Screen writes [EvolucionViewUiState.sisText] to the clipboard, since only it can reach one. */
+    fun onCopiedForSis() {
+        controls.update { it.copy(showCopiedConfirmation = true, error = null) }
+        hideCopiedConfirmation?.cancel()
+        hideCopiedConfirmation = viewModelScope.launch {
+            delay(COPIED_CONFIRMATION_MILLIS)
+            controls.update { it.copy(showCopiedConfirmation = false) }
+        }
+    }
+
+    fun onCopyForSisFailed() {
+        hideCopiedConfirmation?.cancel()
+        controls.update { it.copy(showCopiedConfirmation = false, error = EVO_COPY_ERROR) }
     }
 
     fun sign() {
