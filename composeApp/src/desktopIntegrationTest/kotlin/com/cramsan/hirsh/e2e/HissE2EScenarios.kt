@@ -69,6 +69,9 @@ abstract class HissE2EScenarios {
     /** The text on the clipboard the app writes to, or null where this JVM can't read it (a browser's). */
     protected open fun systemClipboardText(): String? = null
 
+    /** The bytes of a file the app saved at [location]; null where this test can't reach the app's disk. */
+    protected open fun savedFile(location: String): ByteArray? = null
+
     // --- Login / session -----------------------------------------------------------------
 
     @Test
@@ -509,6 +512,47 @@ abstract class HissE2EScenarios {
         assertTrue(hierarchy.containsText("Alerta riesgo suicida"), "the stay must flag the result that raised the alert")
         assertTrue(hierarchy.containsText("Moderadamente severa"), hierarchy.allTexts().toString())
     }
+
+    /** HCEM-14: the backend generates the PDF; the desktop app saves it into its (isolated) Downloads. */
+    @Test
+    fun test13f_pdfExport_signedEvolucionAndFullRecordAreSaved() {
+        driver.loginAsAdmin()
+        driver.registerE2eTestPatient()
+        driver.admitPatient()
+
+        driver.clickTag("hosp_new_evolucion_button")
+        driver.waitForTag("evo_new_subjective_field")
+        driver.type("evo_new_subjective_field", "E2E refiere mejoria.")
+        driver.type("evo_new_objective_field", "E2E afecto eutimico.")
+        driver.type("evo_new_dx_descripcion_0", "E2E episodio depresivo")
+        driver.selectOption("evo_new_pronostico_field", 0)
+        driver.selectOption("evo_new_resultado_field", 0)
+        driver.scrollDown("screen_scroll_container")
+        driver.clickTag("evo_new_save_button")
+        driver.waitForTag("evo_view_print_button")
+
+        driver.clickTag("pdf_download_button")
+        driver.waitForTag("pdf_download_saved", timeoutMs = 60_000)
+        val notePath = savedLocation()
+        assertTrue(notePath.substringAfterLast('/').startsWith("evolucion-HC-E2E-"), notePath)
+        savedFile(notePath)?.let { pdf ->
+            val text = pdf.decodeToString()
+            assertTrue(text.startsWith("%PDF-1.4"), text.take(40))
+            assertTrue(text.contains("(Subjetivo) Tj"), "the note is laid out under its form's labels")
+        }
+
+        driver.clickTag("encounter_close_button")
+        driver.waitForTag("hosp_new_evolucion_button")
+        // The closing evolucion stays on screen through its exit transition, status line and all.
+        driver.waitUntil { !it.containsTag("pdf_download_saved") }
+        driver.clickTag("pdf_download_button")
+        driver.waitUntil(timeoutMs = 60_000) { tree ->
+            tree.firstTextMatching { it.startsWith("PDF guardado: ") && it.contains("registro-completo-HC-E2E-") } != null
+        }
+    }
+
+    private fun savedLocation(): String =
+        checkNotNull(driver.getHierarchy().firstTextMatching { it.startsWith("PDF guardado: ") }).removePrefix("PDF guardado: ")
 
     /** HCEM-11: needs the placeholder formulary and the EVOL_PSIQ v2 template on the backend. */
     @Test
