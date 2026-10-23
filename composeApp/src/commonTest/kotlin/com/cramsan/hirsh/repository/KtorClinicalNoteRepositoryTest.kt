@@ -1,6 +1,8 @@
 package com.cramsan.hirsh.repository
 
 import app.cash.turbine.test
+import app.cash.turbine.testIn
+import app.cash.turbine.turbineScope
 import com.cramsan.hirsh.model.Diagnostico
 import com.cramsan.hirsh.model.DiagnosticoCie10
 import com.cramsan.hirsh.model.Evolucion
@@ -9,7 +11,9 @@ import com.cramsan.hirsh.model.Filiacion
 import com.cramsan.hirsh.model.HcSectionKey
 import com.cramsan.hirsh.model.MotivoIngreso
 import com.cramsan.hirsh.model.NoteStatus
+import com.cramsan.hirsh.model.Prescripcion
 import com.cramsan.hirsh.model.Pronostico
+import com.cramsan.hirsh.model.RouteOfAdministration
 import com.cramsan.hirsh.model.Vitals
 import com.cramsan.hirsh.network.ApiError
 import com.cramsan.hirsh.network.ApiException
@@ -237,6 +241,17 @@ private fun evolucion() = Evolucion(
     examenes = emptyList(),
     examenesObs = "",
     status = NoteStatus.SIGNED,
+    prescripciones = listOf(sertralina),
+)
+
+private val sertralina = Prescripcion(
+    drugId = "drug-sertralina",
+    drugName = "Sertralina 50 mg · Tableta",
+    dose = "50 mg",
+    frequency = "Cada 24 h",
+    route = RouteOfAdministration.PO,
+    duration = "30 dias",
+    instructions = "Con el desayuno",
 )
 
 class KtorClinicalNoteRepositoryTest {
@@ -475,6 +490,7 @@ class KtorClinicalNoteRepositoryTest {
 
             assertEquals(NoteStatus.DRAFT, created.status)
             assertEquals("Dra. Rosa Quispe", created.medico)
+            assertEquals(listOf(sertralina), created.prescripciones, "prescriptions read back as they were sent")
             assertEquals(listOf(created), awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
@@ -484,6 +500,13 @@ class KtorClinicalNoteRepositoryTest {
         assertEquals("FAVORABLE", content["pronostico"]!!.jsonPrimitive.content)
         assertEquals("120/80", content["vitals"]!!.jsonObject["pa"]!!.jsonPrimitive.content)
         assertEquals("F32.2", content["diagnosticos"]!!.jsonArray.single().jsonObject["codigoCie10"]!!.jsonPrimitive.content)
+        // The paths the backend's treatment extraction reads (EVOL_PSIQ v2).
+        val prescription = content["prescriptions"]!!.jsonArray.single().jsonObject
+        assertEquals("drug-sertralina", prescription["drug"]!!.jsonObject["id"]!!.jsonPrimitive.content)
+        assertEquals("Sertralina 50 mg · Tableta", prescription["drug"]!!.jsonObject["name"]!!.jsonPrimitive.content)
+        assertEquals("50 mg", prescription["dose"]!!.jsonPrimitive.content)
+        assertEquals("Cada 24 h", prescription["frequency"]!!.jsonPrimitive.content)
+        assertEquals("PO", prescription["route"]!!.jsonPrimitive.content)
     }
 
     @Test
@@ -492,13 +515,18 @@ class KtorClinicalNoteRepositoryTest {
         val repository = KtorClinicalNoteRepository(backend.client())
         val created = repository.addEvolucion(HOSP_ID, evolucion())
 
-        repository.getEvolucion(HOSP_ID, created.id).test {
-            assertEquals(NoteStatus.DRAFT, awaitItem()?.status)
+        turbineScope {
+            val signatures = repository.signatures.testIn(backgroundScope)
+            repository.getEvolucion(HOSP_ID, created.id).test {
+                assertEquals(NoteStatus.DRAFT, awaitItem()?.status)
 
-            repository.signEvolucion(HOSP_ID, created.id)
+                repository.signEvolucion(HOSP_ID, created.id)
 
-            assertEquals(NoteStatus.SIGNED, awaitItem()?.status)
-            cancelAndIgnoreRemainingEvents()
+                assertEquals(NoteStatus.SIGNED, awaitItem()?.status)
+                cancelAndIgnoreRemainingEvents()
+            }
+            signatures.awaitItem()
+            signatures.cancel()
         }
         assertEquals(NoteStatus.SIGNED, repository.getEvoluciones(HOSP_ID).first().single().status)
     }

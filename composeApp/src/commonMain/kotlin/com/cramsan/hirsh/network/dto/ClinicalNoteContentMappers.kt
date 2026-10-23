@@ -11,7 +11,9 @@ import com.cramsan.hirsh.model.Filiacion
 import com.cramsan.hirsh.model.MotivoIngreso
 import com.cramsan.hirsh.model.NoteStatus
 import com.cramsan.hirsh.model.Plan
+import com.cramsan.hirsh.model.Prescripcion
 import com.cramsan.hirsh.model.Pronostico
+import com.cramsan.hirsh.model.RouteOfAdministration
 import com.cramsan.hirsh.model.Vitals
 
 fun DocumentStatusDto.toDomain(): NoteStatus = when (this) {
@@ -73,6 +75,25 @@ fun DiagnosticoCie10Content.toDomain() = DiagnosticoCie10(codigoCie10, descripci
 fun Examen.toContent() = ExamenContent(tipo, nombre, resultado, unidad, referencia, fecha)
 
 fun ExamenContent.toDomain() = Examen(tipo, nombre, resultado, unidad, referencia, fecha)
+
+fun Prescripcion.toContent() = PrescriptionContent(
+    drug = DrugRefContent(drugId, drugName),
+    dose = dose,
+    frequency = frequency,
+    route = route?.name,
+    duration = duration,
+    instructions = instructions,
+)
+
+fun PrescriptionContent.toDomain() = Prescripcion(
+    drugId = drug.id,
+    drugName = drug.name,
+    dose = dose,
+    frequency = frequency,
+    route = RouteOfAdministration.entries.find { it.name == route },
+    duration = duration,
+    instructions = instructions,
+)
 
 /**
  * Every note this client writes carries both. One written elsewhere without them falls back to
