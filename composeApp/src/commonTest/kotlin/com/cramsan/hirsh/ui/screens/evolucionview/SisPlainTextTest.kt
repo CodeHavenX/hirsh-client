@@ -1,5 +1,7 @@
 package com.cramsan.hirsh.ui.screens.evolucionview
 
+import com.cramsan.hirsh.model.Prescripcion
+import com.cramsan.hirsh.model.RouteOfAdministration
 import com.cramsan.hirsh.model.DiagnosticoCie10
 import com.cramsan.hirsh.model.DocumentType
 import com.cramsan.hirsh.model.Evolucion
@@ -100,5 +102,24 @@ class SisPlainTextTest {
             .take(2)
 
         assertEquals(listOf("[TRATAMIENTO] Sertralina 50 mg c/24h", "Clonazepam 0.5 mg c/noche"), rxLines)
+    }
+
+    @Test
+    fun `formulary prescriptions come first under treatment, one per line, then the free text`() {
+        val evolucion = fullEvolucion.copy(
+            rx = "Dieta blanda",
+            prescripciones = listOf(
+                Prescripcion("d1", "Sertralina 50 mg · Tableta", "50 mg", "Cada 24 h", RouteOfAdministration.PO, "30 dias", ""),
+            ),
+        )
+
+        val rxLines = evolucionSisText(patient, evolucion).lines()
+            .dropWhile { !it.startsWith("[TRATAMIENTO]") }
+            .take(2)
+
+        assertEquals(
+            listOf("[TRATAMIENTO] Sertralina 50 mg · Tableta — 50 mg — Cada 24 h — VO — 30 dias", "Dieta blanda"),
+            rxLines,
+        )
     }
 }

@@ -1,5 +1,6 @@
 package com.cramsan.hirsh.ui.screens.evolucionview
 
+import com.cramsan.hirsh.model.treatmentText
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -355,7 +356,7 @@ private fun EvolucionReadOnlyPanel(evolucion: Evolucion) {
                 if (dx.codigoCie10.isNotBlank() && dx.codigoCie10 != "—") "${dx.descripcion} (${dx.codigoCie10})" else dx.descripcion
             }.ifBlank { "—" }
             ReadOnlyField("Diagnosticos", dxList)
-            RxBox(evolucion.rx.ifBlank { "—" })
+            RxBox(evolucion.treatmentText().ifBlank { "—" })
             Column {
                 KeyValueRow("Pronostico", evolucion.pronostico.toDisplayLabel())
                 KeyValueRow("Evolucion", evolucion.resultado.toDisplayLabel())

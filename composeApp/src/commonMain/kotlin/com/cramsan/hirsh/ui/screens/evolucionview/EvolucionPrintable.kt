@@ -1,5 +1,6 @@
 package com.cramsan.hirsh.ui.screens.evolucionview
 
+import com.cramsan.hirsh.model.treatmentText
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -58,7 +59,7 @@ private fun evolucionPrintableSections(evolucion: Evolucion): List<PrintableSect
     add(PrintableSection("Objetivo") { PrintableSectionText(evolucion.objective.ifBlank { "—" }) })
     add(PrintableSection("Analisis") { PrintableSectionText(evolucion.assessment.ifBlank { "—" }) })
     add(PrintableSection("Plan") { PrintableSectionText(evolucion.plan.ifBlank { "—" }) })
-    add(PrintableSection("Prescripcion") { PrintableRxBox(evolucion.rx.ifBlank { "—" }) })
+    add(PrintableSection("Prescripcion") { PrintableRxBox(evolucion.treatmentText().ifBlank { "—" }) })
     add(PrintableSection("Examenes y resultados") { PrintableSectionText(examenesText(evolucion)) })
     if (evolucion.examenesObs.isNotBlank()) {
         add(PrintableSection("Observaciones / informe") { PrintableSectionText(evolucion.examenesObs) })

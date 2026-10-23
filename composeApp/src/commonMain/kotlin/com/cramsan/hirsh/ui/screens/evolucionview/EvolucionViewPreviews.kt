@@ -1,5 +1,7 @@
 package com.cramsan.hirsh.ui.screens.evolucionview
 
+import com.cramsan.hirsh.model.Prescripcion
+import com.cramsan.hirsh.model.RouteOfAdministration
 import androidx.compose.runtime.Composable
 import com.cramsan.hirsh.model.DiagnosticoCie10
 import com.cramsan.hirsh.model.DocumentType
@@ -46,7 +48,11 @@ private fun previewEvolucion(examenes: List<Examen>, status: NoteStatus = NoteSt
     objective = "PA 115/72, FC 80, FR 20, SatO2 95% con FiO2 24%. MV mejor ventilado bilateral.",
     assessment = "Buena respuesta a tratamiento antimicrobiano. Resultado de BK pendiente aun.",
     plan = "Continuar TMP-SMX y corticoides en descenso. Reevaluar destete de O2.",
-    rx = "TMP-SMX 15mg/kg/dia EV c/8h\nPrednisona 40mg VO c/12h (en descenso)\nO2 por CBN 1L",
+    rx = "O2 por CBN 1L",
+    prescripciones = listOf(
+        Prescripcion("d1", "Trimetoprima/sulfametoxazol 800/160 mg · Ampolla", "15 mg/kg/dia", "Cada 8 h", RouteOfAdministration.IV, "21 dias", ""),
+        Prescripcion("d2", "Prednisona 20 mg · Tableta", "40 mg", "Cada 12 h", RouteOfAdministration.PO, "", "En descenso"),
+    ),
     pronostico = Pronostico.FAVORABLE,
     resultado = EvolucionResultado.FAVORABLE,
     examenes = examenes,

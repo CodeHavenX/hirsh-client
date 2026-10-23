@@ -128,6 +128,18 @@ fun NuevaEvolucionScreen(
         onAddExamRow = viewModel::addExamRow,
         onExamenesObsChange = viewModel::onExamenesObsChange,
         onRetry = viewModel::retry,
+        prescriptionCallbacks = PrescriptionCallbacks(
+            onAdd = viewModel::addRxRow,
+            onRemove = viewModel::removeRxRow,
+            onQueryChange = viewModel::onRxQueryChange,
+            onDrugSelected = viewModel::onRxDrugSelected,
+            onDrugCleared = viewModel::onRxDrugCleared,
+            onDoseChange = viewModel::onRxDoseChange,
+            onFrequencyChange = viewModel::onRxFrequencyChange,
+            onRouteChange = viewModel::onRxRouteChange,
+            onDurationChange = viewModel::onRxDurationChange,
+            onInstructionsChange = viewModel::onRxInstructionsChange,
+        ),
     )
 }
 
@@ -171,6 +183,7 @@ internal fun NuevaEvolucionScreenContent(
     onAddExamRow: () -> Unit,
     onExamenesObsChange: (String) -> Unit,
     onRetry: () -> Unit,
+    prescriptionCallbacks: PrescriptionCallbacks = PrescriptionCallbacks(),
 ) {
     val patient = uiState.patient
     val hospitalizacion = uiState.hospitalizacion
@@ -258,6 +271,7 @@ internal fun NuevaEvolucionScreenContent(
                             onAddDxRow = onAddDxRow,
                             onPronosticoChange = onPronosticoChange,
                             onResultadoEvolucionChange = onResultadoEvolucionChange,
+                            prescriptionCallbacks = prescriptionCallbacks,
                         )
                         EvolucionTab.EXAMENES -> ExamenesPanel(
                             uiState = uiState,
@@ -394,6 +408,7 @@ private fun EvolucionPanel(
     onAddDxRow: () -> Unit,
     onPronosticoChange: (String) -> Unit,
     onResultadoEvolucionChange: (String) -> Unit,
+    prescriptionCallbacks: PrescriptionCallbacks,
 ) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
         Column(modifier = Modifier.weight(1.3f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -430,16 +445,25 @@ private fun EvolucionPanel(
                 minLines = 3,
                 testTag = "evo_new_plan_field",
             )
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                FieldLabel("Prescripciones")
+                PrescriptionRows(
+                    rows = uiState.prescripciones,
+                    allergies = uiState.rxAllergies,
+                    search = uiState.drugSearch,
+                    callbacks = prescriptionCallbacks,
+                )
+            }
             SoapField(
-                "Prescripcion",
+                "Otras indicaciones",
                 required = false,
                 value = uiState.rx,
                 onValueChange = onRxChange,
-                minLines = 4,
+                minLines = 3,
                 testTag = "evo_new_rx_field",
             )
             Text(
-                "Ej: Amoxicilina 500mg — TID — 7 dias",
+                "Lo que no se prescribe del formulario: dieta, medidas generales, otros",
                 fontFamily = FontFamily.Monospace,
                 fontSize = 10.sp,
                 color = HissInk2,
@@ -717,7 +741,7 @@ private fun ExamTextField(value: String, placeholder: String, modifier: Modifier
 
 /** Mirrors `.btn.btn-ghost.btn-sm` (`border-color: var(--ink)`, dashed -- see the app-wide solid-vs-dashed note this ticket's fidelity pass left unfixed). */
 @Composable
-private fun GhostSmallButton(text: String, onClick: () -> Unit, testTag: String) {
+internal fun GhostSmallButton(text: String, onClick: () -> Unit, testTag: String) {
     OutlinedButton(
         onClick = onClick,
         shape = fieldShape,
@@ -730,7 +754,7 @@ private fun GhostSmallButton(text: String, onClick: () -> Unit, testTag: String)
 }
 
 @Composable
-private fun RemoveRowButton(onClick: () -> Unit, modifier: Modifier = Modifier, testTag: String) {
+internal fun RemoveRowButton(onClick: () -> Unit, modifier: Modifier = Modifier, testTag: String) {
     OutlinedButton(
         onClick = onClick,
         shape = fieldShape,

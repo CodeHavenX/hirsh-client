@@ -1,10 +1,22 @@
 package com.cramsan.hirsh.ui.screens.evolucionnew
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import com.cramsan.hirsh.model.Allergy
+import com.cramsan.hirsh.model.AllergyType
 import com.cramsan.hirsh.model.DocumentType
+import com.cramsan.hirsh.model.Drug
 import com.cramsan.hirsh.model.EpisodeStatus
 import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.Patient
+import com.cramsan.hirsh.model.RouteOfAdministration
+import com.cramsan.hirsh.model.Severity
 import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.repository.PlaceholderCatalog
 import com.cramsan.hirsh.ui.preview.PreviewResponsive
@@ -201,5 +213,49 @@ private fun NuevaEvolucionScreenExamenesTabPreview() {
             onExamenesObsChange = {},
             onRetry = {},
         )
+    }
+}
+
+private fun previewDrug(id: String, name: String, concentration: String, form: String, group: String) =
+    Drug(id, name, concentration, form, RouteOfAdministration.PO, group, isPsychotropic = true)
+
+private val previewSertralina = previewDrug("d1", "Sertralina", "50 mg", "Tableta", "Antidepresivos ISRS")
+private val previewValproico = previewDrug("d2", "Ácido valproico", "500 mg", "Tableta", "Estabilizadores del ánimo")
+
+/**
+ * The prescriptions alone, since they sit below the fold of the full form: one still searching the
+ * formulary, a complete one, and one whose drug matches a recorded medication allergy.
+ */
+@PreviewResponsive
+@Composable
+private fun NuevaEvolucionPrescriptionsPreview() {
+    val rows = listOf(
+        RxRow(query = "quet"),
+        RxRow(drug = previewSertralina, dose = "50 mg", frequency = "Cada 24 h", route = RouteOfAdministration.PO, duration = "30 dias"),
+        RxRow(drug = previewValproico, dose = "500 mg", frequency = "Cada 12 h", route = RouteOfAdministration.PO),
+    )
+    val allergic = previewPatient.copy(
+        allergies = listOf(Allergy("a1", AllergyType.MEDICATION, "Acido valproico", Severity.SEVERE)),
+    )
+    val uiState = previewUiState().copy(
+        patient = allergic,
+        prescripciones = rows,
+        drugSearch = DrugSearch(
+            row = 0,
+            query = "quet",
+            results = listOf(previewDrug("d3", "Quetiapina", "100 mg", "Tableta", "Antipsicóticos atípicos")),
+        ),
+    )
+    HirshTheme {
+        Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {
+            Column(modifier = Modifier.padding(24.dp)) {
+                PrescriptionRows(
+                    rows = uiState.prescripciones,
+                    allergies = uiState.rxAllergies,
+                    search = uiState.drugSearch,
+                    callbacks = PrescriptionCallbacks(),
+                )
+            }
+        }
     }
 }
