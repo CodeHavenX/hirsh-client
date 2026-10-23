@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -97,6 +98,9 @@ fun PatientRecordScreen(
 }
 
 /** All rendering lives here, taking [uiState] as plain data, so `*Previews.kt` never needs a real ViewModel. */
+/** Below this the header and the two columns stack, as HospitalizationScreen's header does. */
+private val NARROW_LAYOUT_WIDTH = 600.dp
+
 @OptIn(ExperimentalTime::class)
 @Composable
 internal fun PatientRecordScreenContent(
@@ -113,30 +117,24 @@ internal fun PatientRecordScreenContent(
 ) {
     val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
     val patient = uiState.patient
-    Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
-        when {
-            uiState.isLoading -> Text("Cargando...", style = MaterialTheme.typography.bodyMedium)
-            uiState.loadError != null -> LoadErrorMessage(uiState.loadError, onRetry = onRetry)
-            patient == null -> Text("Paciente no encontrado", style = MaterialTheme.typography.bodyMedium)
-            else -> {
-                RecordHeader(
-                    patient = patient,
-                    onEditProfile = onEditProfile,
-                    canAdmit = uiState.canAdmit,
-                    onNewHospitalization = onNewHospitalization,
-                )
-                Row(
-                    modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())
-                        .padding(top = 24.dp).testTag("screen_scroll_container"),
-                    horizontalArrangement = Arrangement.spacedBy(24.dp),
-                ) {
-                    ProfileCard(
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val narrow = maxWidth < NARROW_LAYOUT_WIDTH
+        Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
+            when {
+                uiState.isLoading -> Text("Cargando...", style = MaterialTheme.typography.bodyMedium)
+                uiState.loadError != null -> LoadErrorMessage(uiState.loadError, onRetry = onRetry)
+                patient == null -> Text("Paciente no encontrado", style = MaterialTheme.typography.bodyMedium)
+                else -> {
+                    RecordHeader(
                         patient = patient,
-                        today = today,
-                        onViewHistory = onViewHistory,
-                        modifier = Modifier.width(280.dp),
+                        narrow = narrow,
+                        onEditProfile = onEditProfile,
+                        canAdmit = uiState.canAdmit,
+                        onNewHospitalization = onNewHospitalization,
                     )
-                    Column(modifier = Modifier.weight(1f)) {
+                    val body = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())
+                        .padding(top = 24.dp).testTag("screen_scroll_container")
+                    val sections = @Composable {
                         HospitalizationsSection(
                             hospitalizations = uiState.hospitalizations,
                             onHospitalizationSelected = onHospitalizationSelected,
@@ -147,14 +145,25 @@ internal fun PatientRecordScreenContent(
                             modifier = Modifier.padding(top = 24.dp),
                         )
                     }
-                }
-                uiState.suspension?.let {
-                    SuspendTreatmentDialog(
-                        suspension = it,
-                        onReasonChange = onSuspensionReasonChange,
-                        onConfirm = onConfirmSuspension,
-                        onDismiss = onDismissSuspension,
-                    )
+                    if (narrow) {
+                        Column(modifier = body, verticalArrangement = Arrangement.spacedBy(24.dp)) {
+                            ProfileCard(patient = patient, today = today, onViewHistory = onViewHistory, modifier = Modifier.fillMaxWidth())
+                            Column { sections() }
+                        }
+                    } else {
+                        Row(modifier = body, horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                            ProfileCard(patient = patient, today = today, onViewHistory = onViewHistory, modifier = Modifier.width(280.dp))
+                            Column(modifier = Modifier.weight(1f)) { sections() }
+                        }
+                    }
+                    uiState.suspension?.let {
+                        SuspendTreatmentDialog(
+                            suspension = it,
+                            onReasonChange = onSuspensionReasonChange,
+                            onConfirm = onConfirmSuspension,
+                            onDismiss = onDismissSuspension,
+                        )
+                    }
                 }
             }
         }
@@ -164,15 +173,18 @@ internal fun PatientRecordScreenContent(
 @Composable
 private fun RecordHeader(
     patient: Patient,
+    narrow: Boolean,
     onEditProfile: () -> Unit,
     canAdmit: Boolean,
     onNewHospitalization: () -> Unit,
 ) {
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+    val title = @Composable {
         Text(
             patient.fullName,
             style = MaterialTheme.typography.headlineSmall.copy(fontSize = 20.sp, fontWeight = FontWeight.Bold),
         )
+    }
+    val actions = @Composable {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(
                 onClick = onEditProfile,
@@ -193,6 +205,17 @@ private fun RecordHeader(
                     Text("+ Nueva hospitalizacion", fontWeight = FontWeight.Medium)
                 }
             }
+        }
+    }
+    if (narrow) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            title()
+            actions()
+        }
+    } else {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            title()
+            actions()
         }
     }
 }
