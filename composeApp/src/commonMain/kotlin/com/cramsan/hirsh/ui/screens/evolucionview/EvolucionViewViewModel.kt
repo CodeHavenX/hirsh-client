@@ -2,6 +2,7 @@ package com.cramsan.hirsh.ui.screens.evolucionview
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.cramsan.hirsh.model.EpisodeStatus
 import com.cramsan.hirsh.model.Evolucion
 import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.NoteStatus
@@ -49,6 +50,8 @@ data class EvolucionViewUiState(
     /** The note as plain text for the hospital's own systems; null until the note has loaded. */
     val sisText: String? = null,
     val showCopiedConfirmation: Boolean = false,
+    /** Scales can only be applied while the stay is active (HCEM-80). */
+    val canApplyScale: Boolean = false,
 )
 
 internal const val EVO_SIGN_FORBIDDEN_ERROR =
@@ -111,6 +114,8 @@ class EvolucionViewViewModel(
                         error = view.error,
                         sisText = if (patient != null && shown != null) evolucionSisText(patient, shown) else null,
                         showCopiedConfirmation = view.showCopiedConfirmation,
+                        canApplyScale = session?.can(Permission.TEST_WRITE) == true && shown != null &&
+                            hospitalizacion?.status == EpisodeStatus.ACTIVE,
                     )
                 }
                     .onStart { emit(EvolucionViewUiState(isLoading = true)) }

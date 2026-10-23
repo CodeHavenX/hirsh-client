@@ -468,6 +468,48 @@ abstract class HissE2EScenarios {
         }
     }
 
+    @Test
+    fun test13d_applyScale_suicideRiskIsConfirmedAndShownOnTheStay() {
+        driver.loginAsAdmin()
+        driver.registerE2eTestPatient()
+        driver.admitPatient()
+
+        driver.clickTag("hosp_new_evolucion_button")
+        driver.waitForTag("evo_new_subjective_field")
+        driver.type("evo_new_subjective_field", "E2E refiere ideas de muerte pasivas.")
+        driver.type("evo_new_objective_field", "E2E afecto aplanado.")
+        driver.type("evo_new_dx_descripcion_0", "E2E episodio depresivo")
+        driver.selectOption("evo_new_pronostico_field", 0)
+        driver.selectOption("evo_new_resultado_field", 0)
+        driver.scrollDown("screen_scroll_container")
+        driver.clickTag("evo_new_save_button")
+        driver.waitForTag("evo_view_print_button")
+
+        // HCEM-80: PHQ-9 with item 9 above "Ningun dia" (total 17) raises the suicide-risk alert.
+        driver.clickTag("evo_view_apply_scale_button")
+        driver.waitForTag("scale_item_q1", timeoutMs = 15_000)
+        (1..9).forEach { item ->
+            val tag = "scale_option_q${item}_${if (item == 9) 1 else 2}"
+            driver.scrollUntilVisible(tag, "screen_scroll_container")
+            driver.clickTag(tag)
+        }
+        driver.waitForTag("scale_suicide_alert")
+        assertTrue(driver.getHierarchy().containsText("17"), "the running score must reach 17")
+
+        driver.scrollUntilVisible("scale_save_button", "screen_scroll_container")
+        driver.clickTag("scale_save_button")
+        driver.clickTag("scale_alert_confirm_button")
+        driver.waitForTag("evo_view_print_button")
+
+        driver.clickTag("encounter_close_button")
+        driver.waitForTag("hosp_new_evolucion_button")
+        driver.scrollUntilVisible("hosp_scales_section", "screen_scroll_container")
+        driver.scrollDown("screen_scroll_container")
+        val hierarchy = driver.getHierarchy()
+        assertTrue(hierarchy.containsText("Alerta riesgo suicida"), "the stay must flag the result that raised the alert")
+        assertTrue(hierarchy.containsText("Moderadamente severa"), hierarchy.allTexts().toString())
+    }
+
     // --- Full clinical documentation lifecycle: admision -> HC -> evolucion -> discharge -----
 
     @Ignore("see the settle-delay stopgap noted inline below -- CodeHavenX/hirsh-client#31")

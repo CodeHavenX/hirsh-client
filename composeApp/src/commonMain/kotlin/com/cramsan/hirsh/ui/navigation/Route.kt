@@ -25,6 +25,7 @@ object Routes {
     const val HISTORIA_CLINICA = "historia_clinica/{patientId}/{hospId}"
     const val EVOLUCION_NEW = "evolucion_new/{patientId}/{hospId}"
     const val EVOLUCION_VIEW = "evolucion_view/{patientId}/{hospId}/{evoId}"
+    const val SCALE_APPLY = "scale_apply/{patientId}/{hospId}/{evoId}"
     const val ACCOUNTS = "accounts"
 
     fun patientRecord(patientId: String) = "patient_record/${encodeRouteSegment(patientId)}"
@@ -41,6 +42,8 @@ object Routes {
         "evolucion_new/${encodeRouteSegment(patientId)}/${encodeRouteSegment(hospId)}"
     fun evolucionView(patientId: String, hospId: String, evoId: String) =
         "evolucion_view/${encodeRouteSegment(patientId)}/${encodeRouteSegment(hospId)}/${encodeRouteSegment(evoId)}"
+    fun scaleApply(patientId: String, hospId: String, evoId: String) =
+        "scale_apply/${encodeRouteSegment(patientId)}/${encodeRouteSegment(hospId)}/${encodeRouteSegment(evoId)}"
 }
 
 /**

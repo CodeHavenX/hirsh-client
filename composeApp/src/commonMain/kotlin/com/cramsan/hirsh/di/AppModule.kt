@@ -19,7 +19,9 @@ import com.cramsan.hirsh.repository.KtorIcd10Repository
 import com.cramsan.hirsh.repository.KtorAccessLogRepository
 import com.cramsan.hirsh.repository.KtorAccountRepository
 import com.cramsan.hirsh.repository.KtorPatientRepository
+import com.cramsan.hirsh.repository.KtorScaleRepository
 import com.cramsan.hirsh.repository.PatientRepository
+import com.cramsan.hirsh.repository.ScaleRepository
 import com.cramsan.hirsh.repository.SessionRepository
 import com.cramsan.hirsh.ui.screens.accounts.AccountsViewModel
 import com.cramsan.hirsh.ui.screens.admision.AdmisionViewModel
@@ -35,6 +37,7 @@ import com.cramsan.hirsh.ui.screens.patientlist.PatientListViewModel
 import com.cramsan.hirsh.ui.screens.patientrecord.PatientRecordViewModel
 import com.cramsan.hirsh.ui.screens.patientregister.RegisterPatientViewModel
 import com.cramsan.hirsh.ui.screens.profile.ProfileViewModel
+import com.cramsan.hirsh.ui.screens.scaleapply.ApplyScaleViewModel
 import com.cramsan.hirsh.util.Clock
 import com.cramsan.hirsh.util.DefaultClock
 import io.ktor.client.HttpClient
@@ -89,6 +92,7 @@ private val sharedModule = module {
     singleOf(::KtorAdmissionCatalogRepository) bind AdmissionCatalogRepository::class
     singleOf(::KtorClinicalNoteRepository) bind ClinicalNoteRepository::class
     singleOf(::KtorIcd10Repository) bind Icd10Repository::class
+    singleOf(::KtorScaleRepository) bind ScaleRepository::class
     singleOf(::DefaultClock) bind Clock::class
 
     viewModelOf(::LoginViewModel)
@@ -103,6 +107,7 @@ private val sharedModule = module {
     viewModelOf(::DischargeViewModel)
     viewModelOf(::NuevaEvolucionViewModel)
     viewModelOf(::EvolucionViewViewModel)
+    viewModelOf(::ApplyScaleViewModel)
     viewModelOf(::HistoriaClinicaViewModel)
     viewModelOf(::AccountsViewModel)
 }

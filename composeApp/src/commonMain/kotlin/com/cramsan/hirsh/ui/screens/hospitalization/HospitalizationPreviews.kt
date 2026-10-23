@@ -1,6 +1,13 @@
 package com.cramsan.hirsh.ui.screens.hospitalization
 
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import com.cramsan.hirsh.model.AppliedScale
 import com.cramsan.hirsh.model.Diagnostico
 import com.cramsan.hirsh.model.DiagnosticoCie10
 import com.cramsan.hirsh.model.DocumentType
@@ -14,6 +21,8 @@ import com.cramsan.hirsh.model.NoteStatus
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.Plan
 import com.cramsan.hirsh.model.Pronostico
+import com.cramsan.hirsh.model.ScaleScore
+import com.cramsan.hirsh.model.ScaleSeverity
 import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.model.Vitals
 import com.cramsan.hirsh.repository.PlaceholderCatalog
@@ -94,6 +103,17 @@ private fun previewUiState(
     hospitalizacion = hospitalizacion,
     historiaClinica = previewHistoriaClinica.copy(status = hcStatus),
     evoluciones = evoluciones,
+)
+
+private fun previewPhq9(id: String, documentId: String, appliedAt: String, score: ScaleScore) = AppliedScale(
+    id = id,
+    documentId = documentId,
+    scaleCode = "PHQ-9",
+    scaleName = "Cuestionario de salud del paciente (PHQ-9)",
+    appliedAt = Instant.parse(appliedAt),
+    appliedBy = "Dr. Hirsh",
+    score = score,
+    observations = null,
 )
 
 @PreviewResponsive
@@ -179,5 +199,27 @@ private fun HospitalizationScreenTransferredPreview() {
             onDischarge = {},
             onRetry = {},
         )
+    }
+}
+
+/**
+ * The "Escalas aplicadas" section alone, since it sits below the fold of the full screen: PHQ-9 applied twice during
+ * the stay, the series falling, and the first result having raised the suicide-risk alert.
+ */
+@PreviewResponsive
+@Composable
+private fun HospitalizationAppliedScalesPreview() {
+    val scales = listOf(
+        previewPhq9("s2", "v5c", "2026-06-18T15:30:00Z", ScaleScore(9.0, ScaleSeverity.MILD, "Depresión leve", raisesSuicideAlert = false)),
+        previewPhq9("s1", "v5", "2026-06-16T14:00:00Z", ScaleScore(18.0, ScaleSeverity.MOD_SEVERE, "Depresión moderadamente severa", raisesSuicideAlert = true)),
+    )
+    HirshTheme {
+        Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {
+            AppliedScalesList(
+                section = AppliedScalesSection.Loaded(scales),
+                onScaleSelected = {},
+                modifier = Modifier.padding(24.dp),
+            )
+        }
     }
 }

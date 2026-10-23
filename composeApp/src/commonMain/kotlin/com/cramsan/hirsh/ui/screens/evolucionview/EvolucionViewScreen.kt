@@ -71,6 +71,7 @@ fun EvolucionViewScreen(
     hospId: String,
     evoId: String,
     onClose: () -> Unit,
+    onApplyScale: () -> Unit,
     viewModel: EvolucionViewViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -89,6 +90,7 @@ fun EvolucionViewScreen(
         onSign = viewModel::sign,
         onCopiedForSis = viewModel::onCopiedForSis,
         onCopyForSisFailed = viewModel::onCopyForSisFailed,
+        onApplyScale = onApplyScale,
     )
 }
 
@@ -104,6 +106,7 @@ internal fun EvolucionViewScreenContent(
     onSign: () -> Unit,
     onCopiedForSis: () -> Unit,
     onCopyForSisFailed: () -> Unit,
+    onApplyScale: () -> Unit,
 ) {
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
@@ -207,6 +210,7 @@ internal fun EvolucionViewScreenContent(
                     selectedTab = uiState.selectedTab,
                     examCount = evolucion.examenes.size,
                     onSelectTab = onSelectTab,
+                    onApplyScale = onApplyScale.takeIf { uiState.canApplyScale },
                     onCopyForSis = uiState.sisText?.let { text ->
                         {
                             scope.launch {
@@ -238,6 +242,7 @@ private fun EvoTabBar(
     selectedTab: EvolucionViewTab,
     examCount: Int,
     onSelectTab: (EvolucionViewTab) -> Unit,
+    onApplyScale: (() -> Unit)?,
     onCopyForSis: (() -> Unit)?,
 ) {
     // A FlowRow so the copy action drops to its own line on a phone instead of squeezing the tabs.
@@ -261,8 +266,19 @@ private fun EvoTabBar(
             badgeCount = examCount.takeIf { it > 0 },
             testTag = "evo_tab_examenes",
         ) { onSelectTab(EvolucionViewTab.EXAMENES) }
+        if (onApplyScale != null || onCopyForSis != null) Spacer(Modifier.weight(1f))
+        if (onApplyScale != null) {
+            OutlinedButton(
+                onClick = onApplyScale,
+                shape = fieldShape,
+                border = BorderStroke(1.5.dp, HissAccent),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                modifier = Modifier.testTag("evo_view_apply_scale_button"),
+            ) {
+                Text("Aplicar escala", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = HissAccent)
+            }
+        }
         if (onCopyForSis != null) {
-            Spacer(Modifier.weight(1f))
             OutlinedButton(
                 onClick = onCopyForSis,
                 shape = fieldShape,

@@ -92,6 +92,7 @@ private fun previewUiState(
     canSign: Boolean = false,
     error: String? = null,
     showCopiedConfirmation: Boolean = false,
+    canApplyScale: Boolean = true,
 ) = EvolucionViewUiState(
     isLoading = false,
     patient = previewPatient,
@@ -102,6 +103,7 @@ private fun previewUiState(
     error = error,
     sisText = evolucionSisText(previewPatient, evolucion),
     showCopiedConfirmation = showCopiedConfirmation,
+    canApplyScale = canApplyScale,
 )
 
 @PreviewResponsive
@@ -120,6 +122,7 @@ private fun EvolucionViewScreenPreview() {
             onSign = {},
             onCopiedForSis = {},
             onCopyForSisFailed = {},
+            onApplyScale = {},
         )
     }
 }
@@ -141,6 +144,7 @@ private fun EvolucionViewScreenNoExamenesPreview() {
             onSign = {},
             onCopiedForSis = {},
             onCopyForSisFailed = {},
+            onApplyScale = {},
         )
     }
 }
@@ -162,6 +166,7 @@ private fun EvolucionViewScreenExamenesTabPreview() {
             onSign = {},
             onCopiedForSis = {},
             onCopyForSisFailed = {},
+            onApplyScale = {},
         )
     }
 }
@@ -183,6 +188,7 @@ private fun EvolucionViewScreenDraftPreview() {
             onSign = {},
             onCopiedForSis = {},
             onCopyForSisFailed = {},
+            onApplyScale = {},
         )
     }
 }
@@ -204,6 +210,7 @@ private fun EvolucionViewScreenCopiedPreview() {
             onSign = {},
             onCopiedForSis = {},
             onCopyForSisFailed = {},
+            onApplyScale = {},
         )
     }
 }

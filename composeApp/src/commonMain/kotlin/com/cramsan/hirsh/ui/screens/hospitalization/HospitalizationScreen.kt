@@ -37,6 +37,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cramsan.hirsh.model.AppliedScale
 import com.cramsan.hirsh.model.EpisodeStatus
 import com.cramsan.hirsh.model.Evolucion
 import com.cramsan.hirsh.model.HistoriaClinica
@@ -49,12 +50,15 @@ import com.cramsan.hirsh.model.physicianName
 import com.cramsan.hirsh.model.serviceName
 import com.cramsan.hirsh.model.statusLabel
 import com.cramsan.hirsh.model.toDisplayLabel
+import com.cramsan.hirsh.model.totalLabel
 import com.cramsan.hirsh.ui.components.BadgeTone
 import com.cramsan.hirsh.ui.components.EpisodeStatusBadge
 import com.cramsan.hirsh.ui.components.KeyValueRow
 import com.cramsan.hirsh.ui.components.LoadErrorMessage
 import com.cramsan.hirsh.ui.components.NoteStatusBadge
+import com.cramsan.hirsh.ui.components.ScaleSeverityBadge
 import com.cramsan.hirsh.ui.components.StatusBadge
+import com.cramsan.hirsh.ui.components.SuicideAlertBadge
 import com.cramsan.hirsh.ui.components.VisitCard
 import com.cramsan.hirsh.ui.theme.HissAccent
 import com.cramsan.hirsh.ui.theme.HissAccentWash
@@ -62,6 +66,7 @@ import com.cramsan.hirsh.ui.theme.HissFaint
 import com.cramsan.hirsh.ui.theme.HissInk
 import com.cramsan.hirsh.ui.theme.HissInk2
 import com.cramsan.hirsh.ui.theme.HissRadiusDefault
+import com.cramsan.hirsh.ui.theme.HissWarn
 import com.cramsan.hirsh.util.formatDateTime
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -134,6 +139,11 @@ internal fun HospitalizationScreenContent(
                         evoluciones = uiState.evoluciones,
                         onEvolucionSelected = onEvolucionSelected,
                         modifier = Modifier.padding(top = 20.dp),
+                    )
+                    AppliedScalesList(
+                        section = uiState.scales,
+                        onScaleSelected = { onEvolucionSelected(it.documentId) },
+                        modifier = Modifier.padding(top = 24.dp),
                     )
                 }
             }
@@ -339,6 +349,111 @@ private fun EvolucionesSection(
                         modifier = Modifier.testTag("evo_card_${evolucion.id}"),
                     )
                 }
+            }
+        }
+    }
+}
+
+/** Each result opens the evolucion it was applied in. */
+@Composable
+internal fun AppliedScalesList(
+    section: AppliedScalesSection,
+    onScaleSelected: (AppliedScale) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    if (section is AppliedScalesSection.Hidden) return
+    val scales = (section as? AppliedScalesSection.Loaded)?.scales.orEmpty()
+    Column(modifier = modifier.testTag("hosp_scales_section")) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
+            Text("Escalas aplicadas", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Text("${scales.size} escalas", fontFamily = FontFamily.Monospace, fontSize = 11.sp, color = HissInk2)
+        }
+        when {
+            section is AppliedScalesSection.Failed -> EmptyBox("No se pudieron cargar las escalas aplicadas.")
+            scales.isEmpty() -> EmptyBox("Sin escalas aplicadas. Aplique una desde una evolucion.")
+            else -> {
+                ScaleSeries(scales, modifier = Modifier.padding(top = 12.dp))
+                Column(modifier = Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    scales.forEach { scale -> AppliedScaleRow(scale, onClick = { onScaleSelected(scale) }) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptyBox(text: String) {
+    Surface(
+        shape = RoundedCornerShape(HissRadiusDefault),
+        color = Color.Transparent,
+        border = BorderStroke(1.dp, HissFaint),
+        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+    ) {
+        Text(
+            text,
+            style = MaterialTheme.typography.bodySmall,
+            color = HissInk2,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth().padding(20.dp),
+        )
+    }
+}
+
+/** How each scale applied more than once moved during the stay, oldest first. */
+@Composable
+private fun ScaleSeries(scales: List<AppliedScale>, modifier: Modifier = Modifier) {
+    val series = scales.groupBy { it.scaleCode }.filterValues { it.size > 1 }
+    if (series.isEmpty()) return
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        series.forEach { (code, results) ->
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.testTag("hosp_scale_series_$code"),
+            ) {
+                Text(code, fontFamily = FontFamily.Monospace, fontSize = 11.sp, color = HissAccent, fontWeight = FontWeight.Medium)
+                results.sortedBy { it.appliedAt }.forEachIndexed { index, result ->
+                    if (index > 0) Text("→", fontSize = 12.sp, color = HissInk2)
+                    Text(
+                        result.score.totalLabel(),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (result.score.raisesSuicideAlert) HissWarn else MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AppliedScaleRow(scale: AppliedScale, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(HissRadiusDefault),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(if (scale.score.raisesSuicideAlert) 1.5.dp else 1.dp, if (scale.score.raisesSuicideAlert) HissWarn else HissFaint),
+        modifier = Modifier.fillMaxWidth().testTag("hosp_scale_${scale.id}"),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(scale.scaleName, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                Text(
+                    "${formatDateTime(scale.appliedAt)} · ${scale.appliedBy}",
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 11.sp,
+                    color = HissInk2,
+                )
+                scale.score.interpretation?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = HissInk2) }
+            }
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(scale.score.totalLabel(), fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                scale.score.severity?.let { ScaleSeverityBadge(it) }
+                if (scale.score.raisesSuicideAlert) SuicideAlertBadge(modifier = Modifier.testTag("hosp_scale_alert_${scale.id}"))
             }
         }
     }

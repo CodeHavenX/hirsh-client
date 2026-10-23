@@ -96,6 +96,25 @@ fun BridgeDriver.scrollDown(containerTag: String, deltaY: Int = 1_000, times: In
 }
 
 /**
+ * Scrolls [containerTag] down a few wheel notches ([step]) at a time until [tag] is in view -- for a
+ * long form whose next field sits somewhere below the fold, where [scrollDown]'s jump to the bottom
+ * would overshoot it.
+ */
+fun BridgeDriver.scrollUntilVisible(tag: String, containerTag: String, step: Int = 2, maxSteps: Int = 40) {
+    repeat(maxSteps) {
+        val visible = try {
+            runBlocking { waitForTagVisibility(tag, TagVisibility.VISIBLE, 300.milliseconds) } != null
+        } catch (e: BridgeTimeoutException) {
+            false
+        }
+        if (visible) return
+        scroll(containerTag, step)
+        Thread.sleep(200)
+    }
+    waitForTag(tag, timeoutMs = 1_000)
+}
+
+/**
  * Signs out first if the current page is already authenticated, otherwise does nothing.
  * [DesktopE2ETest] relaunches the whole app process per test (see its doc comment), so this is
  * always a no-op there -- every test already starts at a fresh login screen. [WebE2ETest] shares
