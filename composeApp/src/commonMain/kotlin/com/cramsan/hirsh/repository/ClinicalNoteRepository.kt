@@ -21,8 +21,8 @@ import com.cramsan.hirsh.network.ApiError
 import com.cramsan.hirsh.network.ApiException
 import com.cramsan.hirsh.util.Clock
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 
@@ -73,6 +73,12 @@ interface ClinicalNoteRepository {
      * prescriptions into treatments, so whatever shows those re-reads them on this signal.
      */
     val signatures: Flow<Unit> get() = emptyFlow()
+
+    /**
+     * The backend id of the newest version of the stay's Historia Clinica, or of evolucion [evoId]
+     * when given: what a PDF export of that note names (HCEM-14). Null when there's no such note.
+     */
+    suspend fun latestVersionId(hospId: String, evoId: String? = null): String? = null
 }
 
 /** Everything [ClinicalNoteRepository] holds for one stay. */

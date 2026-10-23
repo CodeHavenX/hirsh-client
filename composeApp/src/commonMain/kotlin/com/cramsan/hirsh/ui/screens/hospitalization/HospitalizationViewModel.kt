@@ -13,16 +13,21 @@ import com.cramsan.hirsh.model.can
 import com.cramsan.hirsh.repository.ClinicalNoteRepository
 import com.cramsan.hirsh.repository.EpisodeRepository
 import com.cramsan.hirsh.repository.PatientRepository
+import com.cramsan.hirsh.repository.PdfExportRepository
+import com.cramsan.hirsh.repository.PdfExportTarget
 import com.cramsan.hirsh.repository.ScaleRepository
 import com.cramsan.hirsh.repository.SessionRepository
 import com.cramsan.hirsh.repository.TreatmentRepository
 import com.cramsan.hirsh.ui.components.ActiveTreatmentsSection
 import com.cramsan.hirsh.ui.components.LoadError
+import com.cramsan.hirsh.ui.components.PdfDownload
+import com.cramsan.hirsh.ui.components.PdfDownloader
 import com.cramsan.hirsh.ui.components.TreatmentSuspender
 import com.cramsan.hirsh.ui.components.TreatmentSuspension
 import com.cramsan.hirsh.ui.components.activeTreatmentsSection
 import com.cramsan.hirsh.ui.components.toLoadError
 import com.cramsan.hirsh.util.Clock
+import com.cramsan.hirsh.util.FileSaver
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -48,6 +53,9 @@ data class HospitalizationUiState(
     val treatments: ActiveTreatmentsSection = ActiveTreatmentsSection.Loading,
     val canSuspendTreatments: Boolean = false,
     val suspension: TreatmentSuspension? = null,
+    /** The whole stay as one PDF, for users with PDF_EXPORT on a platform that can save files (HCEM-14). */
+    val canDownloadPdf: Boolean = false,
+    val pdfDownload: PdfDownload = PdfDownload.Idle,
 )
 
 /** The stay's applied scales (HCEM-80), kept apart so a failure there never takes down the rest of the stay. */
@@ -71,7 +79,11 @@ class HospitalizationViewModel(
     private val sessionRepository: SessionRepository,
     private val treatmentRepository: TreatmentRepository,
     clock: Clock,
+    pdfExportRepository: PdfExportRepository,
+    fileSaver: FileSaver,
 ) : ViewModel() {
+
+    private val pdfDownloader = PdfDownloader(pdfExportRepository, fileSaver, viewModelScope)
 
     private val suspender = TreatmentSuspender(treatmentRepository, clock, viewModelScope)
 
@@ -105,6 +117,8 @@ class HospitalizationViewModel(
                         state.copy(
                             treatments = treatments,
                             canSuspendTreatments = sessionRepository.session.value?.can(Permission.TREATMENT_SUSPEND) == true,
+                            canDownloadPdf = state.hospitalizacion != null && pdfDownloader.isAvailable &&
+                                sessionRepository.session.value?.can(Permission.PDF_EXPORT) == true,
                         )
                     }
                     .onStart { emit(HospitalizationUiState(isLoading = true)) }
@@ -112,6 +126,7 @@ class HospitalizationViewModel(
             }
         }
         .combine(suspender.state) { state, suspension -> state.copy(suspension = suspension) }
+        .combine(pdfDownloader.state) { state, download -> state.copy(pdfDownload = download) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HospitalizationUiState())
 
     private fun appliedScales(hospId: String): Flow<AppliedScalesSection> =
@@ -129,6 +144,12 @@ class HospitalizationViewModel(
 
     fun retry() {
         attempt.update { it + 1 }
+    }
+
+    fun downloadPdf() {
+        val ids = requestedIds.value ?: return
+        if (!uiState.value.canDownloadPdf) return
+        pdfDownloader.download(PdfExportTarget.FullRecord(ids.hospId))
     }
 
     fun openSuspension(treatment: ActiveTreatment) = suspender.open(treatment)

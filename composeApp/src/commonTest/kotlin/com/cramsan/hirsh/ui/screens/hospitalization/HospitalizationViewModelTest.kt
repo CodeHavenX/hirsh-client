@@ -1,23 +1,10 @@
 package com.cramsan.hirsh.ui.screens.hospitalization
 
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.emitAll
-import com.cramsan.hirsh.ui.components.LoadError
-import com.cramsan.hirsh.network.ApiException
-import com.cramsan.hirsh.network.ApiError
 import app.cash.turbine.test
-import com.cramsan.hirsh.model.AppliedScale
-import com.cramsan.hirsh.model.Permission
-import com.cramsan.hirsh.model.ScaleDefinition
-import com.cramsan.hirsh.model.ScaleScore
-import com.cramsan.hirsh.model.ScaleSeverity
-import com.cramsan.hirsh.model.ScaleSummary
-import com.cramsan.hirsh.model.Session
-import com.cramsan.hirsh.repository.ScaleRepository
-import com.cramsan.hirsh.repository.SessionRepository
+import com.cramsan.hirsh.model.ActiveTreatment
 import com.cramsan.hirsh.model.Allergy
 import com.cramsan.hirsh.model.AllergyType
+import com.cramsan.hirsh.model.AppliedScale
 import com.cramsan.hirsh.model.BedRef
 import com.cramsan.hirsh.model.DischargeCondition
 import com.cramsan.hirsh.model.DischargeDetails
@@ -30,32 +17,51 @@ import com.cramsan.hirsh.model.HcSectionKey
 import com.cramsan.hirsh.model.HistoriaClinica
 import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.Patient
+import com.cramsan.hirsh.model.Permission
+import com.cramsan.hirsh.model.RouteOfAdministration
+import com.cramsan.hirsh.model.ScaleDefinition
+import com.cramsan.hirsh.model.ScaleScore
+import com.cramsan.hirsh.model.ScaleSeverity
+import com.cramsan.hirsh.model.ScaleSummary
 import com.cramsan.hirsh.model.ServiceRef
+import com.cramsan.hirsh.model.Session
 import com.cramsan.hirsh.model.Severity
 import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.model.UserRef
+import com.cramsan.hirsh.network.ApiError
+import com.cramsan.hirsh.network.ApiException
 import com.cramsan.hirsh.repository.ClinicalNoteRepository
 import com.cramsan.hirsh.repository.EpisodeRepository
 import com.cramsan.hirsh.repository.PatientRepository
+import com.cramsan.hirsh.repository.PdfExportRepository
+import com.cramsan.hirsh.repository.PdfExportTarget
+import com.cramsan.hirsh.repository.PdfFile
+import com.cramsan.hirsh.repository.ScaleRepository
+import com.cramsan.hirsh.repository.SessionRepository
 import com.cramsan.hirsh.repository.TreatmentRepository
-import com.cramsan.hirsh.model.ActiveTreatment
-import com.cramsan.hirsh.model.RouteOfAdministration
 import com.cramsan.hirsh.ui.components.ActiveTreatmentsSection
+import com.cramsan.hirsh.ui.components.LoadError
+import com.cramsan.hirsh.ui.components.PDF_DRAFTS_ERROR
+import com.cramsan.hirsh.ui.components.PdfDownload
 import com.cramsan.hirsh.util.Clock
-import kotlinx.datetime.LocalDate
+import com.cramsan.hirsh.util.FileSaver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.datetime.LocalDate
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -270,7 +276,34 @@ private fun newViewModel(
     scales: ScaleRepository = FakeScaleRepository(),
     session: Session? = null,
     treatments: TreatmentRepository = FakeTreatmentRepository(),
-) = HospitalizationViewModel(patients, episodes, notes, scales, FakeSessionRepository(session), treatments, FixedClock())
+    pdfs: PdfExportRepository = FakePdfExportRepository(),
+) = HospitalizationViewModel(
+    patients,
+    episodes,
+    notes,
+    scales,
+    FakeSessionRepository(session),
+    treatments,
+    FixedClock(),
+    pdfs,
+    FakeFileSaver(),
+)
+
+/** Records what was exported; [failure] makes the export throw. */
+private class FakePdfExportRepository : PdfExportRepository {
+    val targets = mutableListOf<PdfExportTarget>()
+    var failure: Exception? = null
+
+    override suspend fun export(target: PdfExportTarget): PdfFile {
+        failure?.let { throw it }
+        targets += target
+        return PdfFile("export.pdf", byteArrayOf(1, 2, 3))
+    }
+}
+
+private class FakeFileSaver : FileSaver {
+    override suspend fun save(filename: String, bytes: ByteArray): String = "/descargas/$filename"
+}
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HospitalizationViewModelTest {
@@ -519,5 +552,45 @@ class HospitalizationViewModelTest {
         assertEquals(ActiveTreatmentsSection.Failed, state.treatments)
         assertEquals(hospitalization, state.hospitalizacion)
         assertNull(state.loadError)
+    }
+
+    @Test
+    fun `an exporter downloads the whole stay, and learns when drafts block it`() = runTest(dispatcher) {
+        val pdfs = FakePdfExportRepository()
+        val viewModel = newViewModel(
+            FakePatientRepository(listOf(samplePatient)),
+            FakeEpisodeRepository(listOf(sampleHospitalization("h1", samplePatient.id))),
+            FakeClinicalNoteRepository(),
+            session = Session("drpatel", "Dr. A. Patel", permissions = setOf(Permission.PDF_EXPORT.name)),
+            pdfs = pdfs,
+        )
+        backgroundScope.launch { viewModel.uiState.collect {} }
+        viewModel.load(samplePatient.id, "h1")
+        advanceUntilIdle()
+        assertEquals(true, viewModel.uiState.value.canDownloadPdf)
+
+        viewModel.downloadPdf()
+        advanceUntilIdle()
+        assertEquals(listOf<PdfExportTarget>(PdfExportTarget.FullRecord("h1")), pdfs.targets)
+        assertEquals(PdfDownload.Saved("/descargas/export.pdf"), viewModel.uiState.value.pdfDownload)
+
+        pdfs.failure = ApiException(ApiError.Conflict("h1"))
+        viewModel.downloadPdf()
+        advanceUntilIdle()
+        assertEquals(PdfDownload.Failed(PDF_DRAFTS_ERROR), viewModel.uiState.value.pdfDownload)
+    }
+
+    @Test
+    fun `no pdf download without the export permission`() = runTest(dispatcher) {
+        val viewModel = newViewModel(
+            FakePatientRepository(listOf(samplePatient)),
+            FakeEpisodeRepository(listOf(sampleHospitalization("h1", samplePatient.id))),
+            FakeClinicalNoteRepository(),
+        )
+        backgroundScope.launch { viewModel.uiState.collect {} }
+        viewModel.load(samplePatient.id, "h1")
+        advanceUntilIdle()
+
+        assertEquals(false, viewModel.uiState.value.canDownloadPdf)
     }
 }

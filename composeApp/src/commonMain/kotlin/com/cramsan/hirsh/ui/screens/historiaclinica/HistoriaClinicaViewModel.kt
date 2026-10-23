@@ -23,9 +23,14 @@ import com.cramsan.hirsh.network.ApiException
 import com.cramsan.hirsh.repository.ClinicalNoteRepository
 import com.cramsan.hirsh.repository.EpisodeRepository
 import com.cramsan.hirsh.repository.PatientRepository
+import com.cramsan.hirsh.repository.PdfExportRepository
+import com.cramsan.hirsh.repository.PdfExportTarget
 import com.cramsan.hirsh.repository.SessionRepository
 import com.cramsan.hirsh.ui.components.LoadError
+import com.cramsan.hirsh.ui.components.PdfDownload
+import com.cramsan.hirsh.ui.components.PdfDownloader
 import com.cramsan.hirsh.ui.components.toLoadError
+import com.cramsan.hirsh.util.FileSaver
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -57,6 +62,9 @@ data class HistoriaClinicaUiState(
     val canSign: Boolean = false,
     val isSigning: Boolean = false,
     val error: String? = null,
+    /** A signed Historia Clinica, for users with PDF_EXPORT on a platform that can save files (HCEM-14). */
+    val canDownloadPdf: Boolean = false,
+    val pdfDownload: PdfDownload = PdfDownload.Idle,
 )
 
 internal const val SAVE_CONFLICT_ERROR = "Otro usuario modifico la historia; revisa y guarda de nuevo"
@@ -92,7 +100,11 @@ class HistoriaClinicaViewModel(
     private val episodeRepository: EpisodeRepository,
     private val clinicalNoteRepository: ClinicalNoteRepository,
     private val sessionRepository: SessionRepository,
+    pdfExportRepository: PdfExportRepository,
+    fileSaver: FileSaver,
 ) : ViewModel() {
+
+    private val pdfDownloader = PdfDownloader(pdfExportRepository, fileSaver, viewModelScope)
 
     private val requestedIds = MutableStateFlow<RequestedIds?>(null)
     private val formState = MutableStateFlow(FormState())
@@ -135,6 +147,8 @@ class HistoriaClinicaViewModel(
                             hospitalizacion?.status == EpisodeStatus.ACTIVE && historiaClinica.status == NoteStatus.DRAFT,
                         isSigning = form.isSigning,
                         error = form.error,
+                        canDownloadPdf = pdfDownloader.isAvailable && session?.can(Permission.PDF_EXPORT) == true &&
+                            historiaClinica.status == NoteStatus.SIGNED,
                     )
                 }
                     .onStart { emit(HistoriaClinicaUiState(isLoading = true)) }
@@ -145,7 +159,14 @@ class HistoriaClinicaViewModel(
         // reads uiState.value synchronously to build the section payload, which needs this flow
         // actively collecting regardless of whether the Screen currently has a collectAsState()
         // subscriber, not just whenever one happens to be attached.
+        .combine(pdfDownloader.state) { state, download -> state.copy(pdfDownload = download) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, HistoriaClinicaUiState())
+
+    fun downloadPdf() {
+        val ids = requestedIds.value ?: return
+        if (!uiState.value.canDownloadPdf) return
+        pdfDownloader.download(PdfExportTarget.HistoriaClinica(ids.hospId))
+    }
 
     fun load(patientId: String, hospId: String) {
         if (requestedIds.value == RequestedIds(patientId, hospId)) return

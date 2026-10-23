@@ -32,8 +32,13 @@ import com.cramsan.hirsh.network.ApiException
 import com.cramsan.hirsh.repository.ClinicalNoteRepository
 import com.cramsan.hirsh.repository.EpisodeRepository
 import com.cramsan.hirsh.repository.PatientRepository
+import com.cramsan.hirsh.repository.PdfExportRepository
+import com.cramsan.hirsh.repository.PdfExportTarget
+import com.cramsan.hirsh.repository.PdfFile
 import com.cramsan.hirsh.repository.SessionRepository
 import com.cramsan.hirsh.ui.components.LoadError
+import com.cramsan.hirsh.ui.components.PdfDownload
+import com.cramsan.hirsh.util.FileSaver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -239,6 +244,22 @@ private fun readyToSign() = HistoriaClinica(
     status = NoteStatus.DRAFT,
 )
 
+/** Records what was exported; [failure] makes the export throw. */
+private class FakePdfExportRepository : PdfExportRepository {
+    val targets = mutableListOf<PdfExportTarget>()
+    var failure: Exception? = null
+
+    override suspend fun export(target: PdfExportTarget): PdfFile {
+        failure?.let { throw it }
+        targets += target
+        return PdfFile("export.pdf", byteArrayOf(1, 2, 3))
+    }
+}
+
+private class FakeFileSaver(override val isSupported: Boolean = true) : FileSaver {
+    override suspend fun save(filename: String, bytes: ByteArray): String = "/descargas/$filename"
+}
+
 @OptIn(ExperimentalCoroutinesApi::class)
 class HistoriaClinicaViewModelTest {
 
@@ -262,6 +283,8 @@ class HistoriaClinicaViewModelTest {
             FakeEpisodeRepository(listOf(hospitalization)),
             FakeClinicalNoteRepository(),
             FakeSessionRepository(),
+            FakePdfExportRepository(),
+            FakeFileSaver(),
         )
 
         viewModel.uiState.test {
@@ -282,6 +305,8 @@ class HistoriaClinicaViewModelTest {
             FakeEpisodeRepository(listOf(hospitalization)),
             FakeClinicalNoteRepository(),
             FakeSessionRepository(),
+            FakePdfExportRepository(),
+            FakeFileSaver(),
         )
 
         viewModel.uiState.test {
@@ -301,6 +326,8 @@ class HistoriaClinicaViewModelTest {
             FakeEpisodeRepository(),
             FakeClinicalNoteRepository(),
             FakeSessionRepository(),
+            FakePdfExportRepository(),
+            FakeFileSaver(),
         )
 
         viewModel.uiState.test {
@@ -322,6 +349,8 @@ class HistoriaClinicaViewModelTest {
             FakeEpisodeRepository(listOf(hospitalization)),
             FakeClinicalNoteRepository(mapOf("h1" to hc)),
             FakeSessionRepository(),
+            FakePdfExportRepository(),
+            FakeFileSaver(),
         )
 
         viewModel.uiState.test {
@@ -342,6 +371,8 @@ class HistoriaClinicaViewModelTest {
             FakeEpisodeRepository(listOf(hospitalization)),
             FakeClinicalNoteRepository(),
             FakeSessionRepository(),
+            FakePdfExportRepository(),
+            FakeFileSaver(),
         )
 
         viewModel.uiState.test {
@@ -362,6 +393,8 @@ class HistoriaClinicaViewModelTest {
             FakeEpisodeRepository(listOf(hospitalization)),
             FakeClinicalNoteRepository(mapOf("h1" to hc)),
             FakeSessionRepository(),
+            FakePdfExportRepository(),
+            FakeFileSaver(),
         )
 
         viewModel.uiState.test {
@@ -387,6 +420,8 @@ class HistoriaClinicaViewModelTest {
             FakeEpisodeRepository(listOf(hospitalization)),
             FakeClinicalNoteRepository(mapOf("h1" to hc)),
             FakeSessionRepository(),
+            FakePdfExportRepository(),
+            FakeFileSaver(),
         )
 
         viewModel.uiState.test {
@@ -411,7 +446,7 @@ class HistoriaClinicaViewModelTest {
         val hospitalization = sampleHospitalization("h1", samplePatient.id)
         val repository = FakeEpisodeRepository(listOf(hospitalization))
         val notes = FakeClinicalNoteRepository()
-        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository, notes, FakeSessionRepository())
+        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository, notes, FakeSessionRepository(), FakePdfExportRepository(), FakeFileSaver())
         viewModel.load(samplePatient.id, hospitalization.id)
         dispatcher.scheduler.advanceUntilIdle()
 
@@ -432,7 +467,7 @@ class HistoriaClinicaViewModelTest {
         val hospitalization = sampleHospitalization("h1", samplePatient.id)
         val repository = FakeEpisodeRepository(listOf(hospitalization))
         val notes = FakeClinicalNoteRepository()
-        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository, notes, FakeSessionRepository())
+        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository, notes, FakeSessionRepository(), FakePdfExportRepository(), FakeFileSaver())
         viewModel.load(samplePatient.id, hospitalization.id)
         dispatcher.scheduler.advanceUntilIdle()
 
@@ -451,7 +486,7 @@ class HistoriaClinicaViewModelTest {
         val hospitalization = sampleHospitalization("h1", samplePatient.id)
         val repository = FakeEpisodeRepository(listOf(hospitalization))
         val notes = FakeClinicalNoteRepository()
-        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository, notes, FakeSessionRepository())
+        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository, notes, FakeSessionRepository(), FakePdfExportRepository(), FakeFileSaver())
         viewModel.load(samplePatient.id, hospitalization.id)
         dispatcher.scheduler.advanceUntilIdle()
 
@@ -473,7 +508,7 @@ class HistoriaClinicaViewModelTest {
         val hospitalization = sampleHospitalization("h1", samplePatient.id)
         val repository = FakeEpisodeRepository(listOf(hospitalization))
         val notes = FakeClinicalNoteRepository()
-        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository, notes, FakeSessionRepository())
+        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository, notes, FakeSessionRepository(), FakePdfExportRepository(), FakeFileSaver())
         viewModel.load(samplePatient.id, hospitalization.id)
         dispatcher.scheduler.advanceUntilIdle()
 
@@ -492,7 +527,7 @@ class HistoriaClinicaViewModelTest {
         val hospitalization = sampleHospitalization("h1", samplePatient.id)
         val repository = FakeEpisodeRepository(listOf(hospitalization))
         val notes = FakeClinicalNoteRepository()
-        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository, notes, FakeSessionRepository())
+        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository, notes, FakeSessionRepository(), FakePdfExportRepository(), FakeFileSaver())
         viewModel.load(samplePatient.id, hospitalization.id)
         dispatcher.scheduler.advanceUntilIdle()
 
@@ -511,7 +546,7 @@ class HistoriaClinicaViewModelTest {
         val hospitalization = sampleHospitalization("h1", samplePatient.id)
         val repository = FakeEpisodeRepository(listOf(hospitalization))
         val notes = FakeClinicalNoteRepository()
-        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository, notes, FakeSessionRepository())
+        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository, notes, FakeSessionRepository(), FakePdfExportRepository(), FakeFileSaver())
         viewModel.load(samplePatient.id, hospitalization.id)
         dispatcher.scheduler.advanceUntilIdle()
 
@@ -533,7 +568,7 @@ class HistoriaClinicaViewModelTest {
         val hospitalization = sampleHospitalization("h1", samplePatient.id)
         val repository = FakeEpisodeRepository(listOf(hospitalization))
         val notes = FakeClinicalNoteRepository()
-        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository, notes, FakeSessionRepository())
+        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository, notes, FakeSessionRepository(), FakePdfExportRepository(), FakeFileSaver())
 
         viewModel.uiState.test {
             awaitItem()
@@ -562,6 +597,8 @@ class HistoriaClinicaViewModelTest {
             FakeEpisodeRepository(listOf(hospitalization)),
             FakeClinicalNoteRepository(),
             FakeSessionRepository(),
+            FakePdfExportRepository(),
+            FakeFileSaver(),
         )
 
         viewModel.uiState.test {
@@ -583,7 +620,7 @@ class HistoriaClinicaViewModelTest {
         val hospitalization = sampleHospitalization("h1", samplePatient.id)
         val repository = FakeEpisodeRepository(listOf(hospitalization))
         val notes = FakeClinicalNoteRepository()
-        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository, notes, FakeSessionRepository())
+        val viewModel = HistoriaClinicaViewModel(FakePatientRepository(listOf(samplePatient)), repository, notes, FakeSessionRepository(), FakePdfExportRepository(), FakeFileSaver())
         viewModel.load(samplePatient.id, hospitalization.id)
         dispatcher.scheduler.advanceUntilIdle()
 
@@ -598,7 +635,7 @@ class HistoriaClinicaViewModelTest {
     @Test
     fun `a failed read shows a load error instead of crashing`() = runTest(dispatcher) {
         val patients = FakePatientRepository(listOf(samplePatient)).apply { failure = ApiException(ApiError.Forbidden) }
-        val viewModel = HistoriaClinicaViewModel(patients, FakeEpisodeRepository(listOf(sampleHospitalization("h1", samplePatient.id))), FakeClinicalNoteRepository(), FakeSessionRepository())
+        val viewModel = HistoriaClinicaViewModel(patients, FakeEpisodeRepository(listOf(sampleHospitalization("h1", samplePatient.id))), FakeClinicalNoteRepository(), FakeSessionRepository(), FakePdfExportRepository(), FakeFileSaver())
         backgroundScope.launch { viewModel.uiState.collect {} }
         viewModel.load(samplePatient.id, "h1")
         advanceUntilIdle()
@@ -611,7 +648,7 @@ class HistoriaClinicaViewModelTest {
     @Test
     fun `retry loads again after a failure`() = runTest(dispatcher) {
         val patients = FakePatientRepository(listOf(samplePatient)).apply { failure = RuntimeException("Connection refused") }
-        val viewModel = HistoriaClinicaViewModel(patients, FakeEpisodeRepository(listOf(sampleHospitalization("h1", samplePatient.id))), FakeClinicalNoteRepository(), FakeSessionRepository())
+        val viewModel = HistoriaClinicaViewModel(patients, FakeEpisodeRepository(listOf(sampleHospitalization("h1", samplePatient.id))), FakeClinicalNoteRepository(), FakeSessionRepository(), FakePdfExportRepository(), FakeFileSaver())
         backgroundScope.launch { viewModel.uiState.collect {} }
         viewModel.load(samplePatient.id, "h1")
         advanceUntilIdle()
@@ -631,12 +668,15 @@ class HistoriaClinicaViewModelTest {
         session: Session? = signer,
         notes: FakeClinicalNoteRepository = FakeClinicalNoteRepository(historiaClinica?.let { mapOf("h1" to it) }.orEmpty()),
         hospitalization: Hospitalizacion = sampleHospitalization("h1", samplePatient.id),
+        pdfs: FakePdfExportRepository = FakePdfExportRepository(),
     ): HistoriaClinicaViewModel {
         val viewModel = HistoriaClinicaViewModel(
             FakePatientRepository(listOf(samplePatient)),
             FakeEpisodeRepository(listOf(hospitalization)),
             notes,
             FakeSessionRepository(session),
+            pdfs,
+            FakeFileSaver(),
         )
         viewModel.load(samplePatient.id, hospitalization.id)
         advanceUntilIdle()
@@ -682,6 +722,21 @@ class HistoriaClinicaViewModelTest {
 
         assertEquals(0, notes.signCallCount)
         assertEquals(SIGN_INCOMPLETE_ERROR, viewModel.uiState.value.error)
+    }
+
+    @Test
+    fun `an exporter downloads a signed historia as a pdf, but not a draft`() = runTest(dispatcher) {
+        val exporter = Session("dr", "Dr. Reyes", permissions = setOf(Permission.PDF_EXPORT.name))
+        assertFalse(loadedViewModel(readyToSign(), session = exporter).uiState.value.canDownloadPdf)
+
+        val pdfs = FakePdfExportRepository()
+        val viewModel = loadedViewModel(readyToSign().copy(status = NoteStatus.SIGNED), session = exporter, pdfs = pdfs)
+        assertTrue(viewModel.uiState.value.canDownloadPdf)
+        viewModel.downloadPdf()
+        advanceUntilIdle()
+
+        assertEquals(listOf<PdfExportTarget>(PdfExportTarget.HistoriaClinica("h1")), pdfs.targets)
+        assertEquals(PdfDownload.Saved("/descargas/export.pdf"), viewModel.uiState.value.pdfDownload)
     }
 
     @Test

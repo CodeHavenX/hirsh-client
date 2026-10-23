@@ -1,11 +1,5 @@
 package com.cramsan.hirsh.ui.screens.evolucionview
 
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.emitAll
-import com.cramsan.hirsh.ui.components.LoadError
-import com.cramsan.hirsh.network.ApiException
-import com.cramsan.hirsh.network.ApiError
 import app.cash.turbine.test
 import com.cramsan.hirsh.model.Allergy
 import com.cramsan.hirsh.model.AllergyType
@@ -29,23 +23,34 @@ import com.cramsan.hirsh.model.Severity
 import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.model.UserRef
 import com.cramsan.hirsh.model.Vitals
+import com.cramsan.hirsh.network.ApiError
+import com.cramsan.hirsh.network.ApiException
 import com.cramsan.hirsh.repository.ClinicalNoteRepository
 import com.cramsan.hirsh.repository.EpisodeRepository
 import com.cramsan.hirsh.repository.PatientRepository
+import com.cramsan.hirsh.repository.PdfExportRepository
+import com.cramsan.hirsh.repository.PdfExportTarget
+import com.cramsan.hirsh.repository.PdfFile
 import com.cramsan.hirsh.repository.SessionRepository
+import com.cramsan.hirsh.ui.components.LoadError
+import com.cramsan.hirsh.ui.components.PdfDownload
+import com.cramsan.hirsh.util.FileSaver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -201,11 +206,33 @@ private class FakeSessionRepository(session: Session?) : SessionRepository {
     override fun forceLogout() = Unit
 }
 
+private val exporterSession = Session(
+    username = "drpatel",
+    displayName = "Dr. A. Patel",
+    permissions = setOf(Permission.PDF_EXPORT.name),
+)
+
 private val signerSession = Session(
     username = "drpatel",
     displayName = "Dr. A. Patel",
     permissions = setOf(Permission.DOCUMENT_SIGN.name),
 )
+
+/** Records what was exported; [failure] makes the export throw. */
+private class FakePdfExportRepository : PdfExportRepository {
+    val targets = mutableListOf<PdfExportTarget>()
+    var failure: Exception? = null
+
+    override suspend fun export(target: PdfExportTarget): PdfFile {
+        failure?.let { throw it }
+        targets += target
+        return PdfFile("export.pdf", byteArrayOf(1, 2, 3))
+    }
+}
+
+private class FakeFileSaver(override val isSupported: Boolean = true) : FileSaver {
+    override suspend fun save(filename: String, bytes: ByteArray): String = "/descargas/$filename"
+}
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class EvolucionViewViewModelTest {
@@ -231,6 +258,8 @@ class EvolucionViewViewModelTest {
             FakeEpisodeRepository(listOf(hospitalization)),
             FakeClinicalNoteRepository(mapOf("h1" to listOf(evolucion))),
             FakeSessionRepository(null),
+            FakePdfExportRepository(),
+            FakeFileSaver(),
         )
 
         viewModel.uiState.test {
@@ -253,6 +282,8 @@ class EvolucionViewViewModelTest {
             FakeEpisodeRepository(listOf(hospitalization)),
             FakeClinicalNoteRepository(mapOf("h1" to listOf(evolucion))),
             FakeSessionRepository(null),
+            FakePdfExportRepository(),
+            FakeFileSaver(),
         )
 
         viewModel.uiState.test {
@@ -273,6 +304,8 @@ class EvolucionViewViewModelTest {
             FakeEpisodeRepository(),
             FakeClinicalNoteRepository(),
             FakeSessionRepository(null),
+            FakePdfExportRepository(),
+            FakeFileSaver(),
         )
 
         viewModel.uiState.test {
@@ -294,6 +327,8 @@ class EvolucionViewViewModelTest {
             FakeEpisodeRepository(listOf(hospitalization)),
             FakeClinicalNoteRepository(mapOf("h1" to listOf(sampleEvolucion("evo1")))),
             FakeSessionRepository(null),
+            FakePdfExportRepository(),
+            FakeFileSaver(),
         )
 
         viewModel.uiState.test {
@@ -315,6 +350,8 @@ class EvolucionViewViewModelTest {
             FakeEpisodeRepository(listOf(hospitalization)),
             FakeClinicalNoteRepository(mapOf("h1" to listOf(evolucion))),
             FakeSessionRepository(null),
+            FakePdfExportRepository(),
+            FakeFileSaver(),
         )
 
         viewModel.uiState.test {
@@ -338,6 +375,8 @@ class EvolucionViewViewModelTest {
             FakeEpisodeRepository(listOf(hospitalization)),
             FakeClinicalNoteRepository(mapOf("h1" to listOf(evolucion))),
             FakeSessionRepository(null),
+            FakePdfExportRepository(),
+            FakeFileSaver(),
         )
 
         viewModel.uiState.test {
@@ -362,6 +401,8 @@ class EvolucionViewViewModelTest {
             FakeEpisodeRepository(listOf(sampleHospitalization("h1", samplePatient.id))),
             FakeClinicalNoteRepository(mapOf("h1" to listOf(sampleEvolucion("evo1")))),
             FakeSessionRepository(null),
+            FakePdfExportRepository(),
+            FakeFileSaver(),
         )
         backgroundScope.launch { viewModel.uiState.collect {} }
         viewModel.load(samplePatient.id, "h1", "evo1")
@@ -380,6 +421,8 @@ class EvolucionViewViewModelTest {
             FakeEpisodeRepository(listOf(sampleHospitalization("h1", samplePatient.id))),
             FakeClinicalNoteRepository(mapOf("h1" to listOf(sampleEvolucion("evo1")))),
             FakeSessionRepository(null),
+            FakePdfExportRepository(),
+            FakeFileSaver(),
         )
         backgroundScope.launch { viewModel.uiState.collect {} }
         viewModel.load(samplePatient.id, "h1", "evo1")
@@ -524,12 +567,42 @@ class EvolucionViewViewModelTest {
         assertEquals(false, viewModel.uiState.value.canApplyScale)
     }
 
-    private fun TestScope.draftViewModel(notes: FakeClinicalNoteRepository, session: Session): EvolucionViewViewModel {
+    @Test
+    fun `an exporter downloads a signed evolucion as a pdf`() = runTest(dispatcher) {
+        val pdfs = FakePdfExportRepository()
+        val viewModel = draftViewModel(FakeClinicalNoteRepository(mapOf("h1" to listOf(sampleEvolucion("evo1")))), exporterSession, pdfs)
+        assertEquals(true, viewModel.uiState.value.canDownloadPdf)
+
+        viewModel.downloadPdf()
+        advanceUntilIdle()
+
+        assertEquals(listOf<PdfExportTarget>(PdfExportTarget.Evolucion("h1", "evo1")), pdfs.targets)
+        assertEquals(PdfDownload.Saved("/descargas/export.pdf"), viewModel.uiState.value.pdfDownload)
+    }
+
+    @Test
+    fun `no pdf for a draft, without the permission, or where files can't be saved`() = runTest(dispatcher) {
+        val signed = FakeClinicalNoteRepository(mapOf("h1" to listOf(sampleEvolucion("evo1"))))
+        val draft = FakeClinicalNoteRepository(mapOf("h1" to listOf(sampleEvolucion("evo1").copy(status = NoteStatus.DRAFT))))
+
+        assertEquals(false, draftViewModel(draft, exporterSession).uiState.value.canDownloadPdf)
+        assertEquals(false, draftViewModel(signed, signerSession).uiState.value.canDownloadPdf)
+        assertEquals(false, draftViewModel(signed, exporterSession, fileSaver = FakeFileSaver(isSupported = false)).uiState.value.canDownloadPdf)
+    }
+
+    private fun TestScope.draftViewModel(
+        notes: FakeClinicalNoteRepository,
+        session: Session,
+        pdfs: FakePdfExportRepository = FakePdfExportRepository(),
+        fileSaver: FakeFileSaver = FakeFileSaver(),
+    ): EvolucionViewViewModel {
         val viewModel = EvolucionViewViewModel(
             FakePatientRepository(listOf(samplePatient)),
             FakeEpisodeRepository(listOf(sampleHospitalization("h1", samplePatient.id))),
             notes,
             FakeSessionRepository(session),
+            pdfs,
+            fileSaver,
         )
         backgroundScope.launch { viewModel.uiState.collect {} }
         viewModel.load(samplePatient.id, "h1", "evo1")

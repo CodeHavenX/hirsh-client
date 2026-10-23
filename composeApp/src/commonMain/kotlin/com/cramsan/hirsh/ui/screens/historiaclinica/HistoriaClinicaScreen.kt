@@ -53,6 +53,8 @@ import com.cramsan.hirsh.ui.components.FieldFontSize
 import com.cramsan.hirsh.ui.components.FormSectionCaption
 import com.cramsan.hirsh.ui.components.LoadErrorMessage
 import com.cramsan.hirsh.ui.components.NoteStatusBadge
+import com.cramsan.hirsh.ui.components.PdfDownloadButton
+import com.cramsan.hirsh.ui.components.PdfDownloadStatus
 import com.cramsan.hirsh.ui.components.SelectField
 import com.cramsan.hirsh.ui.components.StatusBadge
 import com.cramsan.hirsh.ui.components.fieldShape
@@ -82,6 +84,7 @@ fun HistoriaClinicaScreen(
         uiState = uiState,
         onClose = onClose,
         onOpenPrintPreview = viewModel::openPrintPreview,
+        onDownloadPdf = viewModel::downloadPdf,
         onClosePrintPreview = viewModel::closePrintPreview,
         onSelectSection = viewModel::selectSection,
         onMotivoOptionChange = viewModel::onMotivoOptionChange,
@@ -107,6 +110,7 @@ internal fun HistoriaClinicaScreenContent(
     onSave: () -> Unit,
     onSign: () -> Unit,
     onRetry: () -> Unit,
+    onDownloadPdf: () -> Unit = {},
 ) {
     val patient = uiState.patient
     val hospitalizacion = uiState.hospitalizacion
@@ -152,6 +156,9 @@ internal fun HistoriaClinicaScreenContent(
                                 Text("Firmar", fontWeight = FontWeight.Medium)
                             }
                         }
+                        if (uiState.canDownloadPdf) {
+                            PdfDownloadButton(uiState.pdfDownload, onClick = onDownloadPdf)
+                        }
                         Button(
                             onClick = onOpenPrintPreview,
                             shape = fieldShape,
@@ -162,6 +169,7 @@ internal fun HistoriaClinicaScreenContent(
                         }
                     },
                 )
+                PdfDownloadStatus(uiState.pdfDownload, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
                 if (uiState.showPrintPreview) {
                     Dialog(
                         onDismissRequest = onClosePrintPreview,
