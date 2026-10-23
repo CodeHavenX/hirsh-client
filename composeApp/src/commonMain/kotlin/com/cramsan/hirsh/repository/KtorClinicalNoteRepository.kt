@@ -51,9 +51,9 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
@@ -214,6 +214,13 @@ class KtorClinicalNoteRepository(
             cacheEvolucion(hospId, fetchDocument(evoId))
         }
     }
+
+    override suspend fun latestVersionId(hospId: String, evoId: String?): String? =
+        if (evoId == null) {
+            refreshHistoriaClinica(hospId)?.versionId
+        } else {
+            fetchDocumentOrNull(evoId)?.takeIf { it.isEvolucionOf(hospId) }?.versionId
+        }
 
     private suspend fun refreshHistoriaClinica(hospId: String): NoteDocument? {
         val entry = folder(hospId, DocumentCategoryDto.ADMISSION).firstOrNull()

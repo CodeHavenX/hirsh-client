@@ -1,5 +1,7 @@
 package com.cramsan.hirsh.di
 
+import com.cramsan.hirsh.util.BrowserFileSaver
+import com.cramsan.hirsh.util.FileSaver
 import io.ktor.client.engine.HttpClientEngineFactory
 import io.ktor.client.engine.js.Js
 import io.ktor.client.engine.js.JsClientEngineConfig
@@ -28,4 +30,5 @@ actual val platformModule: Module = module {
             }
         }
     }
+    single<FileSaver> { BrowserFileSaver() }
 }

@@ -32,8 +32,8 @@ import com.cramsan.hirsh.ui.components.ActiveTreatmentsPanel
 import com.cramsan.hirsh.ui.components.ActiveTreatmentsSection
 import com.cramsan.hirsh.ui.preview.PreviewResponsive
 import com.cramsan.hirsh.ui.theme.HirshTheme
-import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
+import kotlin.time.Instant
 
 private val previewPatient = Patient(
     id = "1e0697d0-f3e4-4755-85ad-d888d2b15f9d",
@@ -109,6 +109,7 @@ private fun previewUiState(
     historiaClinica = previewHistoriaClinica.copy(status = hcStatus),
     evoluciones = evoluciones,
     treatments = ActiveTreatmentsSection.Loaded(emptyList()),
+    canDownloadPdf = true,
 )
 
 private fun previewPhq9(id: String, documentId: String, appliedAt: String, score: ScaleScore) = AppliedScale(

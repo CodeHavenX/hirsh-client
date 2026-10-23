@@ -14,9 +14,14 @@ import com.cramsan.hirsh.network.ApiException
 import com.cramsan.hirsh.repository.ClinicalNoteRepository
 import com.cramsan.hirsh.repository.EpisodeRepository
 import com.cramsan.hirsh.repository.PatientRepository
+import com.cramsan.hirsh.repository.PdfExportRepository
+import com.cramsan.hirsh.repository.PdfExportTarget
 import com.cramsan.hirsh.repository.SessionRepository
 import com.cramsan.hirsh.ui.components.LoadError
+import com.cramsan.hirsh.ui.components.PdfDownload
+import com.cramsan.hirsh.ui.components.PdfDownloader
 import com.cramsan.hirsh.ui.components.toLoadError
+import com.cramsan.hirsh.util.FileSaver
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -52,6 +57,9 @@ data class EvolucionViewUiState(
     val showCopiedConfirmation: Boolean = false,
     /** Scales can only be applied while the stay is active (HCEM-80). */
     val canApplyScale: Boolean = false,
+    /** Signed notes only, for users with PDF_EXPORT on a platform that can save files (HCEM-14). */
+    val canDownloadPdf: Boolean = false,
+    val pdfDownload: PdfDownload = PdfDownload.Idle,
 )
 
 internal const val EVO_SIGN_FORBIDDEN_ERROR =
@@ -77,7 +85,11 @@ class EvolucionViewViewModel(
     private val episodeRepository: EpisodeRepository,
     private val clinicalNoteRepository: ClinicalNoteRepository,
     private val sessionRepository: SessionRepository,
+    pdfExportRepository: PdfExportRepository,
+    fileSaver: FileSaver,
 ) : ViewModel() {
+
+    private val pdfDownloader = PdfDownloader(pdfExportRepository, fileSaver, viewModelScope)
 
     private val requestedIds = MutableStateFlow<RequestedIds?>(null)
     private val controls = MutableStateFlow(ViewControls())
@@ -116,12 +128,15 @@ class EvolucionViewViewModel(
                         showCopiedConfirmation = view.showCopiedConfirmation,
                         canApplyScale = session?.can(Permission.TEST_WRITE) == true && shown != null &&
                             hospitalizacion?.status == EpisodeStatus.ACTIVE,
+                        canDownloadPdf = pdfDownloader.isAvailable && session?.can(Permission.PDF_EXPORT) == true &&
+                            shown?.status == NoteStatus.SIGNED,
                     )
                 }
                     .onStart { emit(EvolucionViewUiState(isLoading = true)) }
                     .catch { emit(EvolucionViewUiState(isLoading = false, loadError = it.toLoadError())) }
             }
         }
+        .combine(pdfDownloader.state) { state, download -> state.copy(pdfDownload = download) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), EvolucionViewUiState())
 
     fun load(patientId: String, hospId: String, evoId: String) {
@@ -157,6 +172,12 @@ class EvolucionViewViewModel(
     fun onCopyForSisFailed() {
         hideCopiedConfirmation?.cancel()
         controls.update { it.copy(showCopiedConfirmation = false, error = EVO_COPY_ERROR) }
+    }
+
+    fun downloadPdf() {
+        val ids = requestedIds.value ?: return
+        if (!uiState.value.canDownloadPdf) return
+        pdfDownloader.download(PdfExportTarget.Evolucion(ids.hospId, ids.evoId))
     }
 
     fun sign() {

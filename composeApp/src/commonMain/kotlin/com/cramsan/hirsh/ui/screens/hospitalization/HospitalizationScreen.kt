@@ -3,6 +3,7 @@ package com.cramsan.hirsh.ui.screens.hospitalization
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -42,8 +43,8 @@ import com.cramsan.hirsh.model.AppliedScale
 import com.cramsan.hirsh.model.EpisodeStatus
 import com.cramsan.hirsh.model.Evolucion
 import com.cramsan.hirsh.model.HistoriaClinica
-import com.cramsan.hirsh.model.NoteStatus
 import com.cramsan.hirsh.model.Hospitalizacion
+import com.cramsan.hirsh.model.NoteStatus
 import com.cramsan.hirsh.model.Patient
 import com.cramsan.hirsh.model.bedNumber
 import com.cramsan.hirsh.model.completionCount
@@ -58,6 +59,9 @@ import com.cramsan.hirsh.ui.components.EpisodeStatusBadge
 import com.cramsan.hirsh.ui.components.KeyValueRow
 import com.cramsan.hirsh.ui.components.LoadErrorMessage
 import com.cramsan.hirsh.ui.components.NoteStatusBadge
+import com.cramsan.hirsh.ui.components.PdfDownload
+import com.cramsan.hirsh.ui.components.PdfDownloadButton
+import com.cramsan.hirsh.ui.components.PdfDownloadStatus
 import com.cramsan.hirsh.ui.components.ScaleSeverityBadge
 import com.cramsan.hirsh.ui.components.StatusBadge
 import com.cramsan.hirsh.ui.components.SuicideAlertBadge
@@ -74,6 +78,7 @@ import com.cramsan.hirsh.util.formatDateTime
 import org.koin.compose.viewmodel.koinViewModel
 
 private val ButtonShape = RoundedCornerShape(HissRadiusDefault)
+private val NARROW_HEADER_WIDTH = 600.dp
 
 @Composable
 fun HospitalizationScreen(
@@ -98,6 +103,7 @@ fun HospitalizationScreen(
         onEvolucionSelected = onEvolucionSelected,
         onDischarge = onDischarge,
         onRetry = viewModel::retry,
+        onDownloadPdf = viewModel::downloadPdf,
         onSuspendTreatment = viewModel::openSuspension,
         onSuspensionReasonChange = viewModel::onSuspensionReasonChange,
         onConfirmSuspension = viewModel::confirmSuspension,
@@ -118,6 +124,7 @@ internal fun HospitalizationScreenContent(
     onSuspensionReasonChange: (String) -> Unit = {},
     onConfirmSuspension: () -> Unit = {},
     onDismissSuspension: () -> Unit = {},
+    onDownloadPdf: () -> Unit = {},
 ) {
     val patient = uiState.patient
     val hospitalizacion = uiState.hospitalizacion
@@ -135,7 +142,10 @@ internal fun HospitalizationScreenContent(
                     canDischarge = hospitalizacion.status == EpisodeStatus.ACTIVE,
                     onNewEvolucion = onNewEvolucion,
                     onDischarge = onDischarge,
+                    pdfDownload = uiState.pdfDownload,
+                    onDownloadPdf = onDownloadPdf.takeIf { uiState.canDownloadPdf },
                 )
+                PdfDownloadStatus(uiState.pdfDownload, modifier = Modifier.padding(top = 8.dp))
                 Column(
                     modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())
                         .testTag("screen_scroll_container"),
@@ -181,16 +191,23 @@ private fun HospitalizationHeader(
     canDischarge: Boolean,
     onNewEvolucion: () -> Unit,
     onDischarge: () -> Unit,
+    pdfDownload: PdfDownload,
+    onDownloadPdf: (() -> Unit)?,
 ) {
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+    val titleText: @Composable (Modifier) -> Unit = { modifier ->
         Text(
             title,
             style = MaterialTheme.typography.headlineSmall.copy(fontSize = 20.sp, fontWeight = FontWeight.Bold),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f, fill = false).padding(end = 12.dp),
+            modifier = modifier,
         )
+    }
+    val actions: @Composable () -> Unit = {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (onDownloadPdf != null) {
+                PdfDownloadButton(pdfDownload, onClick = onDownloadPdf)
+            }
             if (canDischarge) {
                 OutlinedButton(
                     onClick = onDischarge,
@@ -209,6 +226,20 @@ private fun HospitalizationHeader(
                 modifier = Modifier.testTag("hosp_new_evolucion_button"),
             ) {
                 Text("+ Nueva evolucion", fontWeight = FontWeight.Medium)
+            }
+        }
+    }
+    // Three actions leave a phone no room for the title beside them, so it goes above.
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        if (maxWidth < NARROW_HEADER_WIDTH) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                titleText(Modifier)
+                actions()
+            }
+        } else {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                titleText(Modifier.weight(1f, fill = false).padding(end = 12.dp))
+                actions()
             }
         }
     }

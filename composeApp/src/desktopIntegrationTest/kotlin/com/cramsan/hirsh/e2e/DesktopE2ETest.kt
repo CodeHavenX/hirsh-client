@@ -50,4 +50,7 @@ class DesktopE2ETest : HissE2EScenarios() {
     /** The desktop app and this JVM share the system clipboard. */
     override fun systemClipboardText(): String? =
         Toolkit.getDefaultToolkit().systemClipboard.getData(DataFlavor.stringFlavor) as String
+
+    /** The app runs on this machine, so its Downloads folder is readable from here. */
+    override fun savedFile(location: String): ByteArray? = java.io.File(location).readBytes()
 }

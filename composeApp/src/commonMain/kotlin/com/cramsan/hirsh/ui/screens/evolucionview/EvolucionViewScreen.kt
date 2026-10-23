@@ -1,6 +1,5 @@
 package com.cramsan.hirsh.ui.screens.evolucionview
 
-import com.cramsan.hirsh.model.treatmentText
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -42,6 +41,7 @@ import androidx.compose.ui.window.DialogProperties
 import com.cramsan.hirsh.model.Evolucion
 import com.cramsan.hirsh.model.NoteStatus
 import com.cramsan.hirsh.model.toDisplayLabel
+import com.cramsan.hirsh.model.treatmentText
 import com.cramsan.hirsh.ui.components.BadgeTone
 import com.cramsan.hirsh.ui.components.Chip
 import com.cramsan.hirsh.ui.components.DataTable
@@ -51,6 +51,8 @@ import com.cramsan.hirsh.ui.components.FormSectionCaption
 import com.cramsan.hirsh.ui.components.KeyValueRow
 import com.cramsan.hirsh.ui.components.LoadErrorMessage
 import com.cramsan.hirsh.ui.components.NoteStatusBadge
+import com.cramsan.hirsh.ui.components.PdfDownloadButton
+import com.cramsan.hirsh.ui.components.PdfDownloadStatus
 import com.cramsan.hirsh.ui.components.ReadOnlyField
 import com.cramsan.hirsh.ui.components.StatusBadge
 import com.cramsan.hirsh.ui.components.fieldShape
@@ -85,6 +87,7 @@ fun EvolucionViewScreen(
         uiState = uiState,
         onClose = onClose,
         onOpenPrintPreview = viewModel::openPrintPreview,
+        onDownloadPdf = viewModel::downloadPdf,
         onClosePrintPreview = viewModel::closePrintPreview,
         onSelectTab = viewModel::selectTab,
         onRetry = viewModel::retry,
@@ -108,6 +111,7 @@ internal fun EvolucionViewScreenContent(
     onCopiedForSis: () -> Unit,
     onCopyForSisFailed: () -> Unit,
     onApplyScale: () -> Unit,
+    onDownloadPdf: () -> Unit = {},
 ) {
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
@@ -163,6 +167,9 @@ internal fun EvolucionViewScreenContent(
                                 Text("Firmar", fontWeight = FontWeight.Medium)
                             }
                         }
+                        if (uiState.canDownloadPdf) {
+                            PdfDownloadButton(uiState.pdfDownload, onClick = onDownloadPdf)
+                        }
                         Button(
                             onClick = onOpenPrintPreview,
                             shape = fieldShape,
@@ -173,6 +180,7 @@ internal fun EvolucionViewScreenContent(
                         }
                     },
                 )
+                PdfDownloadStatus(uiState.pdfDownload, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
                 if (uiState.showPrintPreview) {
                     Dialog(
                         onDismissRequest = onClosePrintPreview,

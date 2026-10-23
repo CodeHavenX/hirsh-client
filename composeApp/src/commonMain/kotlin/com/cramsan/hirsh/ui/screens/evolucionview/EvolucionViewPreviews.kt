@@ -1,7 +1,5 @@
 package com.cramsan.hirsh.ui.screens.evolucionview
 
-import com.cramsan.hirsh.model.Prescripcion
-import com.cramsan.hirsh.model.RouteOfAdministration
 import androidx.compose.runtime.Composable
 import com.cramsan.hirsh.model.DiagnosticoCie10
 import com.cramsan.hirsh.model.DocumentType
@@ -12,10 +10,13 @@ import com.cramsan.hirsh.model.Examen
 import com.cramsan.hirsh.model.Hospitalizacion
 import com.cramsan.hirsh.model.NoteStatus
 import com.cramsan.hirsh.model.Patient
+import com.cramsan.hirsh.model.Prescripcion
 import com.cramsan.hirsh.model.Pronostico
+import com.cramsan.hirsh.model.RouteOfAdministration
 import com.cramsan.hirsh.model.Sex
 import com.cramsan.hirsh.model.Vitals
 import com.cramsan.hirsh.repository.PlaceholderCatalog
+import com.cramsan.hirsh.ui.components.PdfDownload
 import com.cramsan.hirsh.ui.preview.PreviewComponent
 import com.cramsan.hirsh.ui.preview.PreviewResponsive
 import com.cramsan.hirsh.ui.theme.HirshTheme
@@ -99,6 +100,7 @@ private fun previewUiState(
     error: String? = null,
     showCopiedConfirmation: Boolean = false,
     canApplyScale: Boolean = true,
+    pdfDownload: PdfDownload = PdfDownload.Idle,
 ) = EvolucionViewUiState(
     isLoading = false,
     patient = previewPatient,
@@ -110,6 +112,8 @@ private fun previewUiState(
     sisText = evolucionSisText(previewPatient, evolucion),
     showCopiedConfirmation = showCopiedConfirmation,
     canApplyScale = canApplyScale,
+    canDownloadPdf = evolucion.status == NoteStatus.SIGNED,
+    pdfDownload = pdfDownload,
 )
 
 @PreviewResponsive
@@ -233,6 +237,32 @@ private fun EvolucionPrintablePreview() {
             hospitalizacion = hospitalizacion,
             evolucion = evolucion,
             onBack = {},
+        )
+    }
+}
+
+/** A finished "Descargar PDF": the button is back and the status line says where the file went. */
+@PreviewResponsive
+@Composable
+private fun EvolucionViewScreenPdfSavedPreview() {
+    val evolucion = previewEvolucion(previewExamenes)
+    val hospitalizacion = previewHospitalizacion(evolucion)
+    HirshTheme {
+        EvolucionViewScreenContent(
+            uiState = previewUiState(
+                hospitalizacion,
+                evolucion,
+                pdfDownload = PdfDownload.Saved("/home/dr/Downloads/evolucion-HC-00135-20260618.pdf"),
+            ),
+            onClose = {},
+            onOpenPrintPreview = {},
+            onClosePrintPreview = {},
+            onSelectTab = {},
+            onRetry = {},
+            onSign = {},
+            onCopiedForSis = {},
+            onCopyForSisFailed = {},
+            onApplyScale = {},
         )
     }
 }

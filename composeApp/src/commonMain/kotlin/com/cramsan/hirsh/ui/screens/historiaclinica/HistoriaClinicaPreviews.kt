@@ -153,6 +153,7 @@ private fun previewUiState(
     isReadOnly = historiaClinica.status == NoteStatus.SIGNED,
     canSign = canSign,
     error = error,
+    canDownloadPdf = historiaClinica.status == NoteStatus.SIGNED,
 )
 
 @PreviewResponsive

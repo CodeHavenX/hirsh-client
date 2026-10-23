@@ -12,18 +12,20 @@ import com.cramsan.hirsh.repository.DefaultSessionRepository
 import com.cramsan.hirsh.repository.DrugRepository
 import com.cramsan.hirsh.repository.EpisodeRepository
 import com.cramsan.hirsh.repository.Icd10Repository
+import com.cramsan.hirsh.repository.KtorAccessLogRepository
+import com.cramsan.hirsh.repository.KtorAccountRepository
 import com.cramsan.hirsh.repository.KtorAdmissionCatalogRepository
 import com.cramsan.hirsh.repository.KtorAuthRepository
 import com.cramsan.hirsh.repository.KtorClinicalNoteRepository
 import com.cramsan.hirsh.repository.KtorDrugRepository
 import com.cramsan.hirsh.repository.KtorEpisodeRepository
 import com.cramsan.hirsh.repository.KtorIcd10Repository
-import com.cramsan.hirsh.repository.KtorAccessLogRepository
-import com.cramsan.hirsh.repository.KtorAccountRepository
 import com.cramsan.hirsh.repository.KtorPatientRepository
+import com.cramsan.hirsh.repository.KtorPdfExportRepository
 import com.cramsan.hirsh.repository.KtorScaleRepository
 import com.cramsan.hirsh.repository.KtorTreatmentRepository
 import com.cramsan.hirsh.repository.PatientRepository
+import com.cramsan.hirsh.repository.PdfExportRepository
 import com.cramsan.hirsh.repository.ScaleRepository
 import com.cramsan.hirsh.repository.SessionRepository
 import com.cramsan.hirsh.repository.TreatmentRepository
@@ -99,6 +101,7 @@ private val sharedModule = module {
     singleOf(::KtorScaleRepository) bind ScaleRepository::class
     singleOf(::KtorDrugRepository) bind DrugRepository::class
     singleOf(::KtorTreatmentRepository) bind TreatmentRepository::class
+    single<PdfExportRepository> { KtorPdfExportRepository(get(), get()) }
     singleOf(::DefaultClock) bind Clock::class
 
     viewModelOf(::LoginViewModel)
