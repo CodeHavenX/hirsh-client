@@ -37,6 +37,7 @@ import com.cramsan.hirsh.ui.screens.patientlist.PatientListViewModel
 import com.cramsan.hirsh.ui.screens.patientrecord.PatientRecordViewModel
 import com.cramsan.hirsh.ui.screens.patientregister.RegisterPatientViewModel
 import com.cramsan.hirsh.ui.screens.profile.ProfileViewModel
+import com.cramsan.hirsh.ui.screens.scaleapply.ApplyScaleViewModel
 import com.cramsan.hirsh.util.Clock
 import com.cramsan.hirsh.util.DefaultClock
 import io.ktor.client.HttpClient
@@ -106,6 +107,7 @@ private val sharedModule = module {
     viewModelOf(::DischargeViewModel)
     viewModelOf(::NuevaEvolucionViewModel)
     viewModelOf(::EvolucionViewViewModel)
+    viewModelOf(::ApplyScaleViewModel)
     viewModelOf(::HistoriaClinicaViewModel)
     viewModelOf(::AccountsViewModel)
 }

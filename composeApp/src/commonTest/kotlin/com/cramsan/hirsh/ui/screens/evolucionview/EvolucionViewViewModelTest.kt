@@ -508,6 +508,22 @@ class EvolucionViewViewModelTest {
         assertEquals(EVO_COPY_ERROR, viewModel.uiState.value.error)
     }
 
+    @Test
+    fun `someone who can apply tests may apply a scale during an active stay`() = runTest(dispatcher) {
+        val notes = FakeClinicalNoteRepository(mapOf("h1" to listOf(sampleEvolucion("evo1"))))
+        val viewModel = draftViewModel(notes, signerSession.copy(permissions = setOf(Permission.TEST_WRITE.name)))
+
+        assertEquals(true, viewModel.uiState.value.canApplyScale)
+    }
+
+    @Test
+    fun `without the test permission no scale is offered`() = runTest(dispatcher) {
+        val notes = FakeClinicalNoteRepository(mapOf("h1" to listOf(sampleEvolucion("evo1"))))
+        val viewModel = draftViewModel(notes, signerSession)
+
+        assertEquals(false, viewModel.uiState.value.canApplyScale)
+    }
+
     private fun TestScope.draftViewModel(notes: FakeClinicalNoteRepository, session: Session): EvolucionViewViewModel {
         val viewModel = EvolucionViewViewModel(
             FakePatientRepository(listOf(samplePatient)),

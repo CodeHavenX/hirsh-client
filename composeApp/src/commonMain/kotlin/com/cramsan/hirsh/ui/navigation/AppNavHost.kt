@@ -29,6 +29,7 @@ import com.cramsan.hirsh.ui.screens.admision.AdmisionScreen
 import com.cramsan.hirsh.ui.screens.discharge.DischargeScreen
 import com.cramsan.hirsh.ui.screens.evolucionnew.NuevaEvolucionScreen
 import com.cramsan.hirsh.ui.screens.evolucionview.EvolucionViewScreen
+import com.cramsan.hirsh.ui.screens.scaleapply.ApplyScaleScreen
 import com.cramsan.hirsh.ui.screens.historiaclinica.HistoriaClinicaScreen
 import com.cramsan.hirsh.ui.screens.hospitalization.HospitalizationScreen
 import com.cramsan.hirsh.ui.screens.login.LoginScreen
@@ -339,6 +340,28 @@ fun AppNavHost(
                     hospId = hospId,
                     evoId = evoId,
                     onClose = { navController.popBackStack() },
+                    onApplyScale = { navController.navigate(Routes.scaleApply(patientId, hospId, evoId)) },
+                )
+            }
+        }
+        composable(
+            route = Routes.SCALE_APPLY,
+            arguments = listOf(
+                navArgument("patientId") { type = NavType.StringType },
+                navArgument("hospId") { type = NavType.StringType },
+                navArgument("evoId") { type = NavType.StringType },
+            ),
+        ) { backStackEntry ->
+            val patientId = decodeRouteSegment(backStackEntry.arguments?.read { getString("patientId") }.orEmpty())
+            val hospId = decodeRouteSegment(backStackEntry.arguments?.read { getString("hospId") }.orEmpty())
+            val evoId = decodeRouteSegment(backStackEntry.arguments?.read { getString("evoId") }.orEmpty())
+            RequireSession(session, navController) {
+                ApplyScaleScreen(
+                    patientId = patientId,
+                    hospId = hospId,
+                    evoId = evoId,
+                    onClose = { navController.popBackStack() },
+                    onSaved = { navController.popBackStack() },
                 )
             }
         }
