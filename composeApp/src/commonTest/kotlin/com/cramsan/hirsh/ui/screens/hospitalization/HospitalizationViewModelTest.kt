@@ -7,6 +7,15 @@ import com.cramsan.hirsh.ui.components.LoadError
 import com.cramsan.hirsh.network.ApiException
 import com.cramsan.hirsh.network.ApiError
 import app.cash.turbine.test
+import com.cramsan.hirsh.model.AppliedScale
+import com.cramsan.hirsh.model.Permission
+import com.cramsan.hirsh.model.ScaleDefinition
+import com.cramsan.hirsh.model.ScaleScore
+import com.cramsan.hirsh.model.ScaleSeverity
+import com.cramsan.hirsh.model.ScaleSummary
+import com.cramsan.hirsh.model.Session
+import com.cramsan.hirsh.repository.ScaleRepository
+import com.cramsan.hirsh.repository.SessionRepository
 import com.cramsan.hirsh.model.Allergy
 import com.cramsan.hirsh.model.AllergyType
 import com.cramsan.hirsh.model.BedRef
@@ -163,6 +172,64 @@ private class FakeClinicalNoteRepository(historiasClinicas: Map<String, Historia
     override suspend fun addEvolucion(hospId: String, evolucion: Evolucion): Evolucion = evolucion
 }
 
+private class FakeScaleRepository(applied: List<AppliedScale> = emptyList()) : ScaleRepository {
+    val applied = MutableStateFlow(applied)
+    var readFailure: Throwable? = null
+
+    override suspend fun getScales(): List<ScaleSummary> = emptyList()
+
+    override suspend fun getScale(scaleId: String): ScaleDefinition = error("not used by this test")
+
+    override suspend fun previewScore(scaleId: String, answers: Map<String, Int>): ScaleScore = error("not used by this test")
+
+    override suspend fun applyScale(
+        hospId: String,
+        documentId: String,
+        scaleId: String,
+        answers: Map<String, Int>,
+        observations: String?,
+    ): AppliedScale = error("not used by this test")
+
+    override fun getAppliedScales(hospId: String): Flow<List<AppliedScale>> = flow {
+        readFailure?.let { throw it }
+        emitAll(applied)
+    }
+}
+
+private class FakeSessionRepository(session: Session?) : SessionRepository {
+    override val session: StateFlow<Session?> = MutableStateFlow(session).asStateFlow()
+    override val isRestoring: StateFlow<Boolean> = MutableStateFlow(false).asStateFlow()
+    override suspend fun login(username: String, password: String): Result<Session> = error("not used by this test")
+    override suspend fun restore() = Unit
+    override suspend fun logout() = Unit
+    override fun forceLogout() = Unit
+}
+
+private val testReaderSession = Session(
+    username = "drpatel",
+    displayName = "Dr. A. Patel",
+    permissions = setOf(Permission.TEST_READ.name),
+)
+
+private fun sampleAppliedScale(id: String, total: Double) = AppliedScale(
+    id = id,
+    documentId = "evo1",
+    scaleCode = "PHQ-9",
+    scaleName = "PHQ-9",
+    appliedAt = Instant.parse("2026-04-12T10:00:00Z"),
+    appliedBy = "Dr. Patel",
+    score = ScaleScore(total, ScaleSeverity.MODERATE, null, raisesSuicideAlert = false),
+    observations = null,
+)
+
+private fun newViewModel(
+    patients: PatientRepository,
+    episodes: EpisodeRepository,
+    notes: ClinicalNoteRepository,
+    scales: ScaleRepository = FakeScaleRepository(),
+    session: Session? = null,
+) = HospitalizationViewModel(patients, episodes, notes, scales, FakeSessionRepository(session))
+
 @OptIn(ExperimentalCoroutinesApi::class)
 class HospitalizationViewModelTest {
 
@@ -181,7 +248,7 @@ class HospitalizationViewModelTest {
     @Test
     fun `load populates patient and hospitalizacion`() = runTest(dispatcher) {
         val hospitalization = sampleHospitalization("h1", samplePatient.id)
-        val viewModel = HospitalizationViewModel(
+        val viewModel = newViewModel(
             FakePatientRepository(listOf(samplePatient)),
             FakeEpisodeRepository(listOf(hospitalization)),
             FakeClinicalNoteRepository(),
@@ -200,7 +267,7 @@ class HospitalizationViewModelTest {
     @Test
     fun `load produces not-found when the hospId belongs to a different patient`() = runTest(dispatcher) {
         val hospitalization = sampleHospitalization("h1", "other-patient-id")
-        val viewModel = HospitalizationViewModel(
+        val viewModel = newViewModel(
             FakePatientRepository(listOf(samplePatient)),
             FakeEpisodeRepository(listOf(hospitalization)),
             FakeClinicalNoteRepository(),
@@ -218,7 +285,7 @@ class HospitalizationViewModelTest {
 
     @Test
     fun `load produces not-found when the patient does not exist`() = runTest(dispatcher) {
-        val viewModel = HospitalizationViewModel(
+        val viewModel = newViewModel(
             FakePatientRepository(emptyList()),
             FakeEpisodeRepository(),
             FakeClinicalNoteRepository(),
@@ -238,7 +305,7 @@ class HospitalizationViewModelTest {
     fun `a discharge through the repository reaches the open stay without calling load again`() = runTest(dispatcher) {
         val hospitalization = sampleHospitalization("h1", samplePatient.id)
         val episodeRepository = FakeEpisodeRepository(listOf(hospitalization))
-        val viewModel = HospitalizationViewModel(
+        val viewModel = newViewModel(
             FakePatientRepository(listOf(samplePatient)),
             episodeRepository,
             FakeClinicalNoteRepository(),
@@ -264,7 +331,7 @@ class HospitalizationViewModelTest {
             val hospitalization = sampleHospitalization("h1", samplePatient.id)
             val started = HistoriaClinica(filiacion = HcSection(complete = true, data = null))
             val notes = FakeClinicalNoteRepository(mapOf("h1" to started))
-            val viewModel = HospitalizationViewModel(
+            val viewModel = newViewModel(
                 FakePatientRepository(listOf(samplePatient)),
                 FakeEpisodeRepository(listOf(hospitalization)),
                 notes,
@@ -285,7 +352,7 @@ class HospitalizationViewModelTest {
     @Test
     fun `a failed read shows a load error instead of crashing`() = runTest(dispatcher) {
         val patients = FakePatientRepository(listOf(samplePatient)).apply { failure = ApiException(ApiError.Forbidden) }
-        val viewModel = HospitalizationViewModel(patients, FakeEpisodeRepository(listOf(sampleHospitalization("h1", samplePatient.id))), FakeClinicalNoteRepository())
+        val viewModel = newViewModel(patients, FakeEpisodeRepository(listOf(sampleHospitalization("h1", samplePatient.id))), FakeClinicalNoteRepository())
         backgroundScope.launch { viewModel.uiState.collect {} }
         viewModel.load(samplePatient.id, "h1")
         advanceUntilIdle()
@@ -298,7 +365,7 @@ class HospitalizationViewModelTest {
     @Test
     fun `retry loads again after a failure`() = runTest(dispatcher) {
         val patients = FakePatientRepository(listOf(samplePatient)).apply { failure = RuntimeException("Connection refused") }
-        val viewModel = HospitalizationViewModel(patients, FakeEpisodeRepository(listOf(sampleHospitalization("h1", samplePatient.id))), FakeClinicalNoteRepository())
+        val viewModel = newViewModel(patients, FakeEpisodeRepository(listOf(sampleHospitalization("h1", samplePatient.id))), FakeClinicalNoteRepository())
         backgroundScope.launch { viewModel.uiState.collect {} }
         viewModel.load(samplePatient.id, "h1")
         advanceUntilIdle()
@@ -311,5 +378,61 @@ class HospitalizationViewModelTest {
         val state = viewModel.uiState.value
         assertNull(state.loadError)
         assertEquals(samplePatient, state.patient)
+    }
+
+    @Test
+    fun `applied scales stay hidden without permission to read test results`() = runTest(dispatcher) {
+        val viewModel = newViewModel(
+            FakePatientRepository(listOf(samplePatient)),
+            FakeEpisodeRepository(listOf(sampleHospitalization("h1", samplePatient.id))),
+            FakeClinicalNoteRepository(),
+            FakeScaleRepository(listOf(sampleAppliedScale("a1", 12.0))),
+        )
+        backgroundScope.launch { viewModel.uiState.collect {} }
+        viewModel.load(samplePatient.id, "h1")
+        advanceUntilIdle()
+
+        assertEquals(AppliedScalesSection.Hidden, viewModel.uiState.value.scales)
+    }
+
+    @Test
+    fun `the stay shows its applied scales, and follows new ones without calling load again`() = runTest(dispatcher) {
+        val scales = FakeScaleRepository(listOf(sampleAppliedScale("a1", 18.0)))
+        val viewModel = newViewModel(
+            FakePatientRepository(listOf(samplePatient)),
+            FakeEpisodeRepository(listOf(sampleHospitalization("h1", samplePatient.id))),
+            FakeClinicalNoteRepository(),
+            scales,
+            testReaderSession,
+        )
+        backgroundScope.launch { viewModel.uiState.collect {} }
+        viewModel.load(samplePatient.id, "h1")
+        advanceUntilIdle()
+        assertEquals(AppliedScalesSection.Loaded(listOf(sampleAppliedScale("a1", 18.0))), viewModel.uiState.value.scales)
+
+        scales.applied.update { listOf(sampleAppliedScale("a2", 9.0)) + it }
+        advanceUntilIdle()
+
+        assertEquals(listOf("a2", "a1"), (viewModel.uiState.value.scales as AppliedScalesSection.Loaded).scales.map { it.id })
+    }
+
+    @Test
+    fun `a failed read of the applied scales leaves the rest of the stay on screen`() = runTest(dispatcher) {
+        val hospitalization = sampleHospitalization("h1", samplePatient.id)
+        val viewModel = newViewModel(
+            FakePatientRepository(listOf(samplePatient)),
+            FakeEpisodeRepository(listOf(hospitalization)),
+            FakeClinicalNoteRepository(),
+            FakeScaleRepository().apply { readFailure = RuntimeException("Connection refused") },
+            testReaderSession,
+        )
+        backgroundScope.launch { viewModel.uiState.collect {} }
+        viewModel.load(samplePatient.id, "h1")
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(AppliedScalesSection.Failed, state.scales)
+        assertEquals(hospitalization, state.hospitalizacion)
+        assertNull(state.loadError)
     }
 }
