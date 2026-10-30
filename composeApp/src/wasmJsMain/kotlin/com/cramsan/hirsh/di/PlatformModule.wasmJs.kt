@@ -19,8 +19,8 @@ actual val platformModule: Module = module {
             //
             // Without this, the browser's fetch() call defaults `credentials` to
             // "same-origin", so JSESSIONID/XSRF-TOKEN are never sent or stored on a
-            // cross-origin request (client and backend are always different origins in this
-            // app -- see ApiConfig.BASE_URL) -- regardless of installing HttpCookies. Requires
+            // cross-origin request (client and backend are different origins in local web dev
+            // -- see apiBaseUrl()) -- regardless of installing HttpCookies. Requires
             // Ktor 3.2+; JsClientEngineConfig.configureRequest doesn't exist before that.
             @Suppress("UNCHECKED_CAST")
             (this as JsClientEngineConfig).configureRequest {
