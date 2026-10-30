@@ -83,6 +83,21 @@ CORS and need nothing extra.
 iOS: open `iosApp/iosApp.xcodeproj` in Xcode and run. First build will be
 slow (compiles the KMP framework for the simulator/device architecture).
 
+## Deploying the web client
+
+`deploy/web.Dockerfile` builds the wasmJs distribution (no Android SDK needed) and
+serves it from nginx. nginx also proxies `/api/` to a `backend` service
+(`deploy/nginx.conf`), so the page and the API share one origin. That matters: the
+backend's session cookie is `SameSite=Lax`, so a client on a different site from the
+backend can't log in.
+
+The image adds `<meta name="hiss-api-base-url" content="">` to `index.html`. A blank
+value tells the app to call its own origin; with no tag (the dev server), it calls
+`ApiConfig.BASE_URL` as usual (`network/ApiBaseUrl.wasmJs.kt`).
+
+The compose file that runs this image next to Postgres and the backend lives in the
+backend repo (`docker-compose.deploy.yml`); see its README.
+
 ## Lint (detekt)
 
 `detekt-rules/` is a small Gradle module with project-specific detekt rules,

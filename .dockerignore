@@ -1,0 +1,9 @@
+**/build
+.gradle
+.kotlin
+.idea
+.git
+local.properties
+iosApp
+prototype
+composeApp/screenshots

@@ -1,7 +1,7 @@
 package com.cramsan.hirsh.di
 
-import com.cramsan.hirsh.network.ApiConfig
 import com.cramsan.hirsh.network.XsrfHeaderPlugin
+import com.cramsan.hirsh.network.apiBaseUrl
 import com.cramsan.hirsh.network.installApiErrorValidator
 import com.cramsan.hirsh.repository.AccessLogRepository
 import com.cramsan.hirsh.repository.AccountRepository
@@ -85,7 +85,7 @@ private val sharedModule = module {
             install(HttpCookies)
             install(XsrfHeaderPlugin)
             installApiErrorValidator(onUnauthorized = { sessionRepositoryProvider().forceLogout() })
-            defaultRequest { url(ApiConfig.BASE_URL) }
+            defaultRequest { url(apiBaseUrl()) }
             engine(engineTuning)
         }
     }
